@@ -27,7 +27,10 @@ page 80000 "EE Fleetrock Setup"
             field("API Token"; Rec."API Token")
             {
                 ApplicationArea = All;
-                Editable = false;
+            }
+            field("API Token Expiry Date"; Rec."API Token Expiry Date")
+            {
+                ApplicationArea = all;
             }
         }
     }
@@ -36,11 +39,13 @@ page 80000 "EE Fleetrock Setup"
     {
         area(Processing)
         {
-            action("Get API Token")
+            action("Refresh API Token")
             {
                 ApplicationArea = All;
                 Promoted = true;
                 PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
                 Image = Refresh;
 
                 trigger OnAction()

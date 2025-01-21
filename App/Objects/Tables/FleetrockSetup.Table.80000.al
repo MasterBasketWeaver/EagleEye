@@ -27,6 +27,12 @@ table 80000 "EE Fleetrock Setup"
         field(5; "API Token"; Text[256])
         {
             DataClassification = CustomerContent;
+            Editable = false;
+        }
+        field(6; "API Token Expiry Date"; Date)
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
         }
     }
 

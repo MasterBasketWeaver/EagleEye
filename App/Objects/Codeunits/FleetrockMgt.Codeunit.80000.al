@@ -39,7 +39,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         FleetrockSetup.TestField("Integration URL");
         FleetrockSetup.TestField("Username");
         FleetrockSetup.TestField("API Key");
-        if FleetrockSetup."API Token" <> '' then
+        if (FleetrockSetup."API Token" <> '') and (FleetrockSetup."API Token Expiry Date" >= Today()) then
             exit(FleetrockSetup."API Token");
         exit(CheckToGetAPIToken(FleetrockSetup));
     end;
@@ -59,6 +59,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         end;
         JsonTkn.WriteTo(FleetrockSetup."API Token");
         FleetrockSetup.Validate("API Token", FleetrockSetup."API Token".Replace('"', ''));
+        FleetrockSetup.Validate("API Token Expiry Date", CalcDate('<+180D>', Today()));
         FleetrockSetup.Modify(true);
         exit(FleetrockSetup."API Token");
     end;
