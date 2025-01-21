@@ -55,6 +55,22 @@ page 80000 "EE Fleetrock Setup"
                     Message(FleetrockMgt.CheckToGetAPIToken(Rec));
                 end;
             }
+            action("Get Units")
+            {
+                ApplicationArea = All;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                Image = Union;
+
+                trigger OnAction()
+                var
+                    FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
+                begin
+                    FleetrockMgt.GetUnits();
+                end;
+            }
         }
     }
 
