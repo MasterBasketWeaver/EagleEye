@@ -106,10 +106,6 @@ codeunit 80000 "EE Fleetrock Mgt."
     begin
         if not SendRequest('GET', URL, ResponseText) then
             Error(ResponseText);
-
-        if not Confirm(ResponseText) then
-            Error('');
-
         JsonObj.ReadFrom(ResponseText);
         if not JsonObj.Get(TokenName, JsonTkn) then begin
             JsonObj.WriteTo(ResponseText);
