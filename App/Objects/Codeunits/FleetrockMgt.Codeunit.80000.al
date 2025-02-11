@@ -64,6 +64,108 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
 
+    procedure CreatePurchaseOrder(var OrderJsonObj: JsonObject)
+    var
+        PurchHeaderStaging: Record "EE Purch. Header Staging";
+        EntryNo: Integer;
+    begin
+        if PurchHeaderStaging.FindLast() then
+            EntryNo := PurchHeaderStaging."Entry No.";
+        EntryNo += 1;
+        if not TryToInsertPurchStaging(OrderJsonObj, EntryNo) then begin
+            if not PurchHeaderStaging.Get(EntryNo) then begin
+                PurchHeaderStaging.Init();
+                PurchHeaderStaging."Entry No." := EntryNo;
+                PurchHeaderStaging.Insert(true);
+            end;
+            PurchHeaderStaging."Insert Error" := true;
+            PurchHeaderStaging."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(PurchHeaderStaging."Error Message"));
+            PurchHeaderStaging.Modify(true);
+        end;
+    end;
+
+
+    [TryFunction]
+    local procedure TryToInsertPurchStaging(var OrderJsonObj: JsonObject; EntryNo: Integer)
+    var
+        PurchHeaderStaging: Record "EE Purch. Header Staging";
+        PurchLineStaging: Record "EE Purch. Line Staging";
+        Lines: JsonArray;
+        LineJsonObj: JsonObject;
+        T: JsonToken;
+    begin
+        PurchHeaderStaging.Init();
+        PurchHeaderStaging."Entry No." := EntryNo;
+        PurchHeaderStaging.id := GetJsonValueAsText(OrderJsonObj, 'id');
+        PurchHeaderStaging.supplier_name := GetJsonValueAsText(OrderJsonObj, 'supplier_name');
+        PurchHeaderStaging.supplier_custom_id := GetJsonValueAsText(OrderJsonObj, 'supplier_custom_id');
+        PurchHeaderStaging.recipient_name := GetJsonValueAsText(OrderJsonObj, 'recipient_name');
+        PurchHeaderStaging.tag := GetJsonValueAsText(OrderJsonObj, 'tag');
+        PurchHeaderStaging.status := GetJsonValueAsText(OrderJsonObj, 'status');
+        PurchHeaderStaging.date_created := GetJsonValueAsText(OrderJsonObj, 'date_created');
+        PurchHeaderStaging.date_opened := GetJsonValueAsText(OrderJsonObj, 'date_opened');
+        PurchHeaderStaging.date_received := GetJsonValueAsText(OrderJsonObj, 'date_received');
+        PurchHeaderStaging.date_closed := GetJsonValueAsText(OrderJsonObj, 'date_closed');
+        PurchHeaderStaging.payment_term_days := GetJsonValueAsDecimal(OrderJsonObj, 'payment_term_days');
+        PurchHeaderStaging.invoice_number := GetJsonValueAsText(OrderJsonObj, 'invoice_number');
+        PurchHeaderStaging.subtotal := GetJsonValueAsDecimal(OrderJsonObj, 'subtotal');
+        PurchHeaderStaging.tax_total := GetJsonValueAsDecimal(OrderJsonObj, 'tax_total');
+        PurchHeaderStaging.shipping_total := GetJsonValueAsDecimal(OrderJsonObj, 'shipping_total');
+        PurchHeaderStaging.other_total := GetJsonValueAsDecimal(OrderJsonObj, 'other_total');
+        PurchHeaderStaging.grand_total := GetJsonValueAsDecimal(OrderJsonObj, 'grand_total');
+        PurchHeaderStaging.FormatDateValues();
+        PurchHeaderStaging.Insert(true);
+
+
+        if PurchLineStaging.FindLast() then
+            EntryNo := PurchLineStaging."Entry No."
+        else
+            EntryNo := 0;
+
+        OrderJsonObj.Get('line_items', T);
+        Lines := T.AsArray();
+        foreach T in Lines do begin
+            EntryNo += 1;
+            LineJsonObj := T.AsObject();
+            PurchLineStaging.Init();
+            PurchLineStaging."Entry No." := EntryNo;
+            PurchLineStaging."Header Entry No." := PurchHeaderStaging."Entry No.";
+            PurchLineStaging.id := PurchHeaderStaging.id;
+            PurchLineStaging.part_id := GetJsonValueAsText(LineJsonObj, 'part_id');
+            PurchLineStaging.part_number := GetJsonValueAsText(LineJsonObj, 'part_number');
+            PurchLineStaging.part_description := GetJsonValueAsText(LineJsonObj, 'part_description');
+            PurchLineStaging.part_system_code := GetJsonValueAsText(LineJsonObj, 'part_system_code');
+            PurchLineStaging.part_type := GetJsonValueAsText(LineJsonObj, 'part_type');
+            PurchLineStaging.tag := GetJsonValueAsText(LineJsonObj, 'tag');
+            PurchLineStaging.part_quantity := GetJsonValueAsDecimal(LineJsonObj, 'part_quantity');
+            PurchLineStaging.unit_price := GetJsonValueAsDecimal(LineJsonObj, 'unit_price');
+            PurchLineStaging.line_total := GetJsonValueAsDecimal(LineJsonObj, 'line_total');
+            PurchLineStaging.date_added := GetJsonValueAsText(LineJsonObj, 'date_added');
+            PurchLineStaging.FormatDateValues();
+            PurchLineStaging.Insert(true);
+        end;
+
+    end;
+
+
+    local procedure GetJsonValueAsText(var JsonObj: JsonObject; KeyName: Text): Text
+    var
+        T: JsonToken;
+    begin
+        JsonObj.Get(KeyName, T);
+        exit(T.AsValue().AsText());
+    end;
+
+    local procedure GetJsonValueAsDecimal(var JsonObj: JsonObject; KeyName: Text): Decimal
+    var
+        T: JsonToken;
+    begin
+        JsonObj.Get(KeyName, T);
+        exit(T.AsValue().AsDecimal());
+    end;
+
+
+
 
     procedure GetUnits()
     var
@@ -77,6 +179,32 @@ codeunit 80000 "EE Fleetrock Mgt."
         foreach T in JsonArry do begin
             UnitJsonObj := T.AsObject();
         end;
+    end;
+
+
+    procedure GetSuppliers()
+    var
+        APIToken: Text;
+        JsonArry: JsonArray;
+        T: JsonToken;
+        UnitJsonObj: JsonObject;
+    begin
+        APIToken := CheckToGetAPIToken();
+        JsonArry := GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetSuppliers?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, APIToken), 'suppliers');
+
+        Message(Format(JsonArry));
+
+        // foreach T in JsonArry do begin
+        //     UnitJsonObj := T.AsObject();
+        // end;
+    end;
+
+    procedure GetPurchaseOrders(Status: Enum "EE Purch. Order Status"): JsonArray
+    var
+        APIToken: Text;
+    begin
+        APIToken := CheckToGetAPIToken();
+        exit(GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetPO?username=%2&status=%3&token=%4', FleetrockSetup."Integration URL", FleetrockSetup.Username, Status, APIToken), 'purchase_orders'));
     end;
 
 

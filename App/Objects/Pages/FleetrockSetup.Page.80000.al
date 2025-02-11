@@ -71,6 +71,38 @@ page 80000 "EE Fleetrock Setup"
                     FleetrockMgt.GetUnits();
                 end;
             }
+            action("Get Suppliers")
+            {
+                ApplicationArea = All;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                Image = Vendor;
+
+                trigger OnAction()
+                var
+                    FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
+                begin
+                    FleetrockMgt.GetSuppliers();
+                end;
+            }
+            action("Get Open POs")
+            {
+                ApplicationArea = All;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                Image = Purchase;
+
+                trigger OnAction()
+                var
+                    FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
+                begin
+                    FleetrockMgt.GetPurchaseOrders(Enum::"EE Purch. Order Status"::Open);
+                end;
+            }
         }
     }
 
