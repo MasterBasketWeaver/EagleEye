@@ -17,10 +17,6 @@ codeunit 80001 "EE Get Closed Purch. Order"
             OrderJsonObj.Get('id', T);
             JsonVal := T.AsValue();
             s := JsonVal.AsText();
-
-            if not Confirm('%1 -> %2', false, s, FleetRockMgt.CheckIfAlreadyImported(s, PurchaseHeader, false)) then
-                Error('');
-
             if not FleetRockMgt.CheckIfAlreadyImported(s, PurchaseHeader, false) then
                 FleetRockMgt.InsertStagingRecords(OrderJsonObj);
         end;
