@@ -38,7 +38,6 @@ codeunit 80000 "EE Fleetrock Mgt."
         FleetrockSetup.TestField("API Key");
     end;
 
-
     procedure CheckToGetAPIToken(): Text
     var
         ResponseText: Text;
@@ -64,7 +63,7 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
 
-    procedure CreatePurchaseOrder(var OrderJsonObj: JsonObject)
+    procedure InsertStagingRecords(var OrderJsonObj: JsonObject)
     var
         PurchHeaderStaging: Record "EE Purch. Header Staging";
         EntryNo: Integer;
@@ -82,6 +81,155 @@ codeunit 80000 "EE Fleetrock Mgt."
             PurchHeaderStaging."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(PurchHeaderStaging."Error Message"));
             PurchHeaderStaging.Modify(true);
         end;
+        PurchHeaderStaging.Get(EntryNo);
+        if PurchHeaderStaging.Processed then
+            Error('Purchase Order %1 has already been processed.', PurchHeaderStaging."Entry No.");
+        CreatePurchaseOrder(PurchHeaderStaging);
+    end;
+
+    procedure CreatePurchaseOrder(var PurchHeaderStaging: Record "EE Purch. Header Staging")
+    var
+        PurchaseHeader: Record "Purchase Header";
+        DocNo: Code[20];
+    begin
+        GetAndCheckSetup();
+        FleetrockSetup.TestField("Item G/L Account No.");
+        FleetrockSetup.TestField("Vendor Posting Group");
+        if not TryToCreatePurchaseOrder(PurchHeaderStaging, DocNo) then begin
+            PurchHeaderStaging."Processed Error" := true;
+            PurchHeaderStaging."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(PurchHeaderStaging."Error Message"));
+            if PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, DocNo) then
+                PurchaseHeader.Delete(true);
+        end else begin
+            PurchHeaderStaging."Processed Error" := false;
+            PurchHeaderStaging."Document No." := DocNo;
+        end;
+        PurchHeaderStaging.Modify(true);
+    end;
+
+
+    [TryFunction]
+    local procedure TryToCreatePurchaseOrder(var PurchHeaderStaging: Record "EE Purch. Header Staging"; var DocNo: Code[20])
+    var
+        PurchaseHeader: Record "Purchase Header";
+    begin
+        CheckIfAlreadyImported(PurchHeaderStaging.id, PurchaseHeader);
+        PurchaseHeader.Init();
+        PurchaseHeader.Validate("Document Type", Enum::"Purchase Document Type"::Order);
+        PurchaseHeader.Validate("Posting Date", DT2Date(PurchHeaderStaging.Closed));
+        PurchaseHeader.Insert(true);
+        DocNo := PurchaseHeader."No.";
+
+        PurchaseHeader.Validate("Buy-from Vendor No.", GetVendorNo(PurchHeaderStaging));
+        PurchaseHeader.Validate("Payment Terms Code", GetPaymentTerms(PurchHeaderStaging));
+        PurchaseHeader.Validate("EE Fleetrock ID", PurchHeaderStaging.id);
+        PurchaseHeader.Modify(true);
+        CreatePurchaseLines(PurchHeaderStaging, DocNo);
+    end;
+
+
+    procedure CheckIfAlreadyImported(ImportId: Text; var PurchaseHeader: Record "Purchase Header"): Boolean
+    begin
+        exit(CheckIfAlreadyImported(ImportId, PurchaseHeader, true));
+    end;
+
+    procedure CheckIfAlreadyImported(ImportId: Text; var PurchaseHeader: Record "Purchase Header"; ShowAsError: Boolean): Boolean
+    var
+        PurchInvHeader: Record "Purch. Inv. Header";
+    begin
+        PurchaseHeader.SetCurrentKey("EE Fleetrock ID");
+        PurchaseHeader.SetRange("EE Fleetrock ID", ImportId);
+        if PurchaseHeader.FindFirst() then
+            if ShowAsError then
+                Error('Fleetrock Purchase Order %1 has already been imported as order %2.', ImportId, PurchaseHeader."No.")
+            else
+                exit(true);
+        PurchInvHeader.SetCurrentKey("EE Fleetrock ID");
+        PurchInvHeader.SetRange("EE Fleetrock ID", ImportId);
+        if PurchInvHeader.FindFirst() then
+            if ShowAsError then
+                Error('Fleetrock Purchase Order %1 has already been imported as order %2, and posted as invoice %3.', ImportId, PurchInvHeader."Order No.", PurchInvHeader."No.")
+            else
+                exit(true);
+        exit(false);
+    end;
+
+    local procedure CreatePurchaseLines(var PurchHeaderStaging: Record "EE Purch. Header Staging"; DocNo: Code[20])
+    var
+        PurchaseLine: Record "Purchase Line";
+        PurchLineStaging: Record "EE Purch. Line Staging";
+        LineNo: Integer;
+    begin
+        PurchLineStaging.SetRange(id, PurchHeaderStaging.id);
+        PurchLineStaging.SetRange("Header Entry No.", PurchHeaderStaging."Entry No.");
+        if not PurchLineStaging.FindSet() then
+            exit;
+        repeat
+            LineNo += 10000;
+            PurchaseLine.Init();
+            PurchaseLine.Validate("Document Type", Enum::"Purchase Document Type"::Order);
+            PurchaseLine.Validate("Document No.", DocNo);
+            PurchaseLine.Validate("Line No.", LineNo);
+            PurchaseLine.Validate(Type, PurchaseLine.Type::"G/L Account");
+            PurchaseLine.Validate("No.", FleetRockSetup."Item G/L Account No.");
+            PurchaseLine.Validate(Quantity, PurchLineStaging.part_quantity);
+            PurchaseLine.Validate("Unit Price (LCY)", PurchLineStaging.unit_price);
+            PurchaseLine.Description := CopyStr(PurchLineStaging.part_description, 1, MaxStrLen(PurchaseLine.Description));
+            PurchaseLine.Insert(true);
+        until PurchLineStaging.Next() = 0;
+    end;
+
+
+    // local procedure GetItemNo(var PurchLineStaging: Record "EE Purch. Line Staging"): Code[20]
+    // var
+    //     Item: Record Item;
+    // begin
+    //     if PurchLineStaging.part_number = '' then
+    //         Error('Part Number must be specified for entry %1.', PurchLineStaging."Entry No.");
+    // end;
+
+
+    local procedure GetVendorNo(var PurchHeaderStaging: Record "EE Purch. Header Staging"): Code[20]
+    var
+        Vendor: Record Vendor;
+    begin
+        if PurchHeaderStaging.supplier_name = '' then
+            Error('Supplier Name must be specified.');
+        Vendor.SetRange("EE Source Type", Vendor."EE Source Type"::Fleetrock);
+        Vendor.SetRange("EE Source No.", PurchHeaderStaging.supplier_name);
+        if Vendor.FindFirst() then
+            exit(Vendor."No.");
+        Vendor.Init();
+        Vendor.Insert(true);
+        Vendor.Validate(Name, PurchHeaderStaging.supplier_name);
+        Vendor.Validate("EE Source Type", Vendor."EE Source Type"::Fleetrock);
+        Vendor.Validate("EE Source No.", PurchHeaderStaging.supplier_name);
+        Vendor.Validate("Vendor Posting Group", FleetrockSetup."Vendor Posting Group");
+        Vendor.Modify(true);
+        exit(Vendor."No.");
+    end;
+
+    local procedure GetPaymentTerms(var PurchHeaderStaging: Record "EE Purch. Header Staging"): Code[10]
+    var
+        PaymentTerms: Record "Payment Terms";
+        DateForm: DateFormula;
+    begin
+        if PurchHeaderStaging.payment_term_days = 0 then
+            Error('Payment Term Days must be specified.');
+        PaymentTerms.SetFilter(Code, StrSubstNo('*%1*', PurchHeaderStaging.payment_term_days));
+        if PaymentTerms.FindFirst() then
+            exit(PaymentTerms.Code);
+        PaymentTerms.SetRange(Code);
+        PaymentTerms.SetFilter(Description, StrSubstNo('*%1*', PurchHeaderStaging.payment_term_days));
+        if PaymentTerms.FindFirst() then
+            exit(PaymentTerms.Code);
+        PaymentTerms.Init();
+        PaymentTerms.Validate(Code, StrSubstNo('%1D', PurchHeaderStaging.payment_term_days));
+        PaymentTerms.Validate(Description, StrSubstNo('%1 days', PurchHeaderStaging.payment_term_days));
+        Evaluate(DateForm, StrSubstNo('<%1D>', PurchHeaderStaging.payment_term_days));
+        PaymentTerms.Validate("Due Date Calculation", DateForm);
+        PaymentTerms.Insert(true);
+        exit(PaymentTerms.Code);
     end;
 
 
@@ -121,7 +269,6 @@ codeunit 80000 "EE Fleetrock Mgt."
             EntryNo := PurchLineStaging."Entry No."
         else
             EntryNo := 0;
-
         OrderJsonObj.Get('line_items', T);
         Lines := T.AsArray();
         foreach T in Lines do begin
@@ -182,21 +329,12 @@ codeunit 80000 "EE Fleetrock Mgt."
     end;
 
 
-    procedure GetSuppliers()
+    procedure GetSuppliers(): JsonArray
     var
         APIToken: Text;
-        JsonArry: JsonArray;
-        T: JsonToken;
-        UnitJsonObj: JsonObject;
     begin
         APIToken := CheckToGetAPIToken();
-        JsonArry := GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetSuppliers?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, APIToken), 'suppliers');
-
-        Message(Format(JsonArry));
-
-        // foreach T in JsonArry do begin
-        //     UnitJsonObj := T.AsObject();
-        // end;
+        exit(GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetSuppliers?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, APIToken), 'suppliers'));
     end;
 
     procedure GetPurchaseOrders(Status: Enum "EE Purch. Order Status"): JsonArray

@@ -18,6 +18,27 @@ page 80001 "EE Staged Purchased Headers"
                 {
                     ApplicationArea = All;
                 }
+                field("Document No."; Rec."Document No.")
+                {
+                    ApplicationArea = all;
+                    ToolTip = 'Specifies the Document No. of the related Purchase Order that was created from the staging record.';
+
+                    trigger OnDrillDown()
+                    var
+                        PurchaseHeader: Record "Purchase Header";
+                        PurchInvHeader: Record "Purch. Inv. Header";
+                    begin
+                        if Rec."Document No." <> '' then
+                            if PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, Rec."Document No.") then
+                                Page.Run(Page::"Purchase Order", PurchaseHeader)
+                            else begin
+                                PurchInvHeader.SetCurrentKey("Order No.");
+                                PurchInvHeader.SetRange("Order No.", Rec."Document No.");
+                                if PurchInvHeader.FindFirst() then
+                                    Page.Run(Page::"Posted Purchase Invoice", PurchInvHeader);
+                            end;
+                    end;
+                }
                 field(id; Rec.id)
                 {
                     ApplicationArea = All;
@@ -81,10 +102,12 @@ page 80001 "EE Staged Purchased Headers"
                 field(Imported; Rec.SystemCreatedAt)
                 {
                     ApplicationArea = all;
+                    Caption = 'Imported At';
                 }
                 field("Imported By"; Rec.SystemCreatedBy)
                 {
                     ApplicationArea = all;
+                    Caption = 'Imported By';
                 }
                 field(payment_term_days; Rec.payment_term_days)
                 {
@@ -114,6 +137,10 @@ page 80001 "EE Staged Purchased Headers"
                 {
                     ApplicationArea = all;
                 }
+                field(Processed; Rec.Processed)
+                {
+                    ApplicationArea = all;
+                }
                 field("Error Message"; Rec."Error Message")
                 {
                     ApplicationArea = all;
@@ -126,6 +153,43 @@ page 80001 "EE Staged Purchased Headers"
                 {
                     ApplicationArea = all;
                 }
+            }
+        }
+    }
+
+    actions
+    {
+        area(Processing)
+        {
+            action("Show Error Message")
+            {
+                ApplicationArea = all;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                Image = Error;
+
+                trigger OnAction()
+                begin
+                    Message(Rec."Error Message");
+                end;
+            }
+            action("Create Purchase Order")
+            {
+                ApplicationArea = all;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                Image = Purchase;
+
+                trigger OnAction()
+                var
+                    FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
+                begin
+                    FleetrockMgt.CreatePurchaseOrder(Rec);
+                end;
             }
         }
     }

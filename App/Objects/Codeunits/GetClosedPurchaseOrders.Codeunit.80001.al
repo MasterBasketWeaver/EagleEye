@@ -4,24 +4,25 @@ codeunit 80001 "EE Get Closed Purch. Order"
     var
         PurchaseHeader: Record "Purchase Header";
         FleetRockMgt: Codeunit "EE Fleetrock Mgt.";
-        JsonArry, Lines : JsonArray;
+        JsonArry: JsonArray;
         T: JsonToken;
         OrderJsonObj: JsonObject;
         JsonVal: JsonValue;
         s: Text;
     begin
         JsonArry := FleetRockMgt.GetPurchaseOrders(Enum::"EE Purch. Order Status"::Closed);
-
         PurchaseHeader.SetCurrentKey("EE Fleetrock ID");
-
         foreach T in JsonArry do begin
             OrderJsonObj := T.AsObject();
             OrderJsonObj.Get('id', T);
             JsonVal := T.AsValue();
             s := JsonVal.AsText();
-            PurchaseHeader.SetRange("EE Fleetrock ID", s);
-            if PurchaseHeader.IsEmpty() then
-                FleetRockMgt.CreatePurchaseOrder(OrderJsonObj);
+
+            if not Confirm('%1 -> %2', false, s, FleetRockMgt.CheckIfAlreadyImported(s, PurchaseHeader, false)) then
+                Error('');
+
+            if not FleetRockMgt.CheckIfAlreadyImported(s, PurchaseHeader, false) then
+                FleetRockMgt.InsertStagingRecords(OrderJsonObj);
         end;
     end;
 }

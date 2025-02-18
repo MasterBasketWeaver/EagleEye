@@ -34,6 +34,16 @@ table 80000 "EE Fleetrock Setup"
             DataClassification = CustomerContent;
             Editable = false;
         }
+        field(7; "Item G/L Account No."; Code[20])
+        {
+            DataClassification = CustomerContent;
+            TableRelation = "G/L Account"."No.";
+        }
+        field(8; "Vendor Posting Group"; Code[20])
+        {
+            DataClassification = CustomerContent;
+            TableRelation = "Vendor Posting Group".Code;
+        }
     }
 
     keys

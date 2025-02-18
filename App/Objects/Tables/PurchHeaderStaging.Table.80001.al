@@ -138,6 +138,17 @@ table 80001 "EE Purch. Header Staging"
             DataClassification = CustomerContent;
             Editable = false;
         }
+        field(103; "Processed"; Boolean)
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
+        field(104; "Document No."; Code[20])
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+            TableRelation = "Purchase Header"."No." where("Document Type" = const(Order));
+        }
     }
 
     keys

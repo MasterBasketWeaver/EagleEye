@@ -9,6 +9,19 @@ page 80000 "EE Fleetrock Setup"
     {
         area(Content)
         {
+            group(Defaults)
+            {
+                field("Item G/L Account No."; Rec."Item G/L Account No.")
+                {
+                    ApplicationArea = all;
+                    ShowMandatory = true;
+                }
+                field("Vendor Posting Group"; Rec."Vendor Posting Group")
+                {
+                    ApplicationArea = all;
+                    ShowMandatory = true;
+                }
+            }
             field("Integration URL"; Rec."Integration URL")
             {
                 ApplicationArea = All;
@@ -83,8 +96,10 @@ page 80000 "EE Fleetrock Setup"
                 trigger OnAction()
                 var
                     FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
+                    s: Text;
                 begin
-                    FleetrockMgt.GetSuppliers();
+                    FleetrockMgt.GetSuppliers().WriteTo(s);
+                    Message(s);
                 end;
             }
             action("Get Open POs")
@@ -99,8 +114,43 @@ page 80000 "EE Fleetrock Setup"
                 trigger OnAction()
                 var
                     FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
+                    s: Text;
                 begin
-                    FleetrockMgt.GetPurchaseOrders(Enum::"EE Purch. Order Status"::Open);
+                    FleetrockMgt.GetPurchaseOrders(Enum::"EE Purch. Order Status"::Open).WriteTo(s);
+                    Message(s);
+                end;
+            }
+            action("Get Closed POs")
+            {
+                ApplicationArea = All;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                Image = Sales;
+
+                trigger OnAction()
+                var
+                    FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
+                    s: Text;
+                begin
+                    FleetrockMgt.GetPurchaseOrders(Enum::"EE Purch. Order Status"::Closed).WriteTo(s);
+                    Message(s);
+                end;
+            }
+            action("Import Closed POs")
+            {
+                ApplicationArea = All;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                Image = ImportChartOfAccounts;
+
+                trigger OnAction()
+                var
+                begin
+                    Codeunit.Run(Codeunit::"EE Get Closed Purch. Order")
                 end;
             }
         }
