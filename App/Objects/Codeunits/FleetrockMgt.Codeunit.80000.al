@@ -95,6 +95,8 @@ codeunit 80000 "EE Fleetrock Mgt."
         GetAndCheckSetup();
         FleetrockSetup.TestField("Item G/L Account No.");
         FleetrockSetup.TestField("Vendor Posting Group");
+        FleetrockSetup.TestField("Tax Group Code");
+        FleetrockSetup.TestField("Tax Area Code");
         if not TryToCreatePurchaseOrder(PurchHeaderStaging, DocNo) then begin
             PurchHeaderStaging."Processed Error" := true;
             PurchHeaderStaging."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(PurchHeaderStaging."Error Message"));
@@ -123,6 +125,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchaseHeader.Validate("Buy-from Vendor No.", GetVendorNo(PurchHeaderStaging));
         PurchaseHeader.Validate("Payment Terms Code", GetPaymentTerms(PurchHeaderStaging));
         PurchaseHeader.Validate("EE Fleetrock ID", PurchHeaderStaging.id);
+        PurchaseHeader.Validate("Vendor Invoice No.", PurchHeaderStaging.id);
         PurchaseHeader.Modify(true);
         CreatePurchaseLines(PurchHeaderStaging, DocNo);
     end;
@@ -159,11 +162,13 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchaseLine: Record "Purchase Line";
         PurchLineStaging: Record "EE Purch. Line Staging";
         LineNo: Integer;
+        Taxable: Boolean;
     begin
         PurchLineStaging.SetRange(id, PurchHeaderStaging.id);
         PurchLineStaging.SetRange("Header Entry No.", PurchHeaderStaging."Entry No.");
         if not PurchLineStaging.FindSet() then
             exit;
+        Taxable := PurchHeaderStaging.tax_total <> 0;
         repeat
             LineNo += 10000;
             PurchaseLine.Init();
@@ -173,20 +178,15 @@ codeunit 80000 "EE Fleetrock Mgt."
             PurchaseLine.Validate(Type, PurchaseLine.Type::"G/L Account");
             PurchaseLine.Validate("No.", FleetRockSetup."Item G/L Account No.");
             PurchaseLine.Validate(Quantity, PurchLineStaging.part_quantity);
-            PurchaseLine.Validate("Unit Price (LCY)", PurchLineStaging.unit_price);
+            PurchaseLine.Validate("Unit Cost", PurchLineStaging.unit_price);
+            PurchaseLine.Validate("Direct Unit Cost", PurchLineStaging.unit_price);
             PurchaseLine.Description := CopyStr(PurchLineStaging.part_description, 1, MaxStrLen(PurchaseLine.Description));
+            if Taxable then
+                PurchaseLine.Validate("Tax Group Code", FleetrockSetup."Tax Group Code");
             PurchaseLine.Insert(true);
         until PurchLineStaging.Next() = 0;
     end;
 
-
-    // local procedure GetItemNo(var PurchLineStaging: Record "EE Purch. Line Staging"): Code[20]
-    // var
-    //     Item: Record Item;
-    // begin
-    //     if PurchLineStaging.part_number = '' then
-    //         Error('Part Number must be specified for entry %1.', PurchLineStaging."Entry No.");
-    // end;
 
 
     local procedure GetVendorNo(var PurchHeaderStaging: Record "EE Purch. Header Staging"): Code[20]
@@ -205,6 +205,8 @@ codeunit 80000 "EE Fleetrock Mgt."
         Vendor.Validate("EE Source Type", Vendor."EE Source Type"::Fleetrock);
         Vendor.Validate("EE Source No.", PurchHeaderStaging.supplier_name);
         Vendor.Validate("Vendor Posting Group", FleetrockSetup."Vendor Posting Group");
+        Vendor.Validate("Tax Liable", true);
+        Vendor.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
         Vendor.Modify(true);
         exit(Vendor."No.");
     end;

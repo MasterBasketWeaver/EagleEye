@@ -21,29 +21,42 @@ page 80000 "EE Fleetrock Setup"
                     ApplicationArea = all;
                     ShowMandatory = true;
                 }
+                field("Tax Group Code"; Rec."Tax Group Code")
+                {
+                    ApplicationArea = all;
+                    ShowMandatory = true;
+                }
+                field("Tax Area Code"; Rec."Tax Area Code")
+                {
+                    ApplicationArea = all;
+                    ShowMandatory = true;
+                }
             }
-            field("Integration URL"; Rec."Integration URL")
+            group(Integration)
             {
-                ApplicationArea = All;
-                ShowMandatory = true;
-            }
-            field("Username"; Rec.Username)
-            {
-                ApplicationArea = All;
-                ShowMandatory = true;
-            }
-            field("API Key"; Rec."API Key")
-            {
-                ApplicationArea = All;
-                ShowMandatory = true;
-            }
-            field("API Token"; Rec."API Token")
-            {
-                ApplicationArea = All;
-            }
-            field("API Token Expiry Date"; Rec."API Token Expiry Date")
-            {
-                ApplicationArea = all;
+                field("Integration URL"; Rec."Integration URL")
+                {
+                    ApplicationArea = All;
+                    ShowMandatory = true;
+                }
+                field("Username"; Rec.Username)
+                {
+                    ApplicationArea = All;
+                    ShowMandatory = true;
+                }
+                field("API Key"; Rec."API Key")
+                {
+                    ApplicationArea = All;
+                    ShowMandatory = true;
+                }
+                field("API Token"; Rec."API Token")
+                {
+                    ApplicationArea = All;
+                }
+                field("API Token Expiry Date"; Rec."API Token Expiry Date")
+                {
+                    ApplicationArea = all;
+                }
             }
         }
     }

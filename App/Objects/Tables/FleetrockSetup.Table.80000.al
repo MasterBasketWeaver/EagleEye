@@ -44,6 +44,16 @@ table 80000 "EE Fleetrock Setup"
             DataClassification = CustomerContent;
             TableRelation = "Vendor Posting Group".Code;
         }
+        field(9; "Tax Area Code"; Code[20])
+        {
+            DataClassification = CustomerContent;
+            TableRelation = "Tax Area".Code;
+        }
+        field(10; "Tax Group Code"; Code[20])
+        {
+            DataClassification = CustomerContent;
+            TableRelation = "Tax Group".Code;
+        }
     }
 
     keys
