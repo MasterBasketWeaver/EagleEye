@@ -67,6 +67,16 @@ table 80000 "EE Fleetrock Setup"
             DataClassification = CustomerContent;
             TableRelation = "G/L Account"."No.";
         }
+        field(14; "Customer Posting Group"; Code[20])
+        {
+            DataClassification = CustomerContent;
+            TableRelation = "Customer Posting Group".Code;
+        }
+        field(15; "Payment Terms"; Code[10])
+        {
+            DataClassification = CustomerContent;
+            TableRelation = "Payment Terms".Code;
+        }
     }
 
     keys

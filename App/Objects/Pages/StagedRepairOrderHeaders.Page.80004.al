@@ -21,6 +21,22 @@ page 80004 "EE Staged Repair Order Headers"
                 field("Document No."; Rec."Document No.")
                 {
                     ApplicationArea = all;
+
+                    trigger OnDrillDown()
+                    var
+                        SalesHeader: Record "Sales Header";
+                        SalesInvHeader: Record "Sales Invoice Header";
+                    begin
+                        if Rec."Document No." <> '' then
+                            if SalesHeader.Get(SalesHeader."Document Type"::Invoice, Rec."Document No.") then
+                                Page.Run(Page::"Sales Invoice", SalesHeader)
+                            else begin
+                                SalesInvHeader.SetCurrentKey("Order No.");
+                                SalesInvHeader.SetRange("Order No.", Rec."Document No.");
+                                if SalesInvHeader.FindFirst() then
+                                    Page.Run(Page::"Posted Sales Invoice", SalesInvHeader);
+                            end;
+                    end;
                 }
                 field(id; Rec.id)
                 {
@@ -269,22 +285,22 @@ page 80004 "EE Staged Repair Order Headers"
                     Message(Rec."Error Message");
                 end;
             }
-            // action("Create Purchase Order")
-            // {
-            //     ApplicationArea = all;
-            //     Promoted = true;
-            //     PromotedCategory = Process;
-            //     PromotedIsBig = true;
-            //     PromotedOnly = true;
-            //     Image = Purchase;
+            action("Create Repair Order")
+            {
+                ApplicationArea = all;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                Image = Replan;
 
-            //     trigger OnAction()
-            //     var
-            //         FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
-            //     begin
-            //         FleetrockMgt.CreatePurchaseOrder(Rec);
-            //     end;
-            // }
+                trigger OnAction()
+                var
+                    FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
+                begin
+                    FleetrockMgt.CreateSalesOrder(Rec);
+                end;
+            }
         }
     }
 }

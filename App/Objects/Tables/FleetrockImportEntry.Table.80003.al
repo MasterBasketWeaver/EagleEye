@@ -26,7 +26,8 @@ table 80003 "EE Fleetrock Import Entry"
         {
             DataClassification = CustomerContent;
             Editable = false;
-            TableRelation = if (Type = const("Purchase Order")) "EE Purch. Header Staging"."Entry No.";
+            TableRelation = if (Type = const("Purchase Order")) "EE Purch. Header Staging"."Entry No."
+            else if (Type = const("Repair Order")) "EE Sales Header Staging"."Entry No.";
         }
         field(6; "Imported By"; Code[50])
         {

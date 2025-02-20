@@ -26,12 +26,22 @@ page 80000 "EE Fleetrock Setup"
                     ApplicationArea = all;
                     ShowMandatory = true;
                 }
+                field("Customer Posting Group"; Rec."Customer Posting Group")
+                {
+                    ApplicationArea = all;
+                    ShowMandatory = true;
+                }
                 field("Tax Group Code"; Rec."Tax Group Code")
                 {
                     ApplicationArea = all;
                     ShowMandatory = true;
                 }
                 field("Tax Area Code"; Rec."Tax Area Code")
+                {
+                    ApplicationArea = all;
+                    ShowMandatory = true;
+                }
+                field("Payment Terms"; Rec."Payment Terms")
                 {
                     ApplicationArea = all;
                     ShowMandatory = true;

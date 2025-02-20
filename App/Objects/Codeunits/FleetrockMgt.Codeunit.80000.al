@@ -154,10 +154,39 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchaseHeader.Validate("Payment Terms Code", GetPaymentTerms(PurchHeaderStaging));
         PurchaseHeader.Validate("EE Fleetrock ID", PurchHeaderStaging.id);
         PurchaseHeader.Validate("Vendor Invoice No.", PurchHeaderStaging.id);
+        PurchaseHeader.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
         PurchaseHeader.Modify(true);
         CreatePurchaseLines(PurchHeaderStaging, DocNo);
     end;
 
+    local procedure CreatePurchaseLines(var PurchHeaderStaging: Record "EE Purch. Header Staging"; DocNo: Code[20])
+    var
+        PurchaseLine: Record "Purchase Line";
+        PurchLineStaging: Record "EE Purch. Line Staging";
+        LineNo: Integer;
+        Taxable: Boolean;
+    begin
+        PurchLineStaging.SetRange(id, PurchHeaderStaging.id);
+        PurchLineStaging.SetRange("Header Entry No.", PurchHeaderStaging."Entry No.");
+        if not PurchLineStaging.FindSet() then
+            exit;
+        Taxable := PurchHeaderStaging.tax_total <> 0;
+        repeat
+            LineNo += 10000;
+            PurchaseLine.Init();
+            PurchaseLine.Validate("Document Type", Enum::"Purchase Document Type"::Order);
+            PurchaseLine.Validate("Document No.", DocNo);
+            PurchaseLine.Validate("Line No.", LineNo);
+            PurchaseLine.Validate(Type, PurchaseLine.Type::"G/L Account");
+            PurchaseLine.Validate("No.", FleetRockSetup."Purchase G/L Account No.");
+            PurchaseLine.Validate(Quantity, PurchLineStaging.part_quantity);
+            PurchaseLine.Validate("Unit Cost", PurchLineStaging.unit_price);
+            PurchaseLine.Validate("Direct Unit Cost", PurchLineStaging.unit_price);
+            PurchaseLine.Description := CopyStr(PurchLineStaging.part_description, 1, MaxStrLen(PurchaseLine.Description));
+            PurchaseLine.Validate("Tax Group Code", FleetrockSetup."Tax Group Code");
+            PurchaseLine.Insert(true);
+        until PurchLineStaging.Next() = 0;
+    end;
 
 
 
@@ -223,34 +252,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         exit(false);
     end;
 
-    local procedure CreatePurchaseLines(var PurchHeaderStaging: Record "EE Purch. Header Staging"; DocNo: Code[20])
-    var
-        PurchaseLine: Record "Purchase Line";
-        PurchLineStaging: Record "EE Purch. Line Staging";
-        LineNo: Integer;
-        Taxable: Boolean;
-    begin
-        PurchLineStaging.SetRange(id, PurchHeaderStaging.id);
-        PurchLineStaging.SetRange("Header Entry No.", PurchHeaderStaging."Entry No.");
-        if not PurchLineStaging.FindSet() then
-            exit;
-        Taxable := PurchHeaderStaging.tax_total <> 0;
-        repeat
-            LineNo += 10000;
-            PurchaseLine.Init();
-            PurchaseLine.Validate("Document Type", Enum::"Purchase Document Type"::Order);
-            PurchaseLine.Validate("Document No.", DocNo);
-            PurchaseLine.Validate("Line No.", LineNo);
-            PurchaseLine.Validate(Type, PurchaseLine.Type::"G/L Account");
-            PurchaseLine.Validate("No.", FleetRockSetup."Purchase G/L Account No.");
-            PurchaseLine.Validate(Quantity, PurchLineStaging.part_quantity);
-            PurchaseLine.Validate("Unit Cost", PurchLineStaging.unit_price);
-            PurchaseLine.Validate("Direct Unit Cost", PurchLineStaging.unit_price);
-            PurchaseLine.Description := CopyStr(PurchLineStaging.part_description, 1, MaxStrLen(PurchaseLine.Description));
-            PurchaseLine.Validate("Tax Group Code", FleetrockSetup."Tax Group Code");
-            PurchaseLine.Insert(true);
-        until PurchLineStaging.Next() = 0;
-    end;
+
 
 
 
@@ -259,7 +261,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         Vendor: Record Vendor;
     begin
         if PurchHeaderStaging.supplier_name = '' then
-            Error('Supplier Name must be specified.');
+            Error('supplier_name must be specified.');
         Vendor.SetRange("EE Source Type", Vendor."EE Source Type"::Fleetrock);
         Vendor.SetRange("EE Source No.", PurchHeaderStaging.supplier_name);
         if Vendor.FindFirst() then
@@ -274,6 +276,33 @@ codeunit 80000 "EE Fleetrock Mgt."
         Vendor.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
         Vendor.Modify(true);
         exit(Vendor."No.");
+    end;
+
+    local procedure GetCustomerNo(var SalesHeaderStaging: Record "EE Sales Header Staging"): Code[20]
+    var
+        Customer: Record Customer;
+        SourceNo: Text;
+    begin
+        if SalesHeaderStaging.vendor_company_id <> '' then
+            SourceNo := SalesHeaderStaging.vendor_company_id
+        else
+            if SalesHeaderStaging.vendor_name <> '' then
+                SourceNo := SalesHeaderStaging.vendor_name
+            else
+                Error('vendor_name or vendor_company_id must be specified.');
+        Customer.SetRange("EE Source Type", Customer."EE Source Type"::Fleetrock);
+        Customer.SetRange("EE Source No.", SourceNo);
+        if Customer.FindFirst() then
+            exit(Customer."No.");
+        Customer.Init();
+        Customer.Insert(true);
+        Customer.Validate(Name, SalesHeaderStaging.vendor_name);
+        Customer.Validate("EE Source Type", Customer."EE Source Type"::Fleetrock);
+        Customer.Validate("EE Source No.", SourceNo);
+        Customer.Validate("Customer Posting Group", FleetrockSetup."Customer Posting Group");
+        Customer.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
+        Customer.Modify(true);
+        exit(Customer."No.");
     end;
 
     local procedure GetPaymentTerms(var PurchHeaderStaging: Record "EE Purch. Header Staging"): Code[10]
@@ -510,7 +539,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         SalesHeaderStaging.Get(EntryNo);
         if SalesHeaderStaging.Processed then
             Error('Repair Order %1 has already been processed.', SalesHeaderStaging."Entry No.");
-        // CreateRepairOrder(SalesHeaderStaging);
+        CreateSalesOrder(SalesHeaderStaging);
         exit(EntryNo);
     end;
 
@@ -575,6 +604,116 @@ codeunit 80000 "EE Fleetrock Mgt."
             end;
         end;
     end;
+
+
+
+    procedure CreateSalesOrder(var SalesHeaderStaging: Record "EE Sales Header Staging")
+    var
+        SalesaseHeader: Record "Sales Header";
+        DocNo: Code[20];
+    begin
+        GetAndCheckSetup();
+        FleetrockSetup.TestField("Repair G/L Account No.");
+        FleetrockSetup.TestField("Customer Posting Group");
+        FleetrockSetup.TestField("Tax Group Code");
+        FleetrockSetup.TestField("Tax Area Code");
+        FleetrockSetup.TestField("Payment Terms");
+        if not TryToCreateSalesOrder(SalesHeaderStaging, DocNo) then begin
+            SalesHeaderStaging."Processed Error" := true;
+            SalesHeaderStaging."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(SalesHeaderStaging."Error Message"));
+            if SalesaseHeader.Get(SalesaseHeader."Document Type"::Order, DocNo) then
+                SalesaseHeader.Delete(true);
+        end else begin
+            SalesHeaderStaging."Processed Error" := false;
+            SalesHeaderStaging."Document No." := DocNo;
+        end;
+        SalesHeaderStaging.Modify(true);
+    end;
+
+
+    [TryFunction]
+    local procedure TryToCreateSalesOrder(var SalesHeaderStaging: Record "EE Sales Header Staging"; var DocNo: Code[20])
+    var
+        SalesHeader: Record "Sales Header";
+    begin
+        CheckIfAlreadyImported(SalesHeaderStaging.id, SalesHeader);
+        SalesHeader.Init();
+        SalesHeader.Validate("Document Type", Enum::"Sales Document Type"::Invoice);
+        SalesHeader.Validate("Posting Date", DT2Date(SalesHeaderStaging."Expected Finish At"));
+        SalesHeader.Insert(true);
+        DocNo := SalesHeader."No.";
+
+        SalesHeader.Validate("Sell-to Customer No.", GetCustomerNo(SalesHeaderStaging));
+        SalesHeader.Validate("Payment Terms Code", FleetrockSetup."Payment Terms");
+        SalesHeader.Validate("EE Fleetrock ID", SalesHeaderStaging.id);
+        SalesHeader.Validate("External Document No.", SalesHeaderStaging.id);
+        SalesHeader.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
+        SalesHeader.Modify(true);
+        CreateSalesLines(SalesHeaderStaging, DocNo);
+    end;
+
+    local procedure CreateSalesLines(var SalesHeaderStaging: Record "EE Sales Header Staging"; DocNo: Code[20])
+    var
+        SalesLine: Record "Sales Line";
+        TaskLineStaging: Record "EE Task Line Staging";
+        PartLineStaging: Record "EE Part Line Staging";
+        LineNo: Integer;
+        Taxable: Boolean;
+    begin
+        TaskLineStaging.SetCurrentKey("Header Id", "Header Entry No.");
+        TaskLineStaging.SetRange("Header Id", SalesHeaderStaging.id);
+        TaskLineStaging.SetRange("Header Entry No.", SalesHeaderStaging."Entry No.");
+        TaskLineStaging.SetAutoCalcFields("Part Lines");
+        if not TaskLineStaging.FindSet() then
+            exit;
+        Taxable := SalesHeaderStaging.tax_total <> 0;
+        PartLineStaging.SetCurrentKey("Header Id", "Header Entry No.", "Task Entry No.", "Task Id");
+        PartLineStaging.SetRange("Header Id", SalesHeaderStaging.id);
+        PartLineStaging.SetRange("Header Entry No.", SalesHeaderStaging."Entry No.");
+        repeat
+            LineNo += 10000;
+            SalesLine.Init();
+            SalesLine.Validate("Document Type", Enum::"Sales Document Type"::Invoice);
+            SalesLine.Validate("Document No.", DocNo);
+            SalesLine.Validate("Line No.", LineNo);
+            SalesLine.Validate(Type, SalesLine.Type::"G/L Account");
+            SalesLine.Validate("No.", FleetRockSetup."Repair G/L Account No.");
+            SalesLine.Validate(Quantity, TaskLineStaging.labor_hours);
+            SalesLine.Validate("Unit Price", TaskLineStaging.labor_hourly_rate);
+            SalesLine.Description := CopyStr(TaskLineStaging.labor_system_code, 1, MaxStrLen(SalesLine.Description));
+            SalesLine.Validate("Tax Group Code", FleetrockSetup."Tax Group Code");
+            // if TaskLineStaging.labor_tax_rate <> 0 then
+            //     SalesLine.Validate("Amount Including VAT", SalesLine.Amount + TaskLineStaging.labor_tax_rate * TaskLineStaging.labor_hours);
+            SalesLine.Insert(true);
+            if TaskLineStaging."Part Lines" > 0 then begin
+                PartLineStaging.SetRange("Task Entry No.", TaskLineStaging."Entry No.");
+                PartLineStaging.SetRange("Task Id", TaskLineStaging.task_id);
+                if PartLineStaging.FindSet() then
+                    repeat
+                        LineNo += 10000;
+                        SalesLine.Init();
+                        SalesLine.Validate("Document Type", Enum::"Sales Document Type"::Invoice);
+                        SalesLine.Validate("Document No.", DocNo);
+                        SalesLine.Validate("Line No.", LineNo);
+                        SalesLine.Validate(Type, SalesLine.Type::"G/L Account");
+                        SalesLine.Validate("No.", FleetRockSetup."Repair G/L Account No.");
+                        SalesLine.Validate(Quantity, PartLineStaging.part_quantity);
+                        SalesLine.Validate("Unit Price", PartLineStaging.part_price);
+                        SalesLine.Description := CopyStr(PartLineStaging.part_description, 1, MaxStrLen(SalesLine.Description));
+                        SalesLine.Validate("Tax Group Code", FleetrockSetup."Tax Group Code");
+                        SalesLine.Insert(true);
+                    until PartLineStaging.Next() = 0;
+            end;
+        until TaskLineStaging.Next() = 0;
+    end;
+
+
+
+
+
+
+
+
 
 
 
