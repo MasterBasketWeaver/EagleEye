@@ -1,5 +1,25 @@
 codeunit 80000 "EE Fleetrock Mgt."
 {
+    Permissions = tabledata "EE Fleetrock Setup" = rimd,
+    tabledata "EE Purch. Header Staging" = rimd,
+    tabledata "EE Purch. Line Staging" = rimd,
+    tabledata "EE Fleetrock Import Entry" = rimd,
+    tabledata "EE Sales Header Staging" = rimd,
+    tabledata "EE Task Line Staging" = rimd,
+    tabledata "EE Part Line Staging" = rimd,
+    tabledata "Purchase Header" = rimd,
+    tabledata "Purchase Line" = rimd,
+    tabledata "Sales Header" = rimd,
+    tabledata "Sales Line" = rimd,
+    tabledata "Vendor" = rimd,
+    tabledata "Payment Terms" = rimd,
+    tabledata "G/L Account" = rimd,
+    tabledata "Purch. Inv. Header" = r,
+    tabledata "Purch. Inv. Line" = r,
+    tabledata "Sales Invoice Header" = r,
+    tabledata "Sales Invoice Line" = r;
+
+
     [EventSubscriber(ObjectType::Table, Database::"G/L Account", OnAfterInsertEvent, '', false, false)]
     local procedure GLAccountOnAfterInsert(var Rec: Record "G/L Account")
     begin
@@ -336,7 +356,6 @@ codeunit 80000 "EE Fleetrock Mgt."
             PurchLineStaging.date_added := GetJsonValueAsText(LineJsonObj, 'date_added');
             PurchLineStaging.Insert(true);
         end;
-
     end;
 
 
@@ -353,6 +372,8 @@ codeunit 80000 "EE Fleetrock Mgt."
         T: JsonToken;
     begin
         JsonObj.Get(KeyName, T);
+        if Format(T.AsValue()) = '""' then
+            exit(0);
         exit(T.AsValue().AsDecimal());
     end;
 
@@ -470,34 +491,116 @@ codeunit 80000 "EE Fleetrock Mgt."
 
     procedure InsertROStagingRecords(var OrderJsonObj: JsonObject): Integer
     var
-        PurchHeaderStaging: Record "EE Purch. Header Staging";
+        SalesHeaderStaging: Record "EE Sales Header Staging";
         EntryNo: Integer;
     begin
-        if PurchHeaderStaging.FindLast() then
-            EntryNo := PurchHeaderStaging."Entry No.";
+        if SalesHeaderStaging.FindLast() then
+            EntryNo := SalesHeaderStaging."Entry No.";
         EntryNo += 1;
-        if not TryToInsertPurchStaging(OrderJsonObj, EntryNo) then begin
-            if not PurchHeaderStaging.Get(EntryNo) then begin
-                PurchHeaderStaging.Init();
-                PurchHeaderStaging."Entry No." := EntryNo;
-                PurchHeaderStaging.Insert(true);
+        if not TryToInsertSalesStaging(OrderJsonObj, EntryNo) then begin
+            if not SalesHeaderStaging.Get(EntryNo) then begin
+                SalesHeaderStaging.Init();
+                SalesHeaderStaging."Entry No." := EntryNo;
+                SalesHeaderStaging.Insert(true);
             end;
-            PurchHeaderStaging."Insert Error" := true;
-            PurchHeaderStaging."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(PurchHeaderStaging."Error Message"));
-            PurchHeaderStaging.Modify(true);
+            SalesHeaderStaging."Insert Error" := true;
+            SalesHeaderStaging."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(SalesHeaderStaging."Error Message"));
+            SalesHeaderStaging.Modify(true);
         end;
-        PurchHeaderStaging.Get(EntryNo);
-        if PurchHeaderStaging.Processed then
-            Error('Purchase Order %1 has already been processed.', PurchHeaderStaging."Entry No.");
-        CreatePurchaseOrder(PurchHeaderStaging);
+        SalesHeaderStaging.Get(EntryNo);
+        if SalesHeaderStaging.Processed then
+            Error('Repair Order %1 has already been processed.', SalesHeaderStaging."Entry No.");
+        // CreateRepairOrder(SalesHeaderStaging);
         exit(EntryNo);
+    end;
+
+    [TryFunction]
+    local procedure TryToInsertSalesStaging(var OrderJsonObj: JsonObject; EntryNo: Integer)
+    var
+        SalesHeaderStaging: Record "EE Sales Header Staging";
+        TaskLineStaging: Record "EE Task Line Staging";
+        PartLineStaging: Record "EE Part Line Staging";
+
+        TaskLines, PartLines : JsonArray;
+        TaskLineJsonObj, PartLineJsonObj : JsonObject;
+        T: JsonToken;
+        RecVar: Variant;
+        PartEntryNo: Integer;
+    begin
+        SalesHeaderStaging.Init();
+        SalesHeaderStaging."Entry No." := EntryNo;
+        RecVar := SalesHeaderStaging;
+        PopulateStagingTable(RecVar, OrderJsonObj, Database::"EE Sales Header Staging", SalesHeaderStaging.FieldNo(id));
+        SalesHeaderStaging := RecVar;
+        SalesHeaderStaging.Insert(true);
+
+        if not OrderJsonObj.Contains('tasks') then
+            exit;
+        OrderJsonObj.Get('tasks', T);
+        TaskLines := T.AsArray();
+        if TaskLines.Count() = 0 then
+            exit;
+
+        if TaskLineStaging.FindLast() then
+            EntryNo := TaskLineStaging."Entry No."
+        else
+            EntryNo := 0;
+        if PartLineStaging.FindLast() then
+            PartEntryNo := PartLineStaging."Entry No.";
+        foreach T in TaskLines do begin
+            EntryNo += 1;
+            TaskLineJsonObj := T.AsObject();
+            TaskLineStaging.Init();
+            TaskLineStaging."Entry No." := EntryNo;
+            TaskLineStaging."Header Entry No." := SalesHeaderStaging."Entry No.";
+            TaskLineStaging."Header Id" := SalesHeaderStaging.id;
+            RecVar := TaskLineStaging;
+            PopulateStagingTable(RecVar, TaskLineJsonObj, Database::"EE Task Line Staging", TaskLineStaging.FieldNo("task_id"));
+            TaskLineStaging := RecVar;
+            TaskLineStaging.Insert(true);
+            if TaskLineJsonObj.Get('parts', T) then
+                foreach T in PartLines do begin
+                    PartEntryNo += 1;
+                    PartLineJsonObj := T.AsObject();
+                    partLineStaging.Init();
+                    PartLineStaging."Header Entry No." := SalesHeaderStaging."Entry No.";
+                    PartLineStaging."Header Id" := SalesHeaderStaging.id;
+                    PartLineStaging."Task Entry No." := TaskLineStaging."Entry No.";
+                    PartLineStaging."Task Id" := TaskLineStaging.task_id;
+                    RecVar := PartLineStaging;
+                    PopulateStagingTable(RecVar, PartLineJsonObj, Database::"EE Part Line Staging", PartLineStaging.FieldNo("task_part_id"));
+                    PartLineStaging := RecVar;
+                    PartLineStaging.Insert(true);
+                end;
+        end;
     end;
 
 
 
 
-
-
+    local procedure PopulateStagingTable(var RecVar: Variant; var OrderJsonObj: JsonObject; TableNo: Integer; StartFieldNo: Integer)
+    var
+        FieldRec: Record Field;
+        RecRef: RecordRef;
+    begin
+        RecRef.GetTable(RecVar);
+        FieldRec.SetRange(TableNo, TableNo);
+        FieldRec.SetRange("No.", StartFieldNo, 99);
+        FieldRec.SetRange(Enabled, true);
+        FieldRec.SetFilter(ObsoleteState, '<>%1', FieldRec.ObsoleteState::Removed);
+        FieldRec.SetRange(Class, FieldRec.Class::Normal);
+        FieldRec.SetRange(Type, FieldRec.Type::Text);
+        if FieldRec.FindSet() then
+            repeat
+                RecRef.Field(FieldRec."No.").Value(GetJsonValueAsText(OrderJsonObj, FieldRec.FieldName));
+            until FieldRec.Next() = 0;
+        FieldRec.SetRange(Type, FieldRec.Type::Decimal);
+        if FieldRec.FindSet() then
+            repeat
+                RecRef.Field(FieldRec."No.").Value(GetJsonValueAsDecimal(OrderJsonObj, FieldRec.FieldName));
+            until FieldRec.Next() = 0;
+        RecRef.SetTable(RecVar);
+    end;
 
 
 
@@ -574,7 +677,7 @@ codeunit 80000 "EE Fleetrock Mgt."
     end;
 
 
-    procedure InsertImportEntry(EntryNo: Integer; Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; ErrorMsg: Text)
+    procedure InsertImportEntry(EntryNo: Integer; Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type"; ErrorMsg: Text)
     var
         ImportEntry: Record "EE Fleetrock Import Entry";
     begin
@@ -584,6 +687,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         ImportEntry.Success := Success;
         ImportEntry."Error Message" := CopyStr(ErrorMsg, 1, MaxStrLen(ImportEntry."Error Message"));
         ImportEntry."Import Entry No." := ImportEntryNo;
+        ImportEntry."Event Type" := EventType;
         ImportEntry.Insert(true);
     end;
 

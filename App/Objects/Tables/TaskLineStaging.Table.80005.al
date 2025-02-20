@@ -2,8 +2,8 @@ table 80005 "EE Task Line Staging"
 {
     DataClassification = CustomerContent;
     Caption = 'Task Line Staging';
-    // LookupPageId = "EE Staged Purchased Lines";
-    // DrillDownPageId = "EE Staged Purchased Lines";
+    LookupPageId = "EE Staged Task Lines";
+    DrillDownPageId = "EE Staged Task Lines";
 
     fields
     {

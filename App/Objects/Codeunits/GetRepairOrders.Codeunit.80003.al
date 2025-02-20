@@ -16,21 +16,29 @@ codeunit 80003 "EE Get Repair Orders"
         StartDateTime: DateTime;
         s: Text;
         OrderStatus: Enum "EE Repair Order Status";
+        EventType: Enum "EE Event Type";
         EntryNo, ImportEntryNo : Integer;
         CanImport: Boolean;
     begin
         if ImportEntry.FindLast() then
             EntryNo := ImportEntry."Entry No.";
+
+        if Rec."Parameter String" = 'invoiced' then begin
+            OrderStatus := OrderStatus::invoiced;
+            EventType := EventType::invoiced;
+        end else begin
+            OrderStatus := OrderStatus::started;
+            EventType := EventType::Started;
+        end;
+
         ImportEntry.SetRange(Type, ImportEntry.Type::"Repair Order");
+        ImportEntry.SetRange("Event Type", EventType);
         ImportEntry.SetRange(Success, true);
         if ImportEntry.FindLast() then
             StartDateTime := ImportEntry.SystemCreatedAt;
 
-        if Rec."Parameter String" = 'invoiced' then
-            OrderStatus := OrderStatus::invoiced;
-
         if not FleetRockMgt.TryToGetRepairOrders(StartDateTime, OrderStatus, JsonArry) then begin
-            FleetRockMgt.InsertImportEntry(EntryNo + 1, false, 0, ImportEntry.Type::"Repair Order", GetLastErrorText());
+            FleetRockMgt.InsertImportEntry(EntryNo + 1, false, 0, ImportEntry.Type::"Repair Order", EventType, GetLastErrorText());
             exit;
         end;
         if JsonArry.Count() = 0 then
@@ -48,7 +56,7 @@ codeunit 80003 "EE Get Repair Orders"
             if CanImport then
                 CanImport := FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo);
             EntryNo += 1;
-            FleetRockMgt.InsertImportEntry(EntryNo, CanImport, ImportEntryNo, ImportEntry.Type::"Purchase Order", GetLastErrorText());
+            FleetRockMgt.InsertImportEntry(EntryNo, CanImport and (GetLastErrorText() = ''), ImportEntryNo, ImportEntry.Type::"Repair Order", EventType, GetLastErrorText());
         end;
     end;
 }

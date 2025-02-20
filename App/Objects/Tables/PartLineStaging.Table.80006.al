@@ -2,8 +2,8 @@ table 80006 "EE Part Line Staging"
 {
     DataClassification = CustomerContent;
     Caption = 'Part Line Staging';
-    // LookupPageId = "EE Staged Purchased Lines";
-    // DrillDownPageId = "EE Staged Purchased Lines";
+    LookupPageId = "EE Staged Part Lines";
+    DrillDownPageId = "EE Staged Part Lines";
 
     fields
     {
@@ -118,7 +118,7 @@ table 80006 "EE Part Line Staging"
             Editable = false;
             Caption = 'date_added (UTC)';
         }
-        field(28; "Added At"; DateTime)
+        field(100; "Added At"; DateTime)
         {
             DataClassification = CustomerContent;
             Editable = false;

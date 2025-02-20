@@ -2,8 +2,8 @@ table 80004 "EE Sales Header Staging"
 {
     DataClassification = CustomerContent;
     Caption = 'Sales Header Staging';
-    // LookupPageId = "EE Staged Purchased Headers";
-    // DrillDownPageId = "EE Staged Purchased Headers";
+    LookupPageId = "EE Staged Repair Order Headers";
+    DrillDownPageId = "EE Staged Repair Order Headers";
 
     fields
     {
@@ -22,7 +22,7 @@ table 80004 "EE Sales Header Staging"
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(12; ro_group; Text[50])
+        field(12; ro_group_hierarchy; Text[50])
         {
             DataClassification = CustomerContent;
             Editable = false;
@@ -228,64 +228,6 @@ table 80004 "EE Sales Header Staging"
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(52; "Created At"; DateTime)
-        {
-            DataClassification = CustomerContent;
-            Editable = false;
-        }
-        field(53; "Started At"; DateTime)
-        {
-            DataClassification = CustomerContent;
-            Editable = false;
-        }
-        field(54; "Expected Finish At"; DateTime)
-        {
-            DataClassification = CustomerContent;
-            Editable = false;
-        }
-        field(55; "Finished At"; DateTime)
-        {
-            DataClassification = CustomerContent;
-            Editable = false;
-        }
-        field(56; "Invoiced At"; DateTime)
-        {
-            DataClassification = CustomerContent;
-            Editable = false;
-        }
-        field(57; "Invoice Paid At"; DateTime)
-        {
-            DataClassification = CustomerContent;
-            Editable = false;
-        }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        field(98; "Task Lines"; Integer)
-        {
-            FieldClass = FlowField;
-            CalcFormula = count("EE Task Line Staging" where("Header Id" = field(id), "Header Entry No." = field("Entry No.")));
-            Editable = false;
-        }
-        field(99; "Part Lines"; Integer)
-        {
-            FieldClass = FlowField;
-            CalcFormula = count("EE Part Line Staging" where("Header Id" = field(id), "Header Entry No." = field("Entry No.")));
-            Editable = false;
-        }
         field(100; "Insert Error"; Boolean)
         {
             DataClassification = CustomerContent;
@@ -316,6 +258,48 @@ table 80004 "EE Sales Header Staging"
         {
             FieldClass = FlowField;
             CalcFormula = lookup(User."User Name" where("User Security ID" = field(SystemCreatedBy)));
+            Editable = false;
+        }
+        field(110; "Task Lines"; Integer)
+        {
+            FieldClass = FlowField;
+            CalcFormula = count("EE Task Line Staging" where("Header Id" = field(id), "Header Entry No." = field("Entry No.")));
+            Editable = false;
+        }
+        field(111; "Part Lines"; Integer)
+        {
+            FieldClass = FlowField;
+            CalcFormula = count("EE Part Line Staging" where("Header Id" = field(id), "Header Entry No." = field("Entry No.")));
+            Editable = false;
+        }
+        field(120; "Created At"; DateTime)
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
+        field(121; "Started At"; DateTime)
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
+        field(122; "Expected Finish At"; DateTime)
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
+        field(123; "Finished At"; DateTime)
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
+        field(124; "Invoiced At"; DateTime)
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
+        field(125; "Invoice Paid At"; DateTime)
+        {
+            DataClassification = CustomerContent;
             Editable = false;
         }
     }

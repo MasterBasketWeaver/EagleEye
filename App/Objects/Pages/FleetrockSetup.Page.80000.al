@@ -181,7 +181,7 @@ page 80000 "EE Fleetrock Setup"
                     Codeunit.Run(Codeunit::"EE Get Closed Purch. Orders")
                 end;
             }
-            action("Import Closed POs By Date")
+            action("Get Closed POs By Date")
             {
                 ApplicationArea = All;
                 Promoted = true;
@@ -199,7 +199,7 @@ page 80000 "EE Fleetrock Setup"
                     Message(s);
                 end;
             }
-            action("Import Closed ROs By Date")
+            action("Get Closed ROs By Date")
             {
                 ApplicationArea = All;
                 Promoted = true;
@@ -224,6 +224,20 @@ page 80000 "EE Fleetrock Setup"
                     end;
                     FleetrockMgt.GetRepairOrders(0DT, Status).WriteTo(s);
                     Message(s);
+                end;
+            }
+            action("Import ROs")
+            {
+                ApplicationArea = All;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                Image = ImportCodes;
+
+                trigger OnAction()
+                begin
+                    Codeunit.Run(Codeunit::"EE Get Repair Orders");
                 end;
             }
         }

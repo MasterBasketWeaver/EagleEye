@@ -4,7 +4,7 @@ page 80003 "EE Fleetrock Import Entries"
     ApplicationArea = all;
     UsageCategory = Administration;
     Caption = 'Fleetrock Import Entries';
-    Editable = false;
+    // Editable = false;
     LinksAllowed = false;
     AnalysisModeEnabled = false;
     PageType = List;
@@ -23,6 +23,10 @@ page 80003 "EE Fleetrock Import Entries"
                 {
                     ApplicationArea = All;
                 }
+                field("Event Type"; Rec."Event Type")
+                {
+                    ApplicationArea = all;
+                }
                 field(SystemCreatedAt; Rec.SystemCreatedAt)
                 {
                     ApplicationArea = all;
@@ -40,12 +44,16 @@ page 80003 "EE Fleetrock Import Entries"
                     trigger OnDrillDown()
                     var
                         PurchHeaderStaging: Record "EE Purch. Header Staging";
+                        SalesHeaderStaging: Record "EE Sales Header Staging";
                     begin
                         if Rec."Import Entry No." <> 0 then
                             case Rec.Type of
                                 Rec.Type::"Purchase Order":
                                     if PurchHeaderStaging.Get(Rec."Import Entry No.") then
                                         Page.Run(Page::"EE Staged Purchased Headers", PurchHeaderStaging);
+                                Rec.Type::"Repair Order":
+                                    if SalesHeaderStaging.Get(Rec."Import Entry No.") then
+                                        Page.Run(0, SalesHeaderStaging);
                             end;
                     end;
                 }

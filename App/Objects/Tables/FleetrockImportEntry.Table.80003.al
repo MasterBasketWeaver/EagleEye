@@ -15,7 +15,7 @@ table 80003 "EE Fleetrock Import Entry"
         field(3; "Success"; Boolean)
         {
             DataClassification = CustomerContent;
-            Editable = false;
+            // Editable = false;
         }
         field(4; "Error Message"; Text[250])
         {
@@ -32,6 +32,11 @@ table 80003 "EE Fleetrock Import Entry"
         {
             FieldClass = FlowField;
             CalcFormula = lookup(User."User Name" where("User Security ID" = field(SystemCreatedBy)));
+            Editable = false;
+        }
+        field(7; "Event Type"; Enum "EE Event Type")
+        {
+            DataClassification = CustomerContent;
             Editable = false;
         }
     }
