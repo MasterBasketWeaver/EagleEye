@@ -534,13 +534,11 @@ codeunit 80000 "EE Fleetrock Mgt."
         SalesHeaderStaging := RecVar;
         SalesHeaderStaging.Insert(true);
 
-        if not OrderJsonObj.Contains('tasks') then
+        if not OrderJsonObj.Get('tasks', T) then
             exit;
-        OrderJsonObj.Get('tasks', T);
         TaskLines := T.AsArray();
         if TaskLines.Count() = 0 then
             exit;
-
         if TaskLineStaging.FindLast() then
             EntryNo := TaskLineStaging."Entry No."
         else
@@ -558,11 +556,13 @@ codeunit 80000 "EE Fleetrock Mgt."
             PopulateStagingTable(RecVar, TaskLineJsonObj, Database::"EE Task Line Staging", TaskLineStaging.FieldNo("task_id"));
             TaskLineStaging := RecVar;
             TaskLineStaging.Insert(true);
-            if TaskLineJsonObj.Get('parts', T) then
+            if TaskLineJsonObj.Get('parts', T) then begin
+                PartLines := T.AsArray();
                 foreach T in PartLines do begin
                     PartEntryNo += 1;
                     PartLineJsonObj := T.AsObject();
                     partLineStaging.Init();
+                    PartLineStaging."Entry No." := PartEntryNo;
                     PartLineStaging."Header Entry No." := SalesHeaderStaging."Entry No.";
                     PartLineStaging."Header Id" := SalesHeaderStaging.id;
                     PartLineStaging."Task Entry No." := TaskLineStaging."Entry No.";
@@ -572,6 +572,7 @@ codeunit 80000 "EE Fleetrock Mgt."
                     PartLineStaging := RecVar;
                     PartLineStaging.Insert(true);
                 end;
+            end;
         end;
     end;
 
