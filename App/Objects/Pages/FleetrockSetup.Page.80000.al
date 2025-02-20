@@ -11,7 +11,12 @@ page 80000 "EE Fleetrock Setup"
         {
             group(Defaults)
             {
-                field("Item G/L Account No."; Rec."Item G/L Account No.")
+                field("Purchase G/L Account No."; Rec."Purchase G/L Account No.")
+                {
+                    ApplicationArea = all;
+                    ShowMandatory = true;
+                }
+                field("Repair G/L Account No."; Rec."Repair G/L Account No.")
                 {
                     ApplicationArea = all;
                     ShowMandatory = true;
@@ -91,40 +96,40 @@ page 80000 "EE Fleetrock Setup"
                     Message(FleetrockMgt.CheckToGetAPIToken(Rec));
                 end;
             }
-            action("Get Units")
-            {
-                ApplicationArea = All;
-                Promoted = true;
-                PromotedCategory = Process;
-                PromotedIsBig = true;
-                PromotedOnly = true;
-                Image = Union;
+            // action("Get Units")
+            // {
+            //     ApplicationArea = All;
+            //     Promoted = true;
+            //     PromotedCategory = Process;
+            //     PromotedIsBig = true;
+            //     PromotedOnly = true;
+            //     Image = Union;
 
-                trigger OnAction()
-                var
-                    FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
-                begin
-                    FleetrockMgt.GetUnits();
-                end;
-            }
-            action("Get Suppliers")
-            {
-                ApplicationArea = All;
-                Promoted = true;
-                PromotedCategory = Process;
-                PromotedIsBig = true;
-                PromotedOnly = true;
-                Image = Vendor;
+            //     trigger OnAction()
+            //     var
+            //         FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
+            //     begin
+            //         FleetrockMgt.GetUnits();
+            //     end;
+            // }
+            // action("Get Suppliers")
+            // {
+            //     ApplicationArea = All;
+            //     Promoted = true;
+            //     PromotedCategory = Process;
+            //     PromotedIsBig = true;
+            //     PromotedOnly = true;
+            //     Image = Vendor;
 
-                trigger OnAction()
-                var
-                    FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
-                    s: Text;
-                begin
-                    FleetrockMgt.GetSuppliers().WriteTo(s);
-                    Message(s);
-                end;
-            }
+            //     trigger OnAction()
+            //     var
+            //         FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
+            //         s: Text;
+            //     begin
+            //         FleetrockMgt.GetSuppliers().WriteTo(s);
+            //         Message(s);
+            //     end;
+            // }
             action("Get Open POs")
             {
                 ApplicationArea = All;
@@ -173,7 +178,7 @@ page 80000 "EE Fleetrock Setup"
                 trigger OnAction()
                 var
                 begin
-                    Codeunit.Run(Codeunit::"EE Get Closed Purch. Order")
+                    Codeunit.Run(Codeunit::"EE Get Closed Purch. Orders")
                 end;
             }
             action("Import Closed POs By Date")
@@ -191,6 +196,33 @@ page 80000 "EE Fleetrock Setup"
                     s: Text;
                 begin
                     FleetrockMgt.GetClosedPurchaseOrders(0DT).WriteTo(s);
+                    Message(s);
+                end;
+            }
+            action("Import Closed ROs By Date")
+            {
+                ApplicationArea = All;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                Image = ImportChartOfAccounts;
+
+                trigger OnAction()
+                var
+                    FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
+                    s: Text;
+                    Status: Enum "EE Repair Order Status";
+                    i: Integer;
+                begin
+                    i := StrMenu('Started,Invoiced');
+                    case i of
+                        1:
+                            Status := Status::started;
+                        2:
+                            Status := Status::invoiced;
+                    end;
+                    FleetrockMgt.GetRepairOrders(0DT, Status).WriteTo(s);
                     Message(s);
                 end;
             }

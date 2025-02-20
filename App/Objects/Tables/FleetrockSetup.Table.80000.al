@@ -34,7 +34,7 @@ table 80000 "EE Fleetrock Setup"
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(7; "Item G/L Account No."; Code[20])
+        field(7; "Purchase G/L Account No."; Code[20])
         {
             DataClassification = CustomerContent;
             TableRelation = "G/L Account"."No.";
@@ -61,6 +61,11 @@ table 80000 "EE Fleetrock Setup"
         field(12; "Earliest Import DateTime"; DateTime)
         {
             DataClassification = CustomerContent;
+        }
+        field(13; "Repair G/L Account No."; Code[20])
+        {
+            DataClassification = CustomerContent;
+            TableRelation = "G/L Account"."No.";
         }
     }
 
