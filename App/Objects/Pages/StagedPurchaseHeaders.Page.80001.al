@@ -71,29 +71,29 @@ page 80001 "EE Staged Purchased Headers"
                 {
                     ApplicationArea = All;
                 }
-                field(Created; Rec.Created)
-                {
-                    ApplicationArea = all;
-                }
                 field(date_opened; Rec.date_opened)
                 {
                     ApplicationArea = All;
-                }
-                field(Opened; Rec.Opened)
-                {
-                    ApplicationArea = all;
                 }
                 field(date_received; Rec.date_received)
                 {
                     ApplicationArea = All;
                 }
-                field(Received; Rec.Received)
-                {
-                    ApplicationArea = all;
-                }
                 field(date_closed; Rec.date_closed)
                 {
                     ApplicationArea = All;
+                }
+                field(Created; Rec.Created)
+                {
+                    ApplicationArea = all;
+                }
+                field(Opened; Rec.Opened)
+                {
+                    ApplicationArea = all;
+                }
+                field(Received; Rec.Received)
+                {
+                    ApplicationArea = all;
                 }
                 field(Closed; Rec.Closed)
                 {

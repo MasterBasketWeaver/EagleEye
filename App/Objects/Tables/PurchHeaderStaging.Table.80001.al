@@ -46,21 +46,25 @@ table 80001 "EE Purch. Header Staging"
         {
             DataClassification = CustomerContent;
             Editable = false;
+            Caption = 'date_created (UTC)';
         }
         field(17; date_opened; Text[50])
         {
             DataClassification = CustomerContent;
             Editable = false;
+            Caption = 'date_opened (UTC)';
         }
         field(18; date_received; Text[50])
         {
             DataClassification = CustomerContent;
             Editable = false;
+            Caption = 'date_received (UTC)';
         }
         field(19; date_closed; Text[50])
         {
             DataClassification = CustomerContent;
             Editable = false;
+            Caption = 'date_closed (UTC)';
         }
         field(20; payment_term_days; Decimal)
         {
@@ -167,18 +171,29 @@ table 80001 "EE Purch. Header Staging"
     }
 
     procedure FormatDateValues()
+    var
+        TypeHelper: Codeunit "Type Helper";
+        TimezoneOffset: Duration;
     begin
         Rec.Created := 0DT;
         Rec.Opened := 0DT;
         Rec.Received := 0DT;
         Rec.Closed := 0DT;
+
+        if not TypeHelper.GetUserTimezoneOffset(TimezoneOffset) then
+            TimezoneOffset := 0;
+
         if Rec.date_created <> '' then
-            Evaluate(Rec.Created, Rec.date_created);
+            if Evaluate(Rec.Created, Rec.date_created) then
+                Rec.Created += TimezoneOffset;
         if Rec.date_opened <> '' then
-            Evaluate(Rec.Opened, Rec.date_opened);
+            if Evaluate(Rec.Opened, Rec.date_opened) then
+                Rec.Opened += TimezoneOffset;
         if Rec.date_received <> '' then
-            Evaluate(Rec.Received, Rec.date_received);
+            if Evaluate(Rec.Received, Rec.date_received) then
+                Rec.Received += TimezoneOffset;
         if Rec.date_closed <> '' then
-            Evaluate(Rec.Closed, Rec.date_closed);
+            if Evaluate(Rec.Closed, Rec.date_closed) then
+                Rec.Closed += TimezoneOffset;
     end;
 }
