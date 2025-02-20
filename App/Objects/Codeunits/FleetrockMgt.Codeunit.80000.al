@@ -195,8 +195,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             PurchaseLine.Validate("Unit Cost", PurchLineStaging.unit_price);
             PurchaseLine.Validate("Direct Unit Cost", PurchLineStaging.unit_price);
             PurchaseLine.Description := CopyStr(PurchLineStaging.part_description, 1, MaxStrLen(PurchaseLine.Description));
-            if Taxable then
-                PurchaseLine.Validate("Tax Group Code", FleetrockSetup."Tax Group Code");
+            PurchaseLine.Validate("Tax Group Code", FleetrockSetup."Tax Group Code");
             PurchaseLine.Insert(true);
         until PurchLineStaging.Next() = 0;
     end;
@@ -366,6 +365,35 @@ codeunit 80000 "EE Fleetrock Mgt."
     begin
         APIToken := CheckToGetAPIToken();
         exit(GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetPO?username=%2&status=%3&token=%4', FleetrockSetup."Integration URL", FleetrockSetup.Username, Status, APIToken), 'purchase_orders'));
+    end;
+
+
+
+    [TryFunction]
+    procedure TryToGetClosedPurchaseOrders(StartDateTime: DateTime; var PurchOrdersJsonArray: JsonArray)
+    begin
+        PurchOrdersJsonArray := GetClosedPurchaseOrders(StartDateTime);
+    end;
+
+    procedure GetClosedPurchaseOrders(StartDateTime: DateTime): JsonArray
+    var
+        APIToken, URL : Text;
+        EndDateTime: DateTime;
+    begin
+        APIToken := CheckToGetAPIToken();
+        if StartDateTime = 0DT then begin
+            FleetrockSetup.TestField("Earliest Import DateTime");
+            StartDateTime := FleetrockSetup."Earliest Import DateTime";
+        end else
+            if FleetrockSetup."Earliest Import DateTime" > StartDateTime then
+                StartDateTime := FleetrockSetup."Earliest Import DateTime";
+        URL := '%1/API/GetPO?username=%2&event=closed&token=%3&start=%4&end=%5';
+        if DT2Date(StartDateTime) < Today() then
+            EndDateTime := CreateDateTime(Today(), DT2Time(StartDateTime))
+        else
+            EndDateTime := CreateDateTime(CalcDate('<+1D>', DT2Date(StartDateTime)), DT2Time(StartDateTime));
+        URL := StrSubstNo(URL, FleetrockSetup."Integration URL", FleetrockSetup.Username, APIToken, Format(StartDateTime, 0, 9), Format(EndDateTime, 0, 9));
+        exit(GetResponseAsJsonArray(FleetrockSetup, URL, 'purchase_orders'));
     end;
 
 

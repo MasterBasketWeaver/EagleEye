@@ -49,6 +49,10 @@ page 80000 "EE Fleetrock Setup"
                     ApplicationArea = All;
                     ShowMandatory = true;
                 }
+                field("Earliest Import DateTime"; Rec."Earliest Import DateTime")
+                {
+                    ApplicationArea = all;
+                }
                 field("Use API Token"; Rec."Use API Token")
                 {
                     ApplicationArea = all;
@@ -170,6 +174,24 @@ page 80000 "EE Fleetrock Setup"
                 var
                 begin
                     Codeunit.Run(Codeunit::"EE Get Closed Purch. Order")
+                end;
+            }
+            action("Import Closed POs By Date")
+            {
+                ApplicationArea = All;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                Image = ImportChartOfAccounts;
+
+                trigger OnAction()
+                var
+                    FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
+                    s: Text;
+                begin
+                    FleetrockMgt.GetClosedPurchaseOrders(0DT).WriteTo(s);
+                    Message(s);
                 end;
             }
         }

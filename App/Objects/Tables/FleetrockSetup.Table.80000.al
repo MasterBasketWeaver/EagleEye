@@ -58,6 +58,10 @@ table 80000 "EE Fleetrock Setup"
         {
             DataClassification = CustomerContent;
         }
+        field(12; "Earliest Import DateTime"; DateTime)
+        {
+            DataClassification = CustomerContent;
+        }
     }
 
     keys
