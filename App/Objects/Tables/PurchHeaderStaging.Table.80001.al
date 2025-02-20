@@ -170,6 +170,11 @@ table 80001 "EE Purch. Header Staging"
         key(K2; id) { }
     }
 
+    trigger OnInsert()
+    begin
+        FormatDateValues();
+    end;
+
     procedure FormatDateValues()
     var
         TypeHelper: Codeunit "Type Helper";

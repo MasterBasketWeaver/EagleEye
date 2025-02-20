@@ -1,5 +1,9 @@
-codeunit 80001 "EE Get Closed Purch. Order"
+codeunit 80001 "EE Get Closed Purch. Orders"
 {
+    Permissions = tabledata "EE Fleetrock Setup" = r,
+    tabledata "EE Fleetrock Import Entry" = r;
+
+
     trigger OnRun()
     var
         PurchaseHeader: Record "Purchase Header";
@@ -37,7 +41,7 @@ codeunit 80001 "EE Get Closed Purch. Order"
             ClearLastError();
             CanImport := FleetRockMgt.TryToCheckIfAlreadyImported(s, PurchaseHeader);
             if CanImport then
-                CanImport := FleetRockMgt.TryToInsertStagingRecords(OrderJsonObj, ImportEntryNo);
+                CanImport := FleetRockMgt.TryToInsertPOStagingRecords(OrderJsonObj, ImportEntryNo);
             EntryNo += 1;
             FleetRockMgt.InsertImportEntry(EntryNo, CanImport, ImportEntryNo, ImportEntry.Type::"Purchase Order", GetLastErrorText());
         end;

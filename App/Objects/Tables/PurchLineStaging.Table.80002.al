@@ -88,10 +88,19 @@ table 80002 "EE Purch. Line Staging"
         key(K2; id, "Header Entry No.") { }
     }
 
+    trigger OnInsert()
+    begin
+        FormatDateValues();
+    end;
+
     procedure FormatDateValues()
+    var
+        TypeHelper: Codeunit "Type Helper";
+        TimezoneOffset: Duration;
     begin
         Rec.Added := 0DT;
         if Rec.date_added <> '' then
-            Evaluate(Rec.Added, Rec.date_added);
+            if Evaluate(Rec.Added, Rec.date_added) then
+                Rec.Added := Rec.Added + TimezoneOffset;
     end;
 }
