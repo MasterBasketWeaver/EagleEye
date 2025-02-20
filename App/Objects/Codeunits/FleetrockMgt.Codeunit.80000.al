@@ -65,13 +65,12 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
     [TryFunction]
-
-    procedure TryToInsertStagingRecords(var OrderJsonObj: JsonObject; var ImportEntryNo: Integer)
+    procedure TryToInsertPOStagingRecords(var OrderJsonObj: JsonObject; var ImportEntryNo: Integer)
     begin
-        ImportEntryNo := InsertStagingRecords(OrderJsonObj);
+        ImportEntryNo := InsertPOStagingRecords(OrderJsonObj);
     end;
 
-    procedure InsertStagingRecords(var OrderJsonObj: JsonObject): Integer
+    procedure InsertPOStagingRecords(var OrderJsonObj: JsonObject): Integer
     var
         PurchHeaderStaging: Record "EE Purch. Header Staging";
         EntryNo: Integer;
@@ -102,7 +101,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         DocNo: Code[20];
     begin
         GetAndCheckSetup();
-        FleetrockSetup.TestField("Item G/L Account No.");
+        FleetrockSetup.TestField("Purchase G/L Account No.");
         FleetrockSetup.TestField("Vendor Posting Group");
         FleetrockSetup.TestField("Tax Group Code");
         FleetrockSetup.TestField("Tax Area Code");
@@ -138,6 +137,39 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchaseHeader.Modify(true);
         CreatePurchaseLines(PurchHeaderStaging, DocNo);
     end;
+
+
+
+
+
+
+
+    [TryFunction]
+    procedure TryToCheckIfAlreadyImported(ImportId: Text; var SalesHeader: Record "Sales Header")
+    begin
+        CheckIfAlreadyImported(ImportId, SalesHeader);
+    end;
+
+    procedure CheckIfAlreadyImported(ImportId: Text; var SalesHeader: Record "Sales Header"): Boolean
+    var
+        SalesInvHeader: Record "Sales Invoice Header";
+    begin
+        SalesHeader.SetCurrentKey("EE Fleetrock ID");
+        SalesHeader.SetRange("EE Fleetrock ID", ImportId);
+        if SalesHeader.FindFirst() then
+            Error('Fleetrock Sales Order %1 has already been imported as order %2.', ImportId, SalesHeader."No.");
+        SalesInvHeader.SetCurrentKey("EE Fleetrock ID");
+        SalesInvHeader.SetRange("EE Fleetrock ID", ImportId);
+        if SalesInvHeader.FindFirst() then
+            Error('Fleetrock Sales Order %1 has already been imported as order %2, and posted as invoice %3.', ImportId, SalesInvHeader."Order No.", SalesInvHeader."No.");
+        exit(false);
+    end;
+
+
+
+
+
+
 
     [TryFunction]
     procedure TryToCheckIfAlreadyImported(ImportId: Text; var PurchaseHeader: Record "Purchase Header")
@@ -190,7 +222,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             PurchaseLine.Validate("Document No.", DocNo);
             PurchaseLine.Validate("Line No.", LineNo);
             PurchaseLine.Validate(Type, PurchaseLine.Type::"G/L Account");
-            PurchaseLine.Validate("No.", FleetRockSetup."Item G/L Account No.");
+            PurchaseLine.Validate("No.", FleetRockSetup."Purchase G/L Account No.");
             PurchaseLine.Validate(Quantity, PurchLineStaging.part_quantity);
             PurchaseLine.Validate("Unit Cost", PurchLineStaging.unit_price);
             PurchaseLine.Validate("Direct Unit Cost", PurchLineStaging.unit_price);
@@ -276,7 +308,6 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchHeaderStaging.shipping_total := GetJsonValueAsDecimal(OrderJsonObj, 'shipping_total');
         PurchHeaderStaging.other_total := GetJsonValueAsDecimal(OrderJsonObj, 'other_total');
         PurchHeaderStaging.grand_total := GetJsonValueAsDecimal(OrderJsonObj, 'grand_total');
-        PurchHeaderStaging.FormatDateValues();
         PurchHeaderStaging.Insert(true);
 
 
@@ -303,7 +334,6 @@ codeunit 80000 "EE Fleetrock Mgt."
             PurchLineStaging.unit_price := GetJsonValueAsDecimal(LineJsonObj, 'unit_price');
             PurchLineStaging.line_total := GetJsonValueAsDecimal(LineJsonObj, 'line_total');
             PurchLineStaging.date_added := GetJsonValueAsText(LineJsonObj, 'date_added');
-            PurchLineStaging.FormatDateValues();
             PurchLineStaging.Insert(true);
         end;
 
@@ -395,6 +425,95 @@ codeunit 80000 "EE Fleetrock Mgt."
         URL := StrSubstNo(URL, FleetrockSetup."Integration URL", FleetrockSetup.Username, APIToken, Format(StartDateTime, 0, 9), Format(EndDateTime, 0, 9));
         exit(GetResponseAsJsonArray(FleetrockSetup, URL, 'purchase_orders'));
     end;
+
+
+
+
+
+
+
+
+    [TryFunction]
+    procedure TryToGetRepairOrders(StartDateTime: DateTime; Status: Enum "EE Repair Order Status"; var RepairOrdersJsonArray: JsonArray)
+    begin
+        RepairOrdersJsonArray := GetRepairOrders(StartDateTime, Status);
+    end;
+
+    procedure GetRepairOrders(StartDateTime: DateTime; Status: Enum "EE Repair Order Status"): JsonArray
+    var
+        APIToken, URL : Text;
+        EndDateTime: DateTime;
+    begin
+        APIToken := CheckToGetAPIToken();
+        if StartDateTime = 0DT then begin
+            FleetrockSetup.TestField("Earliest Import DateTime");
+            StartDateTime := FleetrockSetup."Earliest Import DateTime";
+        end else
+            if FleetrockSetup."Earliest Import DateTime" > StartDateTime then
+                StartDateTime := FleetrockSetup."Earliest Import DateTime";
+        URL := '%1/API/GetRO?username=%2&event=%3&token=%4&start=%5&end=%6';
+        if DT2Date(StartDateTime) < Today() then
+            EndDateTime := CreateDateTime(Today(), DT2Time(StartDateTime))
+        else
+            EndDateTime := CreateDateTime(CalcDate('<+1D>', DT2Date(StartDateTime)), DT2Time(StartDateTime));
+        URL := StrSubstNo(URL, FleetrockSetup."Integration URL", FleetrockSetup.Username, Status, APIToken, Format(StartDateTime, 0, 9), Format(EndDateTime, 0, 9));
+        exit(GetResponseAsJsonArray(FleetrockSetup, URL, 'repair_orders'));
+    end;
+
+
+
+    [TryFunction]
+    procedure TryToInsertROStagingRecords(var OrderJsonObj: JsonObject; var ImportEntryNo: Integer)
+    begin
+        ImportEntryNo := InsertROStagingRecords(OrderJsonObj);
+    end;
+
+    procedure InsertROStagingRecords(var OrderJsonObj: JsonObject): Integer
+    var
+        PurchHeaderStaging: Record "EE Purch. Header Staging";
+        EntryNo: Integer;
+    begin
+        if PurchHeaderStaging.FindLast() then
+            EntryNo := PurchHeaderStaging."Entry No.";
+        EntryNo += 1;
+        if not TryToInsertPurchStaging(OrderJsonObj, EntryNo) then begin
+            if not PurchHeaderStaging.Get(EntryNo) then begin
+                PurchHeaderStaging.Init();
+                PurchHeaderStaging."Entry No." := EntryNo;
+                PurchHeaderStaging.Insert(true);
+            end;
+            PurchHeaderStaging."Insert Error" := true;
+            PurchHeaderStaging."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(PurchHeaderStaging."Error Message"));
+            PurchHeaderStaging.Modify(true);
+        end;
+        PurchHeaderStaging.Get(EntryNo);
+        if PurchHeaderStaging.Processed then
+            Error('Purchase Order %1 has already been processed.', PurchHeaderStaging."Entry No.");
+        CreatePurchaseOrder(PurchHeaderStaging);
+        exit(EntryNo);
+    end;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     local procedure GetResponseAsJsonToken(var FleetrockSetup: Record "EE Fleetrock Setup"; URL: Text; TokenName: Text): Variant
