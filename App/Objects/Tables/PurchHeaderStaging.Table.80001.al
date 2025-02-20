@@ -149,6 +149,12 @@ table 80001 "EE Purch. Header Staging"
             Editable = false;
             TableRelation = "Purchase Header"."No." where("Document Type" = const(Order));
         }
+        field(105; "Imported By"; Code[50])
+        {
+            FieldClass = FlowField;
+            CalcFormula = lookup(User."User Name" where("User Security ID" = field(SystemCreatedBy)));
+            Editable = false;
+        }
     }
 
     keys

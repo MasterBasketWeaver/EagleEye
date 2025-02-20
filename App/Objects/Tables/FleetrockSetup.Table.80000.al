@@ -54,6 +54,10 @@ table 80000 "EE Fleetrock Setup"
             DataClassification = CustomerContent;
             TableRelation = "Tax Group".Code;
         }
+        field(11; "Use API Token"; boolean)
+        {
+            DataClassification = CustomerContent;
+        }
     }
 
     keys

@@ -104,10 +104,9 @@ page 80001 "EE Staged Purchased Headers"
                     ApplicationArea = all;
                     Caption = 'Imported At';
                 }
-                field("Imported By"; Rec.SystemCreatedBy)
+                field("Imported By"; Rec."Imported By")
                 {
                     ApplicationArea = all;
-                    Caption = 'Imported By';
                 }
                 field(payment_term_days; Rec.payment_term_days)
                 {

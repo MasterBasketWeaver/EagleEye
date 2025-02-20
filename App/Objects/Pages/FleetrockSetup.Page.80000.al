@@ -49,13 +49,19 @@ page 80000 "EE Fleetrock Setup"
                     ApplicationArea = All;
                     ShowMandatory = true;
                 }
+                field("Use API Token"; Rec."Use API Token")
+                {
+                    ApplicationArea = all;
+                }
                 field("API Token"; Rec."API Token")
                 {
                     ApplicationArea = All;
+                    Visible = Rec."Use API Token";
                 }
                 field("API Token Expiry Date"; Rec."API Token Expiry Date")
                 {
                     ApplicationArea = all;
+                    Visible = Rec."Use API Token";
                 }
             }
         }

@@ -43,6 +43,8 @@ codeunit 80000 "EE Fleetrock Mgt."
         ResponseText: Text;
     begin
         GetAndCheckSetup();
+        if not FleetrockSetup."Use API Token" then
+            exit(FleetrockSetup."API Key");
         if (FleetrockSetup."API Token" <> '') and (FleetrockSetup."API Token Expiry Date" >= Today()) then
             exit(FleetrockSetup."API Token");
         exit(CheckToGetAPIToken(FleetrockSetup));
@@ -56,14 +58,20 @@ codeunit 80000 "EE Fleetrock Mgt."
         JsonTkn.WriteTo(FleetrockSetup."API Token");
         FleetrockSetup.Validate("API Token", FleetrockSetup."API Token".Replace('"', ''));
         FleetrockSetup.Validate("API Token Expiry Date", CalcDate('<+180D>', Today()));
+        FleetrockSetup.Validate("Use API Token", true);
         FleetrockSetup.Modify(true);
         exit(FleetrockSetup."API Token");
     end;
 
 
+    [TryFunction]
 
+    procedure TryToInsertStagingRecords(var OrderJsonObj: JsonObject; var ImportEntryNo: Integer)
+    begin
+        ImportEntryNo := InsertStagingRecords(OrderJsonObj);
+    end;
 
-    procedure InsertStagingRecords(var OrderJsonObj: JsonObject)
+    procedure InsertStagingRecords(var OrderJsonObj: JsonObject): Integer
     var
         PurchHeaderStaging: Record "EE Purch. Header Staging";
         EntryNo: Integer;
@@ -85,6 +93,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         if PurchHeaderStaging.Processed then
             Error('Purchase Order %1 has already been processed.', PurchHeaderStaging."Entry No.");
         CreatePurchaseOrder(PurchHeaderStaging);
+        exit(EntryNo);
     end;
 
     procedure CreatePurchaseOrder(var PurchHeaderStaging: Record "EE Purch. Header Staging")
@@ -130,6 +139,11 @@ codeunit 80000 "EE Fleetrock Mgt."
         CreatePurchaseLines(PurchHeaderStaging, DocNo);
     end;
 
+    [TryFunction]
+    procedure TryToCheckIfAlreadyImported(ImportId: Text; var PurchaseHeader: Record "Purchase Header")
+    begin
+        CheckIfAlreadyImported(ImportId, PurchaseHeader);
+    end;
 
     procedure CheckIfAlreadyImported(ImportId: Text; var PurchaseHeader: Record "Purchase Header"): Boolean
     begin
@@ -339,6 +353,13 @@ codeunit 80000 "EE Fleetrock Mgt."
         exit(GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetSuppliers?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, APIToken), 'suppliers'));
     end;
 
+
+    [TryFunction]
+    procedure TryToGetPurchaseOrders(Status: Enum "EE Purch. Order Status"; var PurchOrdersJsonArray: JsonArray)
+    begin
+        PurchOrdersJsonArray := GetPurchaseOrders(Status);
+    end;
+
     procedure GetPurchaseOrders(Status: Enum "EE Purch. Order Status"): JsonArray
     var
         APIToken: Text;
@@ -359,6 +380,8 @@ codeunit 80000 "EE Fleetrock Mgt."
         JsonObj.ReadFrom(ResponseText);
         if not JsonObj.Get(TokenName, JsonTkn) then begin
             JsonObj.WriteTo(ResponseText);
+            if ResponseText.Contains('"result":"error"') then
+                Error(ResponseText);
             Error('Token %1 not found in response:\%2', TokenName, ResponseText);
         end;
         exit(JsonTkn);
@@ -377,6 +400,8 @@ codeunit 80000 "EE Fleetrock Mgt."
         JsonObj.ReadFrom(ResponseText);
         if not JsonObj.Get(TokenName, JsonTkn) then begin
             JsonObj.WriteTo(ResponseText);
+            if ResponseText.Contains('"result":"error"') then
+                Error(ResponseText);
             Error('Token %1 not found in response:\%2', TokenName, ResponseText);
         end;
         JsonArry := JsonTkn.AsArray();
@@ -399,6 +424,20 @@ codeunit 80000 "EE Fleetrock Mgt."
 
         HttpResponseMessage.Content().ReadAs(ResponseText);
         exit(HttpResponseMessage.IsSuccessStatusCode());
+    end;
+
+
+    procedure InsertImportEntry(EntryNo: Integer; Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; ErrorMsg: Text)
+    var
+        ImportEntry: Record "EE Fleetrock Import Entry";
+    begin
+        ImportEntry.Init();
+        ImportEntry."Entry No." := EntryNo;
+        ImportEntry.Type := Type;
+        ImportEntry.Success := Success;
+        ImportEntry."Error Message" := CopyStr(ErrorMsg, 1, MaxStrLen(ImportEntry."Error Message"));
+        ImportEntry."Import Entry No." := ImportEntryNo;
+        ImportEntry.Insert(true);
     end;
 
 
