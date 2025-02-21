@@ -104,7 +104,7 @@ codeunit 80000 "EE Fleetrock Mgt."
                 PurchHeaderStaging."Entry No." := EntryNo;
                 PurchHeaderStaging.Insert(true);
             end;
-            PurchHeaderStaging."Insert Error" := true;
+            PurchHeaderStaging."Import Error" := true;
             PurchHeaderStaging."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(PurchHeaderStaging."Error Message"));
             PurchHeaderStaging.Modify(true);
         end;
@@ -132,6 +132,7 @@ codeunit 80000 "EE Fleetrock Mgt."
                 PurchaseHeader.Delete(true);
         end else begin
             PurchHeaderStaging."Processed Error" := false;
+            PurchHeaderStaging.Processed := true;
             PurchHeaderStaging."Document No." := DocNo;
         end;
         PurchHeaderStaging.Modify(true);
@@ -527,7 +528,7 @@ codeunit 80000 "EE Fleetrock Mgt."
                 SalesHeaderStaging."Entry No." := EntryNo;
                 SalesHeaderStaging.Insert(true);
             end;
-            SalesHeaderStaging."Insert Error" := true;
+            SalesHeaderStaging."Import Error" := true;
             SalesHeaderStaging."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(SalesHeaderStaging."Error Message"));
             SalesHeaderStaging.Modify(true);
         end;
@@ -622,6 +623,7 @@ codeunit 80000 "EE Fleetrock Mgt."
                 SalesaseHeader.Delete(true);
         end else begin
             SalesHeaderStaging."Processed Error" := false;
+            SalesHeaderStaging.Processed := true;
             SalesHeaderStaging."Document No." := DocNo;
         end;
         SalesHeaderStaging.Modify(true);

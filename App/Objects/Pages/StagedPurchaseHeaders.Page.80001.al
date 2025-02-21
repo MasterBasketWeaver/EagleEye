@@ -144,7 +144,7 @@ page 80001 "EE Staged Purchased Headers"
                 {
                     ApplicationArea = all;
                 }
-                field("Insert Error"; Rec."Insert Error")
+                field("Import Error"; Rec."Import Error")
                 {
                     ApplicationArea = all;
                 }

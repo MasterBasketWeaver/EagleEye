@@ -251,7 +251,7 @@ page 80004 "EE Staged Repair Order Headers"
                 {
                     ApplicationArea = all;
                 }
-                field("Insert Error"; Rec."Insert Error")
+                field("Import Error"; Rec."Import Error")
                 {
                     ApplicationArea = all;
                 }

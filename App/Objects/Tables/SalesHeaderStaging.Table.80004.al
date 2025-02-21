@@ -228,7 +228,7 @@ table 80004 "EE Sales Header Staging"
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(100; "Insert Error"; Boolean)
+        field(100; "Import Error"; Boolean)
         {
             DataClassification = CustomerContent;
             Editable = false;

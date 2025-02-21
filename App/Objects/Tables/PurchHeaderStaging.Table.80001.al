@@ -127,7 +127,7 @@ table 80001 "EE Purch. Header Staging"
             CalcFormula = count("EE Purch. Line Staging" where(id = field(id), "Header Entry No." = field("Entry No.")));
             Editable = false;
         }
-        field(100; "Insert Error"; Boolean)
+        field(100; "Import Error"; Boolean)
         {
             DataClassification = CustomerContent;
             Editable = false;
