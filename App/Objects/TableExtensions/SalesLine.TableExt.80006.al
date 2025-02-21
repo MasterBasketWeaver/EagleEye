@@ -6,6 +6,7 @@ tableextension 80006 "EE Sales Line" extends "Sales Line"
         {
             DataClassification = ToBeClassified;
             Editable = false;
+            Caption = 'Task/Part Id';
         }
     }
 }

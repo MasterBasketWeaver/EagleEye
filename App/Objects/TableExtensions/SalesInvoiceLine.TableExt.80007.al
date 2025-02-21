@@ -6,6 +6,7 @@ tableextension 80007 "EE Sales Invoice Line" extends "Sales Invoice Line"
         {
             DataClassification = ToBeClassified;
             Editable = false;
+            Caption = 'Task/Part Id';
         }
     }
 }
