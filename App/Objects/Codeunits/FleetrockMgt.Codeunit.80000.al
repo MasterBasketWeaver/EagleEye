@@ -74,7 +74,7 @@ codeunit 80000 "EE Fleetrock Mgt."
     var
         JsonTkn: JsonToken;
     begin
-        JsonTkn := GetResponseAsJsonToken(FleetrockSetup, StrSubstNo('%1/API/GetToken?username=%2&key=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, FleetrockSetup."API Key"), 'token');
+        JsonTkn := RestAPIMgt.GetResponseAsJsonToken(FleetrockSetup, StrSubstNo('%1/API/GetToken?username=%2&key=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, FleetrockSetup."API Key"), 'token');
         JsonTkn.WriteTo(FleetrockSetup."API Token");
         FleetrockSetup.Validate("API Token", FleetrockSetup."API Token".Replace('"', ''));
         FleetrockSetup.Validate("API Token Expiry Date", CalcDate('<+180D>', Today()));
@@ -418,7 +418,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         UnitJsonObj: JsonObject;
     begin
         APIToken := CheckToGetAPIToken();
-        JsonArry := GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetUnits?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, APIToken), 'units');
+        JsonArry := RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetUnits?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, APIToken), 'units');
         foreach T in JsonArry do begin
             UnitJsonObj := T.AsObject();
         end;
@@ -430,7 +430,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         APIToken: Text;
     begin
         APIToken := CheckToGetAPIToken();
-        exit(GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetSuppliers?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, APIToken), 'suppliers'));
+        exit(RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetSuppliers?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, APIToken), 'suppliers'));
     end;
 
 
@@ -445,7 +445,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         APIToken: Text;
     begin
         APIToken := CheckToGetAPIToken();
-        exit(GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetPO?username=%2&status=%3&token=%4', FleetrockSetup."Integration URL", FleetrockSetup.Username, Status, APIToken), 'purchase_orders'));
+        exit(RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetPO?username=%2&status=%3&token=%4', FleetrockSetup."Integration URL", FleetrockSetup.Username, Status, APIToken), 'purchase_orders'));
     end;
 
 
@@ -464,7 +464,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         GetEventParameters(APIToken, StartDateTime, EndDateTime);
         URL := StrSubstNo('%1/API/GetPO?username=%2&event=closed&token=%3&start=%4&end=%5', FleetrockSetup."Integration URL",
             FleetrockSetup.Username, APIToken, Format(StartDateTime, 0, 9), Format(EndDateTime, 0, 9));
-        exit(GetResponseAsJsonArray(FleetrockSetup, URL, 'purchase_orders'));
+        exit(RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, URL, 'purchase_orders'));
     end;
 
 
@@ -488,7 +488,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         GetEventParameters(APIToken, StartDateTime, EndDateTime);
         URL := StrSubstNo('%1/API/GetRO?username=%2&event=%3&token=%4&start=%5&end=%6', FleetrockSetup."Integration URL",
             FleetrockSetup.Username, Status, APIToken, Format(StartDateTime, 0, 9), Format(EndDateTime, 0, 9));
-        exit(GetResponseAsJsonArray(FleetrockSetup, URL, 'repair_orders'));
+        exit(RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, URL, 'repair_orders'));
     end;
 
 
@@ -774,13 +774,7 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
 
-    local procedure PopulateStagingTable(var
-                                             RecVar: Variant;
-
-var
-OrderJsonObj: JsonObject;
-TableNo: Integer;
-StartFieldNo: Integer)
+    local procedure PopulateStagingTable(var RecVar: Variant; var OrderJsonObj: JsonObject; TableNo: Integer; StartFieldNo: Integer)
     var
         FieldRec: Record Field;
         RecRef: RecordRef;
@@ -821,66 +815,10 @@ StartFieldNo: Integer)
 
 
 
-    local procedure GetResponseAsJsonToken(var FleetrockSetup: Record "EE Fleetrock Setup"; URL: Text; TokenName: Text): Variant
-    var
-        ResponseText: Text;
-        JsonObj: JsonObject;
-        JsonTkn: JsonToken;
-    begin
-        if not SendRequest('GET', URL, ResponseText) then
-            Error(ResponseText);
-        JsonObj.ReadFrom(ResponseText);
-        if not JsonObj.Get(TokenName, JsonTkn) then begin
-            JsonObj.WriteTo(ResponseText);
-            if ResponseText.Contains('"result":"error"') then
-                Error(ResponseText);
-            Error('Token %1 not found in response:\%2', TokenName, ResponseText);
-        end;
-        exit(JsonTkn);
-    end;
-
-    local procedure GetResponseAsJsonArray(var FleetrockSetup: Record "EE Fleetrock Setup"; URL: Text; TokenName: Text): Variant
-    var
-        ResponseText: Text;
-        JsonObj: JsonObject;
-        JsonArry: JsonArray;
-        JsonTkn: JsonToken;
-        Result: Boolean;
-    begin
-        if not SendRequest('GET', URL, ResponseText) then
-            Error(ResponseText);
-        JsonObj.ReadFrom(ResponseText);
-        if not JsonObj.Get(TokenName, JsonTkn) then begin
-            JsonObj.WriteTo(ResponseText);
-            if ResponseText.Contains('"result":"error"') then
-                Error(ResponseText);
-            Error('Token %1 not found in response:\%2', TokenName, ResponseText);
-        end;
-        JsonArry := JsonTkn.AsArray();
-        exit(JsonArry);
-    end;
-
-    procedure SendRequest(Method: Text; URL: Text; var ResponseText: Text): Boolean
-    var
-        HttpClient: HttpClient;
-        HttpRequestMessage: HttpRequestMessage;
-        HttpResponseMessage: HttpResponseMessage;
-    begin
-        HttpRequestMessage.SetRequestUri(URL);
-        HttpRequestMessage.Method(Method);
-
-        if not HttpClient.Send(HttpRequestMessage, HttpResponseMessage) then begin
-            ResponseText := StrSubstNo('Unable to send request:\%1', GetLastErrorText());
-            exit(false);
-        end;
-
-        HttpResponseMessage.Content().ReadAs(ResponseText);
-        exit(HttpResponseMessage.IsSuccessStatusCode());
-    end;
 
 
-    procedure InsertImportEntry(EntryNo: Integer; Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type";
-                                                                                                      ErrorMsg: Text)
+
+    procedure InsertImportEntry(EntryNo: Integer; Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type"; ErrorMsg: Text)
     var
         ImportEntry: Record "EE Fleetrock Import Entry";
     begin
@@ -897,5 +835,6 @@ StartFieldNo: Integer)
 
     var
         FleetrockSetup: Record "EE Fleetrock Setup";
+        RestAPIMgt: Codeunit "EE REST API Mgt.";
 
 }
