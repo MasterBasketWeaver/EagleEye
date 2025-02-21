@@ -39,19 +39,44 @@ codeunit 80004 "EE REST API Mgt."
         exit(JsonArry);
     end;
 
-    local procedure SendJsonBody()
+    procedure SendRequestWithJsonBody(Method: Text; URL: Text; var JsonObj: JsonObject; var ResponseText: Text): Boolean
+    var
+        Content: HttpContent;
+        s: Text;
     begin
-
+        JsonObj.WriteTo(s);
+        Content.WriteFrom(s);
+        exit(SendRequest(Method, URL, ResponseText, Content, StrLen(s)));
     end;
 
     local procedure SendRequest(Method: Text; URL: Text; var ResponseText: Text): Boolean
     var
+        Content: HttpContent;
+    begin
+        exit(SendRequest(Method, URL, ResponseText, Content, 0));
+    end;
+
+    local procedure SendRequest(Method: Text; URL: Text; var ResponseText: Text; var Content: HttpContent; ContentLength: Integer): Boolean
+    var
         HttpClient: HttpClient;
+        Headers: HttpHeaders;
         HttpRequestMessage: HttpRequestMessage;
         HttpResponseMessage: HttpResponseMessage;
     begin
         HttpRequestMessage.SetRequestUri(URL);
         HttpRequestMessage.Method(Method);
+
+        if (Method <> 'GET') and (ContentLength > 0) then begin
+            HttpRequestMessage.Content(Content);
+            Content.GetHeaders(Headers);
+            if Headers.Contains('Content-Type') then
+                Headers.Remove('Content-Type');
+            Headers.Add('Content-Type', 'application/json');
+            if Headers.Contains('Content-Length') then
+                Headers.Remove('Content-Length');
+            Headers.Add('Content-Length', Format(ContentLength));
+        end;
+
 
         if not HttpClient.Send(HttpRequestMessage, HttpResponseMessage) then begin
             ResponseText := StrSubstNo('Unable to send request:\%1', GetLastErrorText());
