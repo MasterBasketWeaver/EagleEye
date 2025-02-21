@@ -38,6 +38,10 @@ page 80004 "EE Staged Repair Order Headers"
                             end;
                     end;
                 }
+                field("Event Type"; Rec."Event Type")
+                {
+                    ApplicationArea = all;
+                }
                 field(id; Rec.id)
                 {
                     ApplicationArea = all;

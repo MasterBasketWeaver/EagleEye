@@ -145,6 +145,7 @@ codeunit 80000 "EE Fleetrock Mgt."
     begin
         CheckIfAlreadyImported(PurchHeaderStaging.id, PurchaseHeader);
         PurchaseHeader.Init();
+        PurchaseHeader.SetHideValidationDialog(true);
         PurchaseHeader.Validate("Document Type", Enum::"Purchase Document Type"::Order);
         PurchaseHeader.Validate("Posting Date", DT2Date(PurchHeaderStaging.Closed));
         PurchaseHeader.Insert(true);
@@ -460,19 +461,9 @@ codeunit 80000 "EE Fleetrock Mgt."
         APIToken, URL : Text;
         EndDateTime: DateTime;
     begin
-        APIToken := CheckToGetAPIToken();
-        if StartDateTime = 0DT then begin
-            FleetrockSetup.TestField("Earliest Import DateTime");
-            StartDateTime := FleetrockSetup."Earliest Import DateTime";
-        end else
-            if FleetrockSetup."Earliest Import DateTime" > StartDateTime then
-                StartDateTime := FleetrockSetup."Earliest Import DateTime";
-        URL := '%1/API/GetPO?username=%2&event=closed&token=%3&start=%4&end=%5';
-        if DT2Date(StartDateTime) < Today() then
-            EndDateTime := CreateDateTime(Today(), DT2Time(StartDateTime))
-        else
-            EndDateTime := CreateDateTime(CalcDate('<+1D>', DT2Date(StartDateTime)), DT2Time(StartDateTime));
-        URL := StrSubstNo(URL, FleetrockSetup."Integration URL", FleetrockSetup.Username, APIToken, Format(StartDateTime, 0, 9), Format(EndDateTime, 0, 9));
+        GetEventParameters(APIToken, StartDateTime, EndDateTime);
+        URL := StrSubstNo('%1/API/GetPO?username=%2&event=closed&token=%3&start=%4&end=%5', FleetrockSetup."Integration URL",
+            FleetrockSetup.Username, APIToken, Format(StartDateTime, 0, 9), Format(EndDateTime, 0, 9));
         exit(GetResponseAsJsonArray(FleetrockSetup, URL, 'purchase_orders'));
     end;
 
@@ -494,6 +485,16 @@ codeunit 80000 "EE Fleetrock Mgt."
         APIToken, URL : Text;
         EndDateTime: DateTime;
     begin
+        GetEventParameters(APIToken, StartDateTime, EndDateTime);
+        URL := StrSubstNo('%1/API/GetRO?username=%2&event=%3&token=%4&start=%5&end=%6', FleetrockSetup."Integration URL",
+            FleetrockSetup.Username, Status, APIToken, Format(StartDateTime, 0, 9), Format(EndDateTime, 0, 9));
+        exit(GetResponseAsJsonArray(FleetrockSetup, URL, 'repair_orders'));
+    end;
+
+
+
+    local procedure GetEventParameters(var APIToken: Text; var StartDateTime: DateTime; var EndDateTime: DateTime)
+    begin
         APIToken := CheckToGetAPIToken();
         if StartDateTime = 0DT then begin
             FleetrockSetup.TestField("Earliest Import DateTime");
@@ -501,24 +502,18 @@ codeunit 80000 "EE Fleetrock Mgt."
         end else
             if FleetrockSetup."Earliest Import DateTime" > StartDateTime then
                 StartDateTime := FleetrockSetup."Earliest Import DateTime";
-        URL := '%1/API/GetRO?username=%2&event=%3&token=%4&start=%5&end=%6';
-        if DT2Date(StartDateTime) < Today() then
-            EndDateTime := CreateDateTime(Today(), DT2Time(StartDateTime))
-        else
-            EndDateTime := CreateDateTime(CalcDate('<+1D>', DT2Date(StartDateTime)), DT2Time(StartDateTime));
-        URL := StrSubstNo(URL, FleetrockSetup."Integration URL", FleetrockSetup.Username, Status, APIToken, Format(StartDateTime, 0, 9), Format(EndDateTime, 0, 9));
-        exit(GetResponseAsJsonArray(FleetrockSetup, URL, 'repair_orders'));
+        EndDateTime := CurrentDateTime();
     end;
 
 
 
     [TryFunction]
-    procedure TryToInsertROStagingRecords(var OrderJsonObj: JsonObject; var ImportEntryNo: Integer)
+    procedure TryToInsertROStagingRecords(var OrderJsonObj: JsonObject; var ImportEntryNo: Integer; CreateInvoice: Boolean)
     begin
-        ImportEntryNo := InsertROStagingRecords(OrderJsonObj);
+        ImportEntryNo := InsertROStagingRecords(OrderJsonObj, CreateInvoice);
     end;
 
-    procedure InsertROStagingRecords(var OrderJsonObj: JsonObject): Integer
+    procedure InsertROStagingRecords(var OrderJsonObj: JsonObject; CreateInvoice: Boolean): Integer
     var
         SalesHeaderStaging: Record "EE Sales Header Staging";
         EntryNo: Integer;
@@ -537,9 +532,11 @@ codeunit 80000 "EE Fleetrock Mgt."
             SalesHeaderStaging.Modify(true);
         end;
         SalesHeaderStaging.Get(EntryNo);
-        if SalesHeaderStaging.Processed then
-            Error('Repair Order %1 has already been processed.', SalesHeaderStaging."Entry No.");
-        CreateSalesOrder(SalesHeaderStaging);
+        if CreateInvoice then begin
+            if SalesHeaderStaging.Processed then
+                Error('Repair Order %1 has already been processed.', SalesHeaderStaging."Entry No.");
+            CreateSalesOrder(SalesHeaderStaging);
+        end;
         exit(EntryNo);
     end;
 
@@ -638,6 +635,8 @@ codeunit 80000 "EE Fleetrock Mgt."
     begin
         CheckIfAlreadyImported(SalesHeaderStaging.id, SalesHeader);
         SalesHeader.Init();
+        SalesHeader.SetHideValidationDialog(true);
+        SalesHeader.SetHideCreditCheckDialogue(true);
         SalesHeader.Validate("Document Type", Enum::"Sales Document Type"::Invoice);
         SalesHeader.Validate("Posting Date", DT2Date(SalesHeaderStaging."Expected Finish At"));
         SalesHeader.Insert(true);
@@ -672,36 +671,99 @@ codeunit 80000 "EE Fleetrock Mgt."
         PartLineStaging.SetRange("Header Entry No.", SalesHeaderStaging."Entry No.");
         repeat
             LineNo += 10000;
-            SalesLine.Init();
-            SalesLine.Validate("Document Type", Enum::"Sales Document Type"::Invoice);
-            SalesLine.Validate("Document No.", DocNo);
-            SalesLine.Validate("Line No.", LineNo);
-            SalesLine.Validate(Type, SalesLine.Type::"G/L Account");
-            SalesLine.Validate("No.", FleetRockSetup."Repair G/L Account No.");
-            SalesLine.Validate(Quantity, TaskLineStaging.labor_hours);
-            SalesLine.Validate("Unit Price", TaskLineStaging.labor_hourly_rate);
-            SalesLine.Description := CopyStr(TaskLineStaging.labor_system_code, 1, MaxStrLen(SalesLine.Description));
-            SalesLine.Validate("Tax Group Code", FleetrockSetup."Tax Group Code");
-            // if TaskLineStaging.labor_tax_rate <> 0 then
-            //     SalesLine.Validate("Amount Including VAT", SalesLine.Amount + TaskLineStaging.labor_tax_rate * TaskLineStaging.labor_hours);
-            SalesLine.Insert(true);
+            AddTaskSalesLine(SalesLine, TaskLineStaging, DocNo, LineNo);
             if TaskLineStaging."Part Lines" > 0 then begin
                 PartLineStaging.SetRange("Task Entry No.", TaskLineStaging."Entry No.");
                 PartLineStaging.SetRange("Task Id", TaskLineStaging.task_id);
                 if PartLineStaging.FindSet() then
                     repeat
                         LineNo += 10000;
-                        SalesLine.Init();
-                        SalesLine.Validate("Document Type", Enum::"Sales Document Type"::Invoice);
-                        SalesLine.Validate("Document No.", DocNo);
-                        SalesLine.Validate("Line No.", LineNo);
-                        SalesLine.Validate(Type, SalesLine.Type::"G/L Account");
-                        SalesLine.Validate("No.", FleetRockSetup."Repair G/L Account No.");
-                        SalesLine.Validate(Quantity, PartLineStaging.part_quantity);
-                        SalesLine.Validate("Unit Price", PartLineStaging.part_price);
-                        SalesLine.Description := CopyStr(PartLineStaging.part_description, 1, MaxStrLen(SalesLine.Description));
-                        SalesLine.Validate("Tax Group Code", FleetrockSetup."Tax Group Code");
-                        SalesLine.Insert(true);
+                        AddPartSalesLine(SalesLine, PartLineStaging, DocNo, LineNo);
+                    until PartLineStaging.Next() = 0;
+            end;
+        until TaskLineStaging.Next() = 0;
+    end;
+
+    local procedure AddTaskSalesLine(var SalesLine: Record "Sales Line"; var TaskLineStaging: Record "EE Task Line Staging"; DocNo: Code[20]; LineNo: Integer)
+    begin
+        SalesLine.Init();
+        SalesLine.Validate("Document Type", Enum::"Sales Document Type"::Invoice);
+        SalesLine.Validate("Document No.", DocNo);
+        SalesLine.Validate("Line No.", LineNo);
+        SalesLine.Validate(Type, SalesLine.Type::"G/L Account");
+        SalesLine.Validate("No.", FleetRockSetup."Repair G/L Account No.");
+        SalesLine.Validate(Quantity, TaskLineStaging.labor_hours);
+        SalesLine.Validate("Unit Price", TaskLineStaging.labor_hourly_rate);
+        SalesLine.Description := CopyStr(TaskLineStaging.labor_system_code, 1, MaxStrLen(SalesLine.Description));
+        SalesLine.Validate("Tax Group Code", FleetrockSetup."Tax Group Code");
+        SalesLine.Validate("EE Task/Part Id", TaskLineStaging.task_id);
+        SalesLine.Insert(true);
+    end;
+
+    local procedure AddPartSalesLine(var SalesLine: Record "Sales Line"; var PartLineStaging: Record "EE Part Line Staging"; DocNo: Code[20]; LineNo: Integer)
+    begin
+        SalesLine.Init();
+        SalesLine.Validate("Document Type", Enum::"Sales Document Type"::Invoice);
+        SalesLine.Validate("Document No.", DocNo);
+        SalesLine.Validate("Line No.", LineNo);
+        SalesLine.Validate(Type, SalesLine.Type::"G/L Account");
+        SalesLine.Validate("No.", FleetRockSetup."Repair G/L Account No.");
+        SalesLine.Validate(Quantity, PartLineStaging.part_quantity);
+        SalesLine.Validate("Unit Price", PartLineStaging.part_price);
+        SalesLine.Description := CopyStr(PartLineStaging.part_description, 1, MaxStrLen(SalesLine.Description));
+        SalesLine.Validate("Tax Group Code", FleetrockSetup."Tax Group Code");
+        SalesLine.Validate("EE Task/Part Id", PartLineStaging.part_id);
+        SalesLine.Insert(true);
+    end;
+
+
+
+    [TryFunction]
+    procedure TryToUpdateRepairOrder(var SalesHeaderStaging: Record "EE Sales Header Staging"; DocNo: Code[20])
+    var
+        SalesHeader: Record "Sales Header";
+        SalesLine: Record "Sales Line";
+        TaskLineStaging: Record "EE Task Line Staging";
+        PartLineStaging: Record "EE Part Line Staging";
+        LineNo: Integer;
+    begin
+        SalesHeader.Get(SalesHeader."Document Type"::Invoice, DocNo);
+        SalesHeader.SetHideValidationDialog(true);
+        SalesHeader.Validate("Posting Date", DT2Date(SalesHeaderStaging."Invoiced At"));
+        SalesHeader.Modify(true);
+        if SalesHeaderStaging."Document No." <> SalesHeader."No." then begin
+            SalesHeaderStaging.Validate("Document No.", SalesHeader."No.");
+            SalesHeaderStaging.Modify(true);
+        end;
+        TaskLineStaging.SetCurrentKey("Header Id", "Header Entry No.");
+        TaskLineStaging.SetRange("Header Id", SalesHeaderStaging.id);
+        TaskLineStaging.SetRange("Header Entry No.", SalesHeaderStaging."Entry No.");
+        TaskLineStaging.SetAutoCalcFields("Part Lines");
+        if not TaskLineStaging.FindSet() then
+            exit;
+        PartLineStaging.SetCurrentKey("Header Id", "Header Entry No.", "Task Entry No.", "Task Id");
+        PartLineStaging.SetRange("Header Id", SalesHeaderStaging.id);
+        PartLineStaging.SetRange("Header Entry No.", SalesHeaderStaging."Entry No.");
+        SalesLine.SetRange("Document Type", SalesHeader."Document Type");
+        SalesLine.SetRange("Document No.", SalesHeader."No.");
+        if SalesLine.FindLast() then
+            LineNo := SalesLine."Line No.";
+        repeat
+            SalesLine.SetRange("EE Task/Part Id", TaskLineStaging.task_id);
+            if SalesLine.IsEmpty() then begin
+                LineNo += 10000;
+                AddTaskSalesLine(SalesLine, TaskLineStaging, SalesHeader."No.", LineNo);
+            end;
+            if TaskLineStaging."Part Lines" > 0 then begin
+                PartLineStaging.SetRange("Task Entry No.", TaskLineStaging."Entry No.");
+                PartLineStaging.SetRange("Task Id", TaskLineStaging.task_id);
+                if PartLineStaging.FindSet() then
+                    repeat
+                        SalesLine.SetRange("EE Task/Part Id", PartLineStaging.part_id);
+                        if SalesLine.IsEmpty() then begin
+                            LineNo += 10000;
+                            AddPartSalesLine(SalesLine, PartLineStaging, SalesHeader."No.", LineNo);
+                        end;
                     until PartLineStaging.Next() = 0;
             end;
         until TaskLineStaging.Next() = 0;
@@ -712,13 +774,13 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
 
+    local procedure PopulateStagingTable(var
+                                             RecVar: Variant;
 
-
-
-
-
-
-    local procedure PopulateStagingTable(var RecVar: Variant; var OrderJsonObj: JsonObject; TableNo: Integer; StartFieldNo: Integer)
+var
+OrderJsonObj: JsonObject;
+TableNo: Integer;
+StartFieldNo: Integer)
     var
         FieldRec: Record Field;
         RecRef: RecordRef;
@@ -817,7 +879,8 @@ codeunit 80000 "EE Fleetrock Mgt."
     end;
 
 
-    procedure InsertImportEntry(EntryNo: Integer; Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type"; ErrorMsg: Text)
+    procedure InsertImportEntry(EntryNo: Integer; Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type";
+                                                                                                      ErrorMsg: Text)
     var
         ImportEntry: Record "EE Fleetrock Import Entry";
     begin

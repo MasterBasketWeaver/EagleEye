@@ -252,7 +252,7 @@ table 80004 "EE Sales Header Staging"
         {
             DataClassification = CustomerContent;
             Editable = false;
-            TableRelation = "Purchase Header"."No." where("Document Type" = const(Order));
+            TableRelation = "Sales Header"."No." where("Document Type" = const(Invoice));
         }
         field(105; "Imported By"; Code[50])
         {
@@ -270,6 +270,12 @@ table 80004 "EE Sales Header Staging"
         {
             FieldClass = FlowField;
             CalcFormula = count("EE Part Line Staging" where("Header Id" = field(id), "Header Entry No." = field("Entry No.")));
+            Editable = false;
+        }
+        field(112; "Event Type"; Enum "EE Event Type")
+        {
+            FieldClass = FlowField;
+            CalcFormula = lookup("EE Fleetrock Import Entry"."Event Type" where("Import Entry No." = field("Entry No.")));
             Editable = false;
         }
         field(120; "Created At"; DateTime)
