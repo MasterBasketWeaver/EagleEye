@@ -7,6 +7,7 @@ page 80004 "EE Staged Repair Order Headers"
     Editable = false;
     LinksAllowed = false;
     PageType = List;
+    SourceTableView = sorting("Entry No.") order(descending);
 
     layout
     {

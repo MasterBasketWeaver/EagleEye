@@ -7,6 +7,7 @@ page 80005 "EE Staged Task Lines"
     Editable = false;
     LinksAllowed = false;
     PageType = List;
+    SourceTableView = sorting("Entry No.") order(descending);
 
     layout
     {

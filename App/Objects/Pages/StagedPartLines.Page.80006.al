@@ -7,6 +7,7 @@ page 80006 "EE Staged Part Lines"
     Editable = false;
     LinksAllowed = false;
     PageType = List;
+    SourceTableView = sorting("Entry No.") order(descending);
 
     layout
     {

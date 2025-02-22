@@ -7,6 +7,7 @@ page 80001 "EE Staged Purchased Headers"
     Editable = false;
     LinksAllowed = false;
     PageType = List;
+    SourceTableView = sorting("Entry No.") order(descending);
 
     layout
     {

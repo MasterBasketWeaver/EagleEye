@@ -8,6 +8,7 @@ page 80003 "EE Fleetrock Entries"
     LinksAllowed = false;
     AnalysisModeEnabled = false;
     PageType = List;
+    SourceTableView = sorting("Entry No.") order(descending);
 
     layout
     {
@@ -69,6 +70,55 @@ page 80003 "EE Fleetrock Entries"
                 {
                     ApplicationArea = all;
                 }
+                field(URL; Rec.URL)
+                {
+                    ApplicationArea = all;
+                }
+                field(Method; Rec.Method)
+                {
+                    ApplicationArea = all;
+                }
+                field("Request Body"; Rec."Request Body")
+                {
+                    ApplicationArea = all;
+                }
+            }
+        }
+    }
+
+    actions
+    {
+        area(Processing)
+        {
+            action("Show Error Message")
+            {
+                ApplicationArea = all;
+                Image = ErrorLog;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                Enabled = Rec."Error Message" <> '';
+
+                trigger OnAction()
+                begin
+                    Message(Rec."Error Message");
+                end;
+            }
+            action("Show Request Body")
+            {
+                ApplicationArea = all;
+                Image = WorkCenterAbsence;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                Enabled = Rec."Request Body" <> '';
+
+                trigger OnAction()
+                begin
+                    Message(Rec."Request Body");
+                end;
             }
         }
     }

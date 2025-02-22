@@ -7,6 +7,7 @@ page 80002 "EE Staged Purchased Lines"
     Editable = false;
     LinksAllowed = false;
     PageType = List;
+    SourceTableView = sorting("Entry No.") order(descending);
 
     layout
     {
