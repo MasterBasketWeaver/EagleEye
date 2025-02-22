@@ -275,7 +275,7 @@ table 80004 "EE Sales Header Staging"
         field(112; "Event Type"; Enum "EE Event Type")
         {
             FieldClass = FlowField;
-            CalcFormula = lookup("EE Fleetrock Import Entry"."Event Type" where("Import Entry No." = field("Entry No.")));
+            CalcFormula = lookup("EE Import/Export Entry"."Event Type" where("Import Entry No." = field("Entry No.")));
             Editable = false;
         }
         field(120; "Created At"; DateTime)

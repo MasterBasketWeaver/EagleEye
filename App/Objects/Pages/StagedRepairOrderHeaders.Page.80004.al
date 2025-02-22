@@ -259,11 +259,11 @@ page 80004 "EE Staged Repair Order Headers"
                 {
                     ApplicationArea = all;
                 }
-                field("Error Message"; Rec."Error Message")
+                field("Processed"; Rec."Processed")
                 {
                     ApplicationArea = all;
                 }
-                field("Processed"; Rec."Processed")
+                field("Error Message"; Rec."Error Message")
                 {
                     ApplicationArea = all;
                 }

@@ -18,16 +18,35 @@ codeunit 80004 "EE REST API Mgt."
         exit(JsonTkn);
     end;
 
+
     procedure GetResponseAsJsonArray(var FleetrockSetup: Record "EE Fleetrock Setup"; URL: Text; TokenName: Text): Variant
+    var
+        JsonBody: JsonObject;
+    begin
+        exit(GetResponseAsJsonArray(FleetrockSetup, URL, TokenName, 'GET', JsonBody));
+    end;
+
+    [TryFunction]
+    procedure TryToGetResponseAsJsonArray(var FleetrockSetup: Record "EE Fleetrock Setup"; URL: Text; TokenName: Text; Method: Text; var JsonBody: JsonObject; var ResponseArray: JsonArray)
+    begin
+        ResponseArray := GetResponseAsJsonArray(FleetrockSetup, URL, TokenName, Method, JsonBody);
+    end;
+
+    procedure GetResponseAsJsonArray(var FleetrockSetup: Record "EE Fleetrock Setup"; URL: Text; TokenName: Text; Method: Text; var JsonBody: JsonObject): Variant
     var
         ResponseText: Text;
         JsonObj: JsonObject;
         JsonArry: JsonArray;
         JsonTkn: JsonToken;
-        Result: Boolean;
+        Result, Sent : Boolean;
     begin
-        if not SendRequest('GET', URL, ResponseText) then
+        if JsonBody.Keys.Count() > 0 then
+            Sent := SendRequestWithJsonBody(Method, URL, JsonBody, ResponseText)
+        else
+            Sent := SendRequest(Method, URL, ResponseText);
+        if not Sent then
             Error(ResponseText);
+
         JsonObj.ReadFrom(ResponseText);
         if not JsonObj.Get(TokenName, JsonTkn) then begin
             JsonObj.WriteTo(ResponseText);
@@ -39,7 +58,7 @@ codeunit 80004 "EE REST API Mgt."
         exit(JsonArry);
     end;
 
-    procedure SendRequestWithJsonBody(Method: Text; URL: Text; var JsonObj: JsonObject; var ResponseText: Text): Boolean
+    local procedure SendRequestWithJsonBody(Method: Text; URL: Text; var JsonObj: JsonObject; var ResponseText: Text): Boolean
     var
         Content: HttpContent;
         s: Text;

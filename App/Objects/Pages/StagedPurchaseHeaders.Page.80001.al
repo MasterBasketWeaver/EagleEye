@@ -136,19 +136,19 @@ page 80001 "EE Staged Purchased Headers"
                 {
                     ApplicationArea = all;
                 }
-                field(Processed; Rec.Processed)
-                {
-                    ApplicationArea = all;
-                }
-                field("Error Message"; Rec."Error Message")
-                {
-                    ApplicationArea = all;
-                }
                 field("Import Error"; Rec."Import Error")
                 {
                     ApplicationArea = all;
                 }
                 field("Processed Error"; Rec."Processed Error")
+                {
+                    ApplicationArea = all;
+                }
+                field(Processed; Rec.Processed)
+                {
+                    ApplicationArea = all;
+                }
+                field("Error Message"; Rec."Error Message")
                 {
                     ApplicationArea = all;
                 }

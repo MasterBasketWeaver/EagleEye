@@ -1,10 +1,10 @@
-page 80003 "EE Fleetrock Import Entries"
+page 80003 "EE Fleetrock Entries"
 {
-    SourceTable = "EE Fleetrock Import Entry";
+    SourceTable = "EE Import/Export Entry";
     ApplicationArea = all;
     UsageCategory = Administration;
-    Caption = 'Fleetrock Import Entries';
-    // Editable = false;
+    Caption = 'Fleetrock Import/Export Entries';
+    Editable = false;
     LinksAllowed = false;
     AnalysisModeEnabled = false;
     PageType = List;
@@ -19,7 +19,11 @@ page 80003 "EE Fleetrock Import Entries"
                 {
                     ApplicationArea = All;
                 }
-                field(Type; Rec.Type)
+                field(Direction; Rec.Direction)
+                {
+                    ApplicationArea = all;
+                }
+                field("Document Type"; Rec."Document Type")
                 {
                     ApplicationArea = All;
                 }
@@ -47,11 +51,11 @@ page 80003 "EE Fleetrock Import Entries"
                         SalesHeaderStaging: Record "EE Sales Header Staging";
                     begin
                         if Rec."Import Entry No." <> 0 then
-                            case Rec.Type of
-                                Rec.Type::"Purchase Order":
+                            case Rec."Document Type" of
+                                Rec."Document Type"::"Purchase Order":
                                     if PurchHeaderStaging.Get(Rec."Import Entry No.") then
                                         Page.Run(Page::"EE Staged Purchased Headers", PurchHeaderStaging);
-                                Rec.Type::"Repair Order":
+                                Rec."Document Type"::"Repair Order":
                                     if SalesHeaderStaging.Get(Rec."Import Entry No.") then
                                         Page.Run(0, SalesHeaderStaging);
                             end;

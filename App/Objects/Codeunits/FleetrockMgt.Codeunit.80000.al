@@ -3,7 +3,7 @@ codeunit 80000 "EE Fleetrock Mgt."
     Permissions = tabledata "EE Fleetrock Setup" = rimd,
     tabledata "EE Purch. Header Staging" = rimd,
     tabledata "EE Purch. Line Staging" = rimd,
-    tabledata "EE Fleetrock Import Entry" = rimd,
+    tabledata "EE Import/Export Entry" = rimd,
     tabledata "EE Sales Header Staging" = rimd,
     tabledata "EE Task Line Staging" = rimd,
     tabledata "EE Part Line Staging" = rimd,
@@ -20,34 +20,33 @@ codeunit 80000 "EE Fleetrock Mgt."
     tabledata "Sales Invoice Line" = r;
 
 
-    [EventSubscriber(ObjectType::Table, Database::"G/L Account", OnAfterInsertEvent, '', false, false)]
-    local procedure GLAccountOnAfterInsert(var Rec: Record "G/L Account")
-    begin
-        SyncGLToFleetRock(Rec, false);
-    end;
+    // [EventSubscriber(ObjectType::Table, Database::"G/L Account", OnAfterInsertEvent, '', false, false)]
+    // local procedure GLAccountOnAfterInsert(var Rec: Record "G/L Account")
+    // begin
+    //     SyncGLToFleetRock(Rec, false);
+    // end;
 
-    [EventSubscriber(ObjectType::Table, Database::"G/L Account", OnAfterModifyEvent, '', false, false)]
-    local procedure GLAccountOnAfterModify(var Rec: Record "G/L Account")
-    begin
-        SyncGLToFleetRock(Rec, false);
-    end;
+    // [EventSubscriber(ObjectType::Table, Database::"G/L Account", OnAfterModifyEvent, '', false, false)]
+    // local procedure GLAccountOnAfterModify(var Rec: Record "G/L Account")
+    // begin
+    //     SyncGLToFleetRock(Rec, false);
+    // end;
 
-    [EventSubscriber(ObjectType::Table, Database::"G/L Account", OnAfterDeleteEvent, '', false, false)]
-    local procedure GLAccountOnAfterDelete(var Rec: Record "G/L Account")
-    begin
-        SyncGLToFleetRock(Rec, true);
-    end;
+    // [EventSubscriber(ObjectType::Table, Database::"G/L Account", OnAfterDeleteEvent, '', false, false)]
+    // local procedure GLAccountOnAfterDelete(var Rec: Record "G/L Account")
+    // begin
+    //     SyncGLToFleetRock(Rec, true);
+    // end;
 
-    [EventSubscriber(ObjectType::Table, Database::"G/L Account", OnAfterRenameEvent, '', false, false)]
-    local procedure GLAccountOnRenameDelete(var Rec: Record "G/L Account")
-    begin
-        SyncGLToFleetRock(Rec, false);
-    end;
+    // [EventSubscriber(ObjectType::Table, Database::"G/L Account", OnAfterRenameEvent, '', false, false)]
+    // local procedure GLAccountOnRenameDelete(var Rec: Record "G/L Account")
+    // begin
+    //     SyncGLToFleetRock(Rec, false);
+    // end;
 
-    procedure SyncGLToFleetRock(var GLAccount: Record "G/L Account"; Deleted: Boolean)
-    begin
-
-    end;
+    // procedure SyncGLToFleetRock(var GLAccount: Record "G/L Account"; Deleted: Boolean)
+    // begin
+    // end;
 
 
     local procedure GetAndCheckSetup()
@@ -452,14 +451,14 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
     [TryFunction]
-    procedure TryToGetClosedPurchaseOrders(StartDateTime: DateTime; var PurchOrdersJsonArray: JsonArray)
+    procedure TryToGetClosedPurchaseOrders(StartDateTime: DateTime; var PurchOrdersJsonArray: JsonArray; var URL: Text)
     begin
-        PurchOrdersJsonArray := GetClosedPurchaseOrders(StartDateTime);
+        PurchOrdersJsonArray := GetClosedPurchaseOrders(StartDateTime, URL);
     end;
 
-    procedure GetClosedPurchaseOrders(StartDateTime: DateTime): JsonArray
+    procedure GetClosedPurchaseOrders(StartDateTime: DateTime; var URL: Text): JsonArray
     var
-        APIToken, URL : Text;
+        APIToken: Text;
         EndDateTime: DateTime;
     begin
         GetEventParameters(APIToken, StartDateTime, EndDateTime);
@@ -476,14 +475,14 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
     [TryFunction]
-    procedure TryToGetRepairOrders(StartDateTime: DateTime; Status: Enum "EE Repair Order Status"; var RepairOrdersJsonArray: JsonArray)
+    procedure TryToGetRepairOrders(StartDateTime: DateTime; Status: Enum "EE Repair Order Status"; var RepairOrdersJsonArray: JsonArray; var URL: Text)
     begin
-        RepairOrdersJsonArray := GetRepairOrders(StartDateTime, Status);
+        RepairOrdersJsonArray := GetRepairOrders(StartDateTime, Status, URL);
     end;
 
-    procedure GetRepairOrders(StartDateTime: DateTime; Status: Enum "EE Repair Order Status"): JsonArray
+    procedure GetRepairOrders(StartDateTime: DateTime; Status: Enum "EE Repair Order Status"; var URL: Text): JsonArray
     var
-        APIToken, URL : Text;
+        APIToken: Text;
         EndDateTime: DateTime;
     begin
         GetEventParameters(APIToken, StartDateTime, EndDateTime);
@@ -802,35 +801,142 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    procedure InsertImportEntry(EntryNo: Integer; Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type"; ErrorMsg: Text)
+    //OnMoveGenJournalBatch
+    [EventSubscriber(ObjectType::Table, Database::"Gen. Journal Batch", OnMoveGenJournalBatch, '', false, false)]
+    local procedure GenJoournalBatchOnMoveGenJournalBatch(ToRecordID: RecordId)
     var
-        ImportEntry: Record "EE Fleetrock Import Entry";
+        RecRef: RecordRef;
     begin
+        if RecRef.Get(ToRecordID) then
+            if RecRef.Number() = Database::"G/L Register" then
+                CheckForPaidCustLedgerEntries(RecRef);
+    end;
+
+    local procedure CheckForPaidCustLedgerEntries(var RecRef: RecordRef)
+    var
+        SalesInvHeader: Record "Sales Invoice Header";
+        CustLedgerEntry, CustLedgerEntry2 : Record "Cust. Ledger Entry";
+        GLRegister: Record "G/L Register";
+    begin
+        RecRef.SetTable(GLRegister);
+        CustLedgerEntry.SetLoadFields("Entry No.", "Document Type", "Closed by Entry No.");
+        CustLedgerEntry.SetRange("Entry No.", GLRegister."From Entry No.", GLRegister."To Entry No.");
+        CustLedgerEntry.SetRange("Document Type", CustLedgerEntry."Document Type"::Payment);
+        if not CustLedgerEntry.FindSet() then
+            exit;
+        CustLedgerEntry2.SetCurrentKey("Closed by Entry No.");
+        CustLedgerEntry2.SetRange("Document Type", CustLedgerEntry."Document Type"::Invoice);
+        repeat
+            CustLedgerEntry2.SetRange("Closed by Entry No.", CustLedgerEntry."Entry No.");
+            if CustLedgerEntry2.FindFirst() then
+                if SalesInvHeader.Get(CustLedgerEntry2."Document No.") then
+                    if SalesInvHeader."EE Fleetrock ID" <> '' then
+                        UpdatePaidRepairOrder(SalesInvHeader."EE Fleetrock ID", CurrentDateTime());
+        until CustLedgerEntry.Next() = 0;
+    end;
+
+
+    procedure UpdatePaidRepairOrder(OrderId: Text; PaidDateTime: DateTime)
+    var
+        ImportEntry: Record "EE Import/Export Entry";
+        ResponseArray: JsonArray;
+        JsonBody, ResponseObj : JsonObject;
+        T: JsonToken;
+        APIToken, URL : Text;
+        EntryNo: Integer;
+        Success: Boolean;
+    begin
+        if ImportEntry.FindLast() then
+            EntryNo := ImportEntry."Entry No.";
+        APIToken := CheckToGetAPIToken();
+        URL := StrSubstNo('%1/API/UpdateRO?token=%2', FleetrockSetup."Integration URL", APIToken);
+        JsonBody := GetRepairOrderUpdateJsonBody(FleetrockSetup.Username, OrderId, PaidDateTime);
+        if not RestAPIMgt.TryToGetResponseAsJsonArray(FleetrockSetup, URL, 'response', 'POST', JsonBody, ResponseArray) then begin
+            InsertImportEntry(EntryNo + 1, false, 0, Enum::"EE Import Type"::"Repair Order", Enum::"EE Event Type"::Paid,
+                Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', JsonBody);
+            exit;
+        end;
+        if ResponseArray.Count() <> 0 then
+            foreach T in ResponseArray do begin
+                EntryNo += 1;
+                ClearLastError();
+                Success := TryToHandleResponse(T, OrderId);
+                InsertImportEntry(EntryNo, Success and (GetLastErrorText() = ''), 0, Enum::"EE Import Type"::"Repair Order",
+                    Enum::"EE Event Type"::Paid, Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', JsonBody);
+            end;
+    end;
+
+
+
+
+    [TryFunction]
+    local procedure TryToHandleResponse(var T: JsonToken; OrderId: Text)
+    var
+        ResponseArray: JsonArray;
+        JsonBody, ResponseObj : JsonObject;
+        s: Text;
+    begin
+        ResponseObj := T.AsObject();
+        if not ResponseObj.Get('result', T) then begin
+            ResponseObj.WriteTo(s);
+            Error('Invalid response message:\%1', s);
+        end;
+        if T.AsValue().AsText() <> 'success' then begin
+            ResponseObj.Get('ro_id', T);
+            OrderId := T.AsValue().AsText();
+            ResponseObj.Get('message', T);
+            Error('Failed to update Repair Order %1:\%2', OrderId, T.AsValue().AsText());
+        end;
+    end;
+
+
+    local procedure GetRepairOrderUpdateJsonBody(UserName: Text; RepairOrderId: Text; PaidDateTime: DateTime): JsonObject
+    var
+        JsonBody, RepairOrder : JsonObject;
+        RepairOrdersArray: JsonArray;
+    begin
+        RepairOrder.Add('ro_id', RepairOrderId);
+        RepairOrder.Add('date_invoice_paid', Format(PaidDateTime, 0, 9));
+        RepairOrdersArray.Add(RepairOrder);
+        JsonBody.Add('username', UserName);
+        JsonBody.Add('repair_orders', RepairOrdersArray);
+        exit(JsonBody);
+    end;
+
+
+
+
+
+
+
+
+
+
+    procedure InsertImportEntry(EntryNo: Integer; Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type"; Direction: Enum "EE Direction"; ErrorMsg: Text; URL: Text; Method: Text)
+    var
+        JsonBody: JsonObject;
+    begin
+        InsertImportEntry(EntryNo, Success, ImportEntryNo, Type, EventType, Direction, ErrorMsg, URL, Method, JsonBody);
+    end;
+
+
+    procedure InsertImportEntry(EntryNo: Integer; Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type"; Direction: Enum "EE Direction"; ErrorMsg: Text; URL: Text; Method: Text; var JsonBody: JsonObject)
+    var
+        ImportEntry: Record "EE Import/Export Entry";
+        s: Text;
+    begin
+        JsonBody.WriteTo(s);
         ImportEntry.Init();
         ImportEntry."Entry No." := EntryNo;
-        ImportEntry.Type := Type;
+        ImportEntry."Document Type" := Type;
         ImportEntry.Success := Success;
         ImportEntry."Error Message" := CopyStr(ErrorMsg, 1, MaxStrLen(ImportEntry."Error Message"));
         ImportEntry."Import Entry No." := ImportEntryNo;
         ImportEntry."Event Type" := EventType;
+        ImportEntry.URL := CopyStr(URL, 1, MaxStrLen(ImportEntry.URL));
+        ImportEntry.Method := CopyStr(Method, 1, MaxStrLen(ImportEntry.Method));
+        ImportEntry."Request Body" := CopyStr(s, 1, MaxStrLen(ImportEntry."Request Body"));
+        ImportEntry.Direction := Direction;
         ImportEntry.Insert(true);
     end;
 

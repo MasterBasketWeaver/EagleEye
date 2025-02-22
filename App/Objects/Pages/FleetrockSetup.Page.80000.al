@@ -205,7 +205,7 @@ page 80000 "EE Fleetrock Setup"
                     FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
                     s: Text;
                 begin
-                    FleetrockMgt.GetClosedPurchaseOrders(0DT).WriteTo(s);
+                    FleetrockMgt.GetClosedPurchaseOrders(0DT, s).WriteTo(s);
                     Message(s);
                 end;
             }
@@ -232,7 +232,7 @@ page 80000 "EE Fleetrock Setup"
                         2:
                             Status := Status::invoiced;
                     end;
-                    FleetrockMgt.GetRepairOrders(0DT, Status).WriteTo(s);
+                    FleetrockMgt.GetRepairOrders(0DT, Status, s).WriteTo(s);
                     Message(s);
                 end;
             }

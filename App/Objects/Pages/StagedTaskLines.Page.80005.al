@@ -98,7 +98,6 @@ page 80005 "EE Staged Task Lines"
                 {
                     ApplicationArea = all;
                 }
-
                 field(Imported; Rec.SystemCreatedAt)
                 {
                     ApplicationArea = all;

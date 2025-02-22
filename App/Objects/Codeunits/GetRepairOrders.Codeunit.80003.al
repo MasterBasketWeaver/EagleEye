@@ -2,13 +2,13 @@ codeunit 80003 "EE Get Repair Orders"
 {
     TableNo = "Job Queue Entry";
     Permissions = tabledata "EE Fleetrock Setup" = r,
-    tabledata "EE Fleetrock Import Entry" = r;
+    tabledata "EE Import/Export Entry" = r;
 
     trigger OnRun()
     var
         SalesHeader: Record "Sales Header";
         FleetRockMgt: Codeunit "EE Fleetrock Mgt.";
-        ImportEntry: Record "EE Fleetrock Import Entry";
+        ImportEntry: Record "EE Import/Export Entry";
         SalesHeaderStaging: Record "EE Sales Header Staging";
         OrderStatus: Enum "EE Repair Order Status";
         EventType: Enum "EE Event Type";
@@ -17,7 +17,7 @@ codeunit 80003 "EE Get Repair Orders"
         OrderJsonObj: JsonObject;
         JsonVal: JsonValue;
         StartDateTime: DateTime;
-        ObjId: Text;
+        ObjId, URL : Text;
         EntryNo, ImportEntryNo : Integer;
         Success: Boolean;
     begin
@@ -32,14 +32,15 @@ codeunit 80003 "EE Get Repair Orders"
             EventType := EventType::Started;
         end;
 
-        ImportEntry.SetRange(Type, ImportEntry.Type::"Repair Order");
+        ImportEntry.SetRange("Document Type", ImportEntry."Document Type"::"Repair Order");
         ImportEntry.SetRange("Event Type", EventType);
         ImportEntry.SetRange(Success, true);
         if ImportEntry.FindLast() then
             StartDateTime := ImportEntry.SystemCreatedAt;
 
-        if not FleetRockMgt.TryToGetRepairOrders(StartDateTime, OrderStatus, JsonArry) then begin
-            FleetRockMgt.InsertImportEntry(EntryNo + 1, false, 0, ImportEntry.Type::"Repair Order", EventType, GetLastErrorText());
+        if not FleetRockMgt.TryToGetRepairOrders(StartDateTime, OrderStatus, JsonArry, URL) then begin
+            FleetRockMgt.InsertImportEntry(EntryNo + 1, false, 0, ImportEntry."Document Type"::"Repair Order",
+                EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET');
             exit;
         end;
         if JsonArry.Count() = 0 then
@@ -77,7 +78,9 @@ codeunit 80003 "EE Get Repair Orders"
                         Success := FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, true);
             end;
             EntryNo += 1;
-            FleetRockMgt.InsertImportEntry(EntryNo, Success and (GetLastErrorText() = ''), ImportEntryNo, ImportEntry.Type::"Repair Order", EventType, GetLastErrorText());
+            FleetRockMgt.InsertImportEntry(EntryNo, Success and (GetLastErrorText() = ''), ImportEntryNo,
+                ImportEntry."Document Type"::"Repair Order", EventType, Enum::"EE Direction"::Import,
+                GetLastErrorText(), URL, 'GET');
         end;
     end;
 
