@@ -26,7 +26,7 @@ codeunit 80001 "EE Get Closed Purch. Orders"
             StartDateTime := ImportEntry.SystemCreatedAt;
         if not FleetRockMgt.TryToGetClosedPurchaseOrders(StartDateTime, JsonArry, URL) then begin
             FleetRockMgt.InsertImportEntry(EntryNo + 1, false, 0, ImportEntry."Document Type"::"Purchase Order",
-                Enum::"EE Event Type"::Open, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET');
+                Enum::"EE Event Type"::Closed, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET');
             exit;
         end;
         if JsonArry.Count() = 0 then
@@ -45,7 +45,7 @@ codeunit 80001 "EE Get Closed Purch. Orders"
                 CanImport := FleetRockMgt.TryToInsertPOStagingRecords(OrderJsonObj, ImportEntryNo);
             EntryNo += 1;
             FleetRockMgt.InsertImportEntry(EntryNo, CanImport and (GetLastErrorText() = ''), ImportEntryNo,
-                ImportEntry."Document Type"::"Purchase Order", Enum::"EE Event Type"::Open, Enum::"EE Direction"::Import,
+                ImportEntry."Document Type"::"Purchase Order", Enum::"EE Event Type"::Closed, Enum::"EE Direction"::Import,
                 GetLastErrorText(), URL, 'GET');
         end;
     end;
