@@ -45,6 +45,7 @@ page 80003 "EE Fleetrock Entries"
                 {
                     ApplicationArea = all;
                     ToolTip = 'Specifies the Entry No. of the related staging table record that holds th import data.';
+                    BlankZero = true;
 
                     trigger OnDrillDown()
                     var

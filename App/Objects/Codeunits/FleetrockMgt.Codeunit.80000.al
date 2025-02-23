@@ -801,7 +801,7 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
 
-    //OnMoveGenJournalBatch
+
     [EventSubscriber(ObjectType::Table, Database::"Gen. Journal Batch", OnMoveGenJournalBatch, '', false, false)]
     local procedure GenJoournalBatchOnMoveGenJournalBatch(ToRecordID: RecordId)
     var
@@ -817,6 +817,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         SalesInvHeader: Record "Sales Invoice Header";
         CustLedgerEntry, CustLedgerEntry2 : Record "Cust. Ledger Entry";
         GLRegister: Record "G/L Register";
+        PaymentDateTime: DateTime;
     begin
         RecRef.SetTable(GLRegister);
         CustLedgerEntry.SetLoadFields("Entry No.", "Document Type", "Closed by Entry No.");
@@ -828,15 +829,21 @@ codeunit 80000 "EE Fleetrock Mgt."
         CustLedgerEntry2.SetRange("Document Type", CustLedgerEntry."Document Type"::Invoice);
         repeat
             CustLedgerEntry2.SetRange("Closed by Entry No.", CustLedgerEntry."Entry No.");
-            if CustLedgerEntry2.FindFirst() then
+            if CustLedgerEntry2.FindFirst() then begin
                 if SalesInvHeader.Get(CustLedgerEntry2."Document No.") then
-                    if SalesInvHeader."EE Fleetrock ID" <> '' then
-                        UpdatePaidRepairOrder(SalesInvHeader."EE Fleetrock ID", CurrentDateTime());
+                    if SalesInvHeader."EE Fleetrock ID" <> '' then begin
+                        if CustLedgerEntry2."Closed at Date" = Today() then
+                            PaymentDateTime := CurrentDateTime()
+                        else
+                            PaymentDateTime := CreateDateTime(CustLedgerEntry2."Closed at Date", Time());
+                        UpdatePaidRepairOrder(SalesInvHeader."EE Fleetrock ID", PaymentDateTime);
+                    end;
+            end;
+
         until CustLedgerEntry.Next() = 0;
     end;
 
-
-    procedure UpdatePaidRepairOrder(OrderId: Text; PaidDateTime: DateTime)
+    local procedure UpdatePaidRepairOrder(OrderId: Text; PaidDateTime: DateTime)
     var
         ImportEntry: Record "EE Import/Export Entry";
         ResponseArray: JsonArray;
@@ -850,7 +857,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             EntryNo := ImportEntry."Entry No.";
         APIToken := CheckToGetAPIToken();
         URL := StrSubstNo('%1/API/UpdateRO?token=%2', FleetrockSetup."Integration URL", APIToken);
-        JsonBody := GetRepairOrderUpdateJsonBody(FleetrockSetup.Username, OrderId, PaidDateTime);
+        JsonBody := CreateUpdateRepairOrderJsonBody(FleetrockSetup.Username, OrderId, PaidDateTime);
         if not RestAPIMgt.TryToGetResponseAsJsonArray(FleetrockSetup, URL, 'response', 'POST', JsonBody, ResponseArray) then begin
             InsertImportEntry(EntryNo + 1, false, 0, Enum::"EE Import Type"::"Repair Order", Enum::"EE Event Type"::Paid,
                 Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', JsonBody);
@@ -860,17 +867,14 @@ codeunit 80000 "EE Fleetrock Mgt."
             foreach T in ResponseArray do begin
                 EntryNo += 1;
                 ClearLastError();
-                Success := TryToHandleResponse(T, OrderId);
+                Success := TryToHandleRepairUpdateResponse(T, OrderId);
                 InsertImportEntry(EntryNo, Success and (GetLastErrorText() = ''), 0, Enum::"EE Import Type"::"Repair Order",
                     Enum::"EE Event Type"::Paid, Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', JsonBody);
             end;
     end;
 
-
-
-
     [TryFunction]
-    local procedure TryToHandleResponse(var T: JsonToken; OrderId: Text)
+    local procedure TryToHandleRepairUpdateResponse(var T: JsonToken; OrderId: Text)
     var
         ResponseArray: JsonArray;
         JsonBody, ResponseObj : JsonObject;
@@ -889,8 +893,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         end;
     end;
 
-
-    local procedure GetRepairOrderUpdateJsonBody(UserName: Text; RepairOrderId: Text; PaidDateTime: DateTime): JsonObject
+    local procedure CreateUpdateRepairOrderJsonBody(UserName: Text; RepairOrderId: Text; PaidDateTime: DateTime): JsonObject
     var
         JsonBody, RepairOrder : JsonObject;
         RepairOrdersArray: JsonArray;
@@ -919,7 +922,6 @@ codeunit 80000 "EE Fleetrock Mgt."
         InsertImportEntry(EntryNo, Success, ImportEntryNo, Type, EventType, Direction, ErrorMsg, URL, Method, JsonBody);
     end;
 
-
     procedure InsertImportEntry(EntryNo: Integer; Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type"; Direction: Enum "EE Direction"; ErrorMsg: Text; URL: Text; Method: Text; var JsonBody: JsonObject)
     var
         ImportEntry: Record "EE Import/Export Entry";
@@ -944,5 +946,4 @@ codeunit 80000 "EE Fleetrock Mgt."
     var
         FleetrockSetup: Record "EE Fleetrock Setup";
         RestAPIMgt: Codeunit "EE REST API Mgt.";
-
 }
