@@ -401,20 +401,10 @@ codeunit 80000 "EE Fleetrock Mgt."
             SourceType := 'company_id';
         foreach T in CustomerArray do begin
             CustomerObj := T.AsObject();
-
-            b := CustomerObj.Get(SourceType, T);
-            if b then begin
-
-                // if CustomerObj.Get(SourceType, T) then begin
-                if not Confirm('%1: %2 -> %3', false, SourceType, SourceValue, T.AsValue().AsText()) then
-                    Error('');
-
+            if CustomerObj.Get(SourceType, T) then begin
                 if T.AsValue().AsText() = SourceValue then
                     exit(true);
             end;
-
-            if not Confirm('%1, %2: %3', false, SourceType, SourceValue, b) then
-                Error('');
         end;
     end;
 
@@ -746,7 +736,7 @@ codeunit 80000 "EE Fleetrock Mgt."
     var
         SalesHeader: Record "Sales Header";
         Customer: Record Customer;
-        CustomerNo: Code[20]
+        CustomerNo: Code[20];
     begin
         CheckIfAlreadyImported(SalesHeaderStaging.id, SalesHeader);
         SalesHeader.Init();

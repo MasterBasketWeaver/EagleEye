@@ -1,9 +1,9 @@
 {
   "id": "9ac25096-0cd1-482d-adc1-cc823016a988",
   "name": "EagleEye Fleetrock Integration",
-  "description": "Provides custom functionality to integrate Fleetrock with Business Central for Eagle Eye Produce.",
+  "description": "Provides functionality to integrate Fleetrock with Business Central for Eagle Eye Produce.",
   "publisher": "BryanA BC Developments Inc.",
-  "version": "25.0.0.0",
+  "version": "25.0.1.0",
   "runtime": "13.1",
   "target": "Cloud",
   "application": "25.0.0.0",
@@ -12,7 +12,7 @@
     "allowDebugging": true,
     "allowDownloadingSource": true,
     "includeSourceInSymbolFile": true,
-    "applyToDevExtension": false
+    "applyToDevExtension": true
   },
   "features": [
     "NoImplicitWith"
