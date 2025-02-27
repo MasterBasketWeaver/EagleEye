@@ -12,7 +12,7 @@
             "environmentName": "Sandbox_010225",
             "startupObjectId": 80000,
             "startupObjectType": "Page",
-            "startupCompany": "Test - Eagle Eye Logistics",
+            // "startupCompany": "Test - Eagle Eye Logistics",
             "breakOnError": "All",
             "launchBrowser": false,
             "enableLongRunningSqlStatements": true,

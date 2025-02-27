@@ -71,6 +71,10 @@ page 80000 "EE Fleetrock Setup"
                 field("Use API Token"; Rec."Use API Token")
                 {
                     ApplicationArea = all;
+                    trigger OnValidate()
+                    begin
+                        CurrPage.Update(false);
+                    end;
                 }
                 field("API Token"; Rec."API Token")
                 {
@@ -104,6 +108,7 @@ page 80000 "EE Fleetrock Setup"
                     FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
                 begin
                     Message(FleetrockMgt.CheckToGetAPIToken(Rec));
+                    CurrPage.Update(false);
                 end;
             }
             // action("Get Units")

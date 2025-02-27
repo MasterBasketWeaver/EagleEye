@@ -124,6 +124,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         FleetrockSetup.TestField("Vendor Posting Group");
         FleetrockSetup.TestField("Tax Group Code");
         FleetrockSetup.TestField("Tax Area Code");
+        FleetrockSetup.TestField("Payment Terms");
         if not TryToCreatePurchaseOrder(PurchHeaderStaging, DocNo) then begin
             PurchHeaderStaging."Processed Error" := true;
             PurchHeaderStaging."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(PurchHeaderStaging."Error Message"));
@@ -142,6 +143,8 @@ codeunit 80000 "EE Fleetrock Mgt."
     local procedure TryToCreatePurchaseOrder(var PurchHeaderStaging: Record "EE Purch. Header Staging"; var DocNo: Code[20])
     var
         PurchaseHeader: Record "Purchase Header";
+        Vendor: Record Vendor;
+        VendorNo: Code[20];
     begin
         CheckIfAlreadyImported(PurchHeaderStaging.id, PurchaseHeader);
         PurchaseHeader.Init();
@@ -151,8 +154,15 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchaseHeader.Insert(true);
         DocNo := PurchaseHeader."No.";
 
-        PurchaseHeader.Validate("Buy-from Vendor No.", GetVendorNo(PurchHeaderStaging));
-        PurchaseHeader.Validate("Payment Terms Code", GetPaymentTerms(PurchHeaderStaging));
+        ClearLastError();
+        if not TryToGetVendorNo(PurchHeaderStaging, VendorNo) then begin
+            if Vendor.Get(VendorNo) then
+                Vendor.delete(true);
+            Error(GetLastErrorText());
+        end;
+
+        PurchaseHeader.Validate("Buy-from Vendor No.", VendorNo);
+        PurchaseHeader.Validate("Payment Terms Code", GetPaymentTerms(PurchHeaderStaging.payment_term_days));
         PurchaseHeader.Validate("EE Fleetrock ID", PurchHeaderStaging.id);
         PurchaseHeader.Validate("Vendor Invoice No.", PurchHeaderStaging.id);
         PurchaseHeader.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
@@ -254,12 +264,18 @@ codeunit 80000 "EE Fleetrock Mgt."
     end;
 
 
-
-
+    [TryFunction]
+    local procedure TryToGetVendorNo(var PurchHeaderStaging: Record "EE Purch. Header Staging"; var VendorNo: Code[20])
+    begin
+        VendorNo := GetVendorNo(PurchHeaderStaging);
+    end;
 
     local procedure GetVendorNo(var PurchHeaderStaging: Record "EE Purch. Header Staging"): Code[20]
     var
         Vendor: Record Vendor;
+        VendorObj: JsonObject;
+        T: JsonToken;
+        PaymentTermDays: Integer;
     begin
         if PurchHeaderStaging.supplier_name = '' then
             Error('supplier_name must be specified.');
@@ -267,6 +283,10 @@ codeunit 80000 "EE Fleetrock Mgt."
         Vendor.SetRange("EE Source No.", PurchHeaderStaging.supplier_name);
         if Vendor.FindFirst() then
             exit(Vendor."No.");
+
+        if not GetVendorDetails(PurchHeaderStaging.supplier_name, VendorObj) then
+            Error('Supplier %1 not found.', PurchHeaderStaging.supplier_name);
+
         Vendor.Init();
         Vendor.Insert(true);
         Vendor.Validate(Name, PurchHeaderStaging.supplier_name);
@@ -275,18 +295,54 @@ codeunit 80000 "EE Fleetrock Mgt."
         Vendor.Validate("Vendor Posting Group", FleetrockSetup."Vendor Posting Group");
         Vendor.Validate("Tax Liable", true);
         Vendor.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
+        Vendor.Validate(Address, GetJsonValueAsText(VendorObj, 'street_address_1'));
+        Vendor.Validate("Address 2", GetJsonValueAsText(VendorObj, 'street_address_2'));
+        Vendor.Validate("City", GetJsonValueAsText(VendorObj, 'city'));
+        Vendor.Validate(County, GetJsonValueAsText(VendorObj, 'state'));
+        if Vendor.County = '' then
+            Vendor.Validate(County, GetJsonValueAsText(VendorObj, 'province'));
+        Vendor."Country/Region Code" := GetJsonValueAsText(VendorObj, 'country');
+        Vendor.Validate("Post Code", GetJsonValueAsText(VendorObj, 'zip_code'));
+        Vendor.Validate("Phone No.", GetJsonValueAsText(VendorObj, 'phone'));
+        Vendor.Validate("E-Mail", GetJsonValueAsText(VendorObj, 'email'));
+        PaymentTermDays := Round(GetJsonValueAsDecimal(VendorObj, 'payment_term_days'), 1);
+        if PaymentTermDays = 0 then
+            Vendor.Validate("Payment Terms Code", FleetrockSetup."Payment Terms")
+        else
+            Vendor.Validate("Payment Terms Code", GetPaymentTerms(PaymentTermDays));
         Vendor.Modify(true);
         exit(Vendor."No.");
     end;
 
+    local procedure GetVendorDetails(SupplierName: Text; var VendorObj: JsonObject): Boolean
+    var
+        VendorArray: JsonArray;
+        T: JsonToken;
+    begin
+        CheckToGetAPIToken();
+        VendorArray := RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetSuppliers?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, CheckToGetAPIToken()), 'suppliers');
+        foreach T in VendorArray do begin
+            VendorObj := T.AsObject();
+            VendorObj.Get('name', T);
+            if T.AsValue().AsText() = SupplierName then
+                exit(true);
+        end;
+    end;
+
+
     local procedure GetCustomerNo(var SalesHeaderStaging: Record "EE Sales Header Staging"): Code[20]
     var
         Customer: Record Customer;
+        CustomerObj: JsonObject;
+        T: JsonToken;
         SourceNo: Text;
+        PaymentTermDays: Integer;
+        IsSourceCompany: Boolean;
     begin
-        if SalesHeaderStaging.vendor_company_id <> '' then
-            SourceNo := SalesHeaderStaging.vendor_company_id
-        else
+        if SalesHeaderStaging.vendor_company_id <> '' then begin
+            SourceNo := SalesHeaderStaging.vendor_company_id;
+            IsSourceCompany := true;
+        end else
             if SalesHeaderStaging.vendor_name <> '' then
                 SourceNo := SalesHeaderStaging.vendor_name
             else
@@ -295,35 +351,72 @@ codeunit 80000 "EE Fleetrock Mgt."
         Customer.SetRange("EE Source No.", SourceNo);
         if Customer.FindFirst() then
             exit(Customer."No.");
+
+        if not GetCustomerDetails(SourceNo, IsSourceCompany, CustomerObj) then
+            Error('User %1 not found.', SourceNo);
+
         Customer.Init();
         Customer.Insert(true);
         Customer.Validate(Name, SalesHeaderStaging.vendor_name);
         Customer.Validate("EE Source Type", Customer."EE Source Type"::Fleetrock);
         Customer.Validate("EE Source No.", SourceNo);
+        Customer.Validate("EE Source Search Name", GetJsonValueAsText(CustomerObj, 'username'));
+        Customer.Validate(Name, StrSubstNo('%1 %2', GetJsonValueAsText(CustomerObj, 'first_name'), GetJsonValueAsText(CustomerObj, 'last_name')).Trim());
+        Customer.Validate(Address, GetJsonValueAsText(CustomerObj, 'street_address'));
+        Customer.Validate("City", GetJsonValueAsText(CustomerObj, 'city'));
+        Customer.Validate(County, GetJsonValueAsText(CustomerObj, 'state'));
+        if Customer.County = '' then
+            Customer.Validate(County, GetJsonValueAsText(CustomerObj, 'province'));
+        Customer."Country/Region Code" := GetJsonValueAsText(CustomerObj, 'country');
+        Customer.Validate("Post Code", GetJsonValueAsText(CustomerObj, 'zip_code'));
         Customer.Validate("Customer Posting Group", FleetrockSetup."Customer Posting Group");
         Customer.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
+        Customer.Validate("Payment Terms Code", FleetrockSetup."Payment Terms");
         Customer.Modify(true);
         exit(Customer."No.");
     end;
 
-    local procedure GetPaymentTerms(var PurchHeaderStaging: Record "EE Purch. Header Staging"): Code[10]
+    local procedure GetCustomerDetails(SourceValue: Text; IsSourceCompany: Boolean; var CustomerObj: JsonObject): Boolean
+    var
+        CustomerArray: JsonArray;
+        T: JsonToken;
+        SourceType: Text;
+    begin
+        CheckToGetAPIToken();
+        CustomerArray := RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetUsers?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, CheckToGetAPIToken()), 'users');
+        if CustomerArray.Count() = 0 then
+            exit(false);
+
+        if IsSourceCompany then
+            SourceType := 'company_name'
+        else
+            SourceType := 'company_id';
+        foreach T in CustomerArray do begin
+            CustomerObj := T.AsObject();
+            CustomerObj.Get(SourceType, T);
+            if T.AsValue().AsText() = SourceValue then
+                exit(true);
+        end;
+    end;
+
+    local procedure GetPaymentTerms(PaymentTermsDays: Integer): Code[10]
     var
         PaymentTerms: Record "Payment Terms";
         DateForm: DateFormula;
     begin
-        if PurchHeaderStaging.payment_term_days = 0 then
-            Error('Payment Term Days must be specified.');
-        PaymentTerms.SetFilter(Code, StrSubstNo('*%1*', PurchHeaderStaging.payment_term_days));
+        if PaymentTermsDays <= 0 then
+            Error('Payment Term Days must be greater than zero: %1.', PaymentTermsDays);
+        PaymentTerms.SetFilter(Code, StrSubstNo('*%1*', PaymentTermsDays));
         if PaymentTerms.FindFirst() then
             exit(PaymentTerms.Code);
         PaymentTerms.SetRange(Code);
-        PaymentTerms.SetFilter(Description, StrSubstNo('*%1*', PurchHeaderStaging.payment_term_days));
+        PaymentTerms.SetFilter(Description, StrSubstNo('*%1*', PaymentTermsDays));
         if PaymentTerms.FindFirst() then
             exit(PaymentTerms.Code);
         PaymentTerms.Init();
-        PaymentTerms.Validate(Code, StrSubstNo('%1D', PurchHeaderStaging.payment_term_days));
-        PaymentTerms.Validate(Description, StrSubstNo('%1 days', PurchHeaderStaging.payment_term_days));
-        Evaluate(DateForm, StrSubstNo('<%1D>', PurchHeaderStaging.payment_term_days));
+        PaymentTerms.Validate(Code, StrSubstNo('%1D', PaymentTermsDays));
+        PaymentTerms.Validate(Description, StrSubstNo('%1 days', PaymentTermsDays));
+        Evaluate(DateForm, StrSubstNo('<%1D>', PaymentTermsDays));
         PaymentTerms.Validate("Due Date Calculation", DateForm);
         PaymentTerms.Insert(true);
         exit(PaymentTerms.Code);
@@ -633,6 +726,7 @@ codeunit 80000 "EE Fleetrock Mgt."
     local procedure TryToCreateSalesOrder(var SalesHeaderStaging: Record "EE Sales Header Staging"; var DocNo: Code[20])
     var
         SalesHeader: Record "Sales Header";
+        Customer: Record Customer;
     begin
         CheckIfAlreadyImported(SalesHeaderStaging.id, SalesHeader);
         SalesHeader.Init();
@@ -643,8 +737,12 @@ codeunit 80000 "EE Fleetrock Mgt."
         SalesHeader.Insert(true);
         DocNo := SalesHeader."No.";
 
-        SalesHeader.Validate("Sell-to Customer No.", GetCustomerNo(SalesHeaderStaging));
-        SalesHeader.Validate("Payment Terms Code", FleetrockSetup."Payment Terms");
+        Customer.Get(GetCustomerNo(SalesHeaderStaging));
+        SalesHeader.Validate("Sell-to Customer No.", Customer."No.");
+        if Customer."Payment Terms Code" = '' then
+            SalesHeader.Validate("Payment Terms Code", FleetrockSetup."Payment Terms")
+        else
+            SalesHeader.Validate("Payment Terms Code", Customer."Payment Terms Code");
         SalesHeader.Validate("EE Fleetrock ID", SalesHeaderStaging.id);
         SalesHeader.Validate("External Document No.", SalesHeaderStaging.id);
         SalesHeader.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
