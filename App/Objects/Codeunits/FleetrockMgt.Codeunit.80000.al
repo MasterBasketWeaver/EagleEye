@@ -157,7 +157,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         ClearLastError();
         if not TryToGetVendorNo(PurchHeaderStaging, VendorNo) then begin
             if Vendor.Get(VendorNo) then
-                Vendor.delete(true);
+                Vendor.Delete(true);
             Error(GetLastErrorText());
         end;
 
@@ -323,12 +323,18 @@ codeunit 80000 "EE Fleetrock Mgt."
         VendorArray := RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetSuppliers?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, CheckToGetAPIToken()), 'suppliers');
         foreach T in VendorArray do begin
             VendorObj := T.AsObject();
-            VendorObj.Get('name', T);
-            if T.AsValue().AsText() = SupplierName then
-                exit(true);
+            if VendorObj.Get('name', T) then
+                if T.AsValue().AsText() = SupplierName then
+                    exit(true);
         end;
     end;
 
+
+    [TryFunction]
+    local procedure TryToGetCustomerNo(var SalesHeaderStaging: Record "EE Sales Header Staging"; var CustomerNo: Code[20])
+    begin
+        CustomerNo := GetCustomerNo(SalesHeaderStaging);
+    end;
 
     local procedure GetCustomerNo(var SalesHeaderStaging: Record "EE Sales Header Staging"): Code[20]
     var
@@ -339,13 +345,13 @@ codeunit 80000 "EE Fleetrock Mgt."
         PaymentTermDays: Integer;
         IsSourceCompany: Boolean;
     begin
-        if SalesHeaderStaging.vendor_company_id <> '' then begin
-            SourceNo := SalesHeaderStaging.vendor_company_id;
-            IsSourceCompany := true;
-        end else
-            if SalesHeaderStaging.vendor_name <> '' then
-                SourceNo := SalesHeaderStaging.vendor_name
-            else
+        if SalesHeaderStaging.vendor_company_id <> '' then
+            SourceNo := SalesHeaderStaging.vendor_company_id
+        else
+            if SalesHeaderStaging.vendor_name <> '' then begin
+                SourceNo := SalesHeaderStaging.vendor_name;
+                IsSourceCompany := true;
+            end else
                 Error('vendor_name or vendor_company_id must be specified.');
         Customer.SetRange("EE Source Type", Customer."EE Source Type"::Fleetrock);
         Customer.SetRange("EE Source No.", SourceNo);
@@ -381,6 +387,8 @@ codeunit 80000 "EE Fleetrock Mgt."
         CustomerArray: JsonArray;
         T: JsonToken;
         SourceType: Text;
+
+        b: Boolean;
     begin
         CheckToGetAPIToken();
         CustomerArray := RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetUsers?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, CheckToGetAPIToken()), 'users');
@@ -393,9 +401,20 @@ codeunit 80000 "EE Fleetrock Mgt."
             SourceType := 'company_id';
         foreach T in CustomerArray do begin
             CustomerObj := T.AsObject();
-            CustomerObj.Get(SourceType, T);
-            if T.AsValue().AsText() = SourceValue then
-                exit(true);
+
+            b := CustomerObj.Get(SourceType, T);
+            if b then begin
+
+                // if CustomerObj.Get(SourceType, T) then begin
+                if not Confirm('%1: %2 -> %3', false, SourceType, SourceValue, T.AsValue().AsText()) then
+                    Error('');
+
+                if T.AsValue().AsText() = SourceValue then
+                    exit(true);
+            end;
+
+            if not Confirm('%1, %2: %3', false, SourceType, SourceValue, b) then
+                Error('');
         end;
     end;
 
@@ -727,6 +746,7 @@ codeunit 80000 "EE Fleetrock Mgt."
     var
         SalesHeader: Record "Sales Header";
         Customer: Record Customer;
+        CustomerNo: Code[20]
     begin
         CheckIfAlreadyImported(SalesHeaderStaging.id, SalesHeader);
         SalesHeader.Init();
@@ -737,14 +757,23 @@ codeunit 80000 "EE Fleetrock Mgt."
         SalesHeader.Insert(true);
         DocNo := SalesHeader."No.";
 
-        Customer.Get(GetCustomerNo(SalesHeaderStaging));
+        ClearLastError();
+        if not TryToGetCustomerNo(SalesHeaderStaging, CustomerNo) then begin
+            if Customer.Get(CustomerNo) then
+                Customer.Delete(true);
+            Error(GetLastErrorText());
+        end;
+        Customer.Get(CustomerNo);
         SalesHeader.Validate("Sell-to Customer No.", Customer."No.");
         if Customer."Payment Terms Code" = '' then
             SalesHeader.Validate("Payment Terms Code", FleetrockSetup."Payment Terms")
         else
             SalesHeader.Validate("Payment Terms Code", Customer."Payment Terms Code");
         SalesHeader.Validate("EE Fleetrock ID", SalesHeaderStaging.id);
-        SalesHeader.Validate("External Document No.", SalesHeaderStaging.id);
+        if SalesHeaderStaging.po_number <> '' then
+            SalesHeader.Validate("External Document No.", CopyStr(SalesHeaderStaging.po_number, 1, MaxStrLen(SalesHeader."External Document No.")))
+        else
+            SalesHeader.Validate("External Document No.", SalesHeaderStaging.id);
         SalesHeader.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
         SalesHeader.Modify(true);
         CreateSalesLines(SalesHeaderStaging, DocNo);
