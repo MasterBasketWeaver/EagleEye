@@ -295,7 +295,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             Vendor.Validate("Tax Liable", true);
             Vendor.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
             Vendor.Modify(true);
-            exit;
+            exit(Vendor."No.");
         end;
 
 
@@ -311,8 +311,8 @@ codeunit 80000 "EE Fleetrock Mgt."
         Vendor.Validate("Address 2", GetJsonValueAsText(VendorObj, 'street_address_2'));
         Vendor.Validate("City", GetJsonValueAsText(VendorObj, 'city'));
         Vendor.Validate(County, GetJsonValueAsText(VendorObj, 'state'));
-        if Vendor.County = '' then
-            Vendor.Validate(County, GetJsonValueAsText(VendorObj, 'province'));
+        // if Vendor.County = '' then
+        //     Vendor.Validate(County, GetJsonValueAsText(VendorObj, 'province'));
         Vendor."Country/Region Code" := GetJsonValueAsText(VendorObj, 'country');
         Vendor.Validate("Post Code", GetJsonValueAsText(VendorObj, 'zip_code'));
         Vendor.Validate("Phone No.", GetJsonValueAsText(VendorObj, 'phone'));
@@ -380,7 +380,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             Customer.Validate("Customer Posting Group", FleetrockSetup."Customer Posting Group");
             Customer.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
             Customer.Modify(true);
-            exit;
+            exit(Customer."No.");
         end;
 
         Customer.Init();
@@ -420,8 +420,8 @@ codeunit 80000 "EE Fleetrock Mgt."
         // if not Confirm(s) then
         //     Error('');
 
-        // if CustomerArray.Count() = 0 then
-        //     Error('No users found.');
+        if CustomerArray.Count() = 0 then
+            exit(false);
 
         if IsSourceCompany then
             SourceType := 'company_name'
