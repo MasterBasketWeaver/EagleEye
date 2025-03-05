@@ -164,7 +164,10 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchaseHeader.Validate("Buy-from Vendor No.", VendorNo);
         PurchaseHeader.Validate("Payment Terms Code", GetPaymentTerms(PurchHeaderStaging.payment_term_days));
         PurchaseHeader.Validate("EE Fleetrock ID", PurchHeaderStaging.id);
-        PurchaseHeader.Validate("Vendor Invoice No.", PurchHeaderStaging.id);
+        if PurchHeaderStaging.invoice_number <> '' then
+            PurchaseHeader.Validate("Vendor Invoice No.", PurchHeaderStaging.invoice_number)
+        else
+            PurchaseHeader.Validate("Vendor Invoice No.", PurchHeaderStaging.id);
         PurchaseHeader.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
         PurchaseHeader.Modify(true);
         CreatePurchaseLines(PurchHeaderStaging, DocNo);
@@ -528,7 +531,8 @@ codeunit 80000 "EE Fleetrock Mgt."
     var
         T: JsonToken;
     begin
-        JsonObj.Get(KeyName, T);
+        if not JsonObj.Get(KeyName, T) then
+            exit('');
         exit(T.AsValue().AsText());
     end;
 
@@ -536,7 +540,8 @@ codeunit 80000 "EE Fleetrock Mgt."
     var
         T: JsonToken;
     begin
-        JsonObj.Get(KeyName, T);
+        if not JsonObj.Get(KeyName, T) then
+            exit(0);
         if Format(T.AsValue()) = '""' then
             exit(0);
         exit(T.AsValue().AsDecimal());
