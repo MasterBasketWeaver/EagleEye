@@ -284,8 +284,20 @@ codeunit 80000 "EE Fleetrock Mgt."
         if Vendor.FindFirst() then
             exit(Vendor."No.");
 
-        if not GetVendorDetails(PurchHeaderStaging.supplier_name, VendorObj) then
-            Error('Supplier %1 not found.', PurchHeaderStaging.supplier_name);
+        if not GetVendorDetails(PurchHeaderStaging.supplier_name, VendorObj) then begin
+            // Error('Supplier %1 not found.', PurchHeaderStaging.supplier_name);
+            Vendor.Init();
+            Vendor.Insert(true);
+            Vendor.Validate(Name, PurchHeaderStaging.supplier_name);
+            Vendor.Validate("EE Source Type", Vendor."EE Source Type"::Fleetrock);
+            Vendor.Validate("EE Source No.", PurchHeaderStaging.supplier_name);
+            Vendor.Validate("Vendor Posting Group", FleetrockSetup."Vendor Posting Group");
+            Vendor.Validate("Tax Liable", true);
+            Vendor.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
+            Vendor.Modify(true);
+            exit;
+        end;
+
 
         Vendor.Init();
         Vendor.Insert(true);
@@ -358,8 +370,18 @@ codeunit 80000 "EE Fleetrock Mgt."
         if Customer.FindFirst() then
             exit(Customer."No.");
 
-        if not GetCustomerDetails(SourceNo, IsSourceCompany, CustomerObj) then
-            Error('User %1 not found.', SourceNo);
+        if not GetCustomerDetails(SourceNo, IsSourceCompany, CustomerObj) then begin
+            // Error('User %1 not found.', SourceNo);
+            Customer.Init();
+            Customer.Insert(true);
+            Customer.Validate(Name, SalesHeaderStaging.vendor_name);
+            Customer.Validate("EE Source Type", Customer."EE Source Type"::Fleetrock);
+            Customer.Validate("EE Source No.", SourceNo);
+            Customer.Validate("Customer Posting Group", FleetrockSetup."Customer Posting Group");
+            Customer.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
+            Customer.Modify(true);
+            exit;
+        end;
 
         Customer.Init();
         Customer.Insert(true);
@@ -388,12 +410,18 @@ codeunit 80000 "EE Fleetrock Mgt."
         T: JsonToken;
         SourceType: Text;
 
-        b: Boolean;
+    // b: Boolean;
+    // s: Text;
     begin
         CheckToGetAPIToken();
         CustomerArray := RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetUsers?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, CheckToGetAPIToken()), 'users');
-        if CustomerArray.Count() = 0 then
-            exit(false);
+
+        // CustomerArray.WriteTo(s);
+        // if not Confirm(s) then
+        //     Error('');
+
+        // if CustomerArray.Count() = 0 then
+        //     Error('No users found.');
 
         if IsSourceCompany then
             SourceType := 'company_name'
@@ -401,6 +429,11 @@ codeunit 80000 "EE Fleetrock Mgt."
             SourceType := 'company_id';
         foreach T in CustomerArray do begin
             CustomerObj := T.AsObject();
+
+            // CustomerArray.WriteTo(s);
+            // if not Confirm(s) then
+            //     Error('');
+
             if CustomerObj.Get(SourceType, T) then begin
                 if T.AsValue().AsText() = SourceValue then
                     exit(true);
