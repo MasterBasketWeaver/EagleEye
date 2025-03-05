@@ -106,6 +106,21 @@ page 80003 "EE Fleetrock Entries"
                     Message(Rec."Error Message");
                 end;
             }
+            action("Show URL")
+            {
+                ApplicationArea = all;
+                Image = LaunchWeb;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                Enabled = Rec.URL <> '';
+
+                trigger OnAction()
+                begin
+                    Message(Rec.URL);
+                end;
+            }
             action("Show Request Body")
             {
                 ApplicationArea = all;
