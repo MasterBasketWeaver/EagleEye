@@ -15,7 +15,6 @@ codeunit 80003 "EE Get Repair Orders"
         JsonArry: JsonArray;
         T: JsonToken;
         OrderJsonObj: JsonObject;
-        JsonVal: JsonValue;
         StartDateTime: DateTime;
         ObjId, URL : Text;
         EntryNo, ImportEntryNo : Integer;
@@ -49,9 +48,7 @@ codeunit 80003 "EE Get Repair Orders"
         SalesHeader.SetCurrentKey("EE Fleetrock ID");
         foreach T in JsonArry do begin
             OrderJsonObj := T.AsObject();
-            OrderJsonObj.Get('id', T);
-            JsonVal := T.AsValue();
-            ObjId := JsonVal.AsText();
+            ObjId := FleetRockMgt.GetJsonValueAsText(OrderJsonObj, 'id');
             ImportEntryNo := 0;
             Success := false;
             ClearLastError();
@@ -71,9 +68,7 @@ codeunit 80003 "EE Get Repair Orders"
                     end;
                 end;
             end else begin
-                OrderJsonObj.Get('status', T);
-                JsonVal := T.AsValue();
-                if JsonVal.AsText() = 'In Progress' then
+                if FleetRockMgt.GetJsonValueAsText(OrderJsonObj, 'status') = 'In Progress' then
                     if FleetRockMgt.TryToCheckIfAlreadyImported(ObjId, SalesHeader) then
                         Success := FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, true);
             end;

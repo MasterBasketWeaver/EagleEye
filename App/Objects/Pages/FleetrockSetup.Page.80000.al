@@ -192,8 +192,27 @@ page 80000 "EE Fleetrock Setup"
 
                 trigger OnAction()
                 var
+                    JobQueueEntry: Record "Job Queue Entry";
                 begin
-                    Codeunit.Run(Codeunit::"EE Get Closed Purch. Orders")
+                    Codeunit.Run(Codeunit::"EE Get Repair Orders")
+                end;
+            }
+            action("Get Received POs By Date")
+            {
+                ApplicationArea = All;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                Image = ImportChartOfAccounts;
+
+                trigger OnAction()
+                var
+                    FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
+                    s: Text;
+                begin
+                    FleetrockMgt.GetPurchaseOrders(0DT, s, Enum::"EE Event Type"::Received).WriteTo(s);
+                    Message(s);
                 end;
             }
             action("Get Closed POs By Date")
@@ -210,7 +229,7 @@ page 80000 "EE Fleetrock Setup"
                     FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
                     s: Text;
                 begin
-                    FleetrockMgt.GetClosedPurchaseOrders(0DT, s).WriteTo(s);
+                    FleetrockMgt.GetPurchaseOrders(0DT, s, Enum::"EE Event Type"::Closed).WriteTo(s);
                     Message(s);
                 end;
             }
@@ -253,6 +272,38 @@ page 80000 "EE Fleetrock Setup"
                 trigger OnAction()
                 begin
                     Codeunit.Run(Codeunit::"EE Get Repair Orders");
+                end;
+            }
+            action("Clear Logs")
+            {
+                ApplicationArea = All;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                Image = DeleteAllBreakpoints;
+
+                trigger OnAction()
+                var
+                    ImportExportEntry: Record "EE Import/Export Entry";
+                    PurchHeaderStaging: Record "EE Purch. Header Staging";
+                    PurchLineStaging: Record "EE Purch. Line Staging";
+                    SalesHeaderStaging: Record "EE Sales Header Staging";
+                    TaskLineStaging: Record "EE Task Line Staging";
+                    PartLineStaging: Record "EE Part Line Staging";
+                    SalesHeader: Record "Sales Header";
+                begin
+                    if not Confirm('Delete all log entries?') then
+                        exit;
+                    ImportExportEntry.DeleteAll(false);
+                    PurchHeaderStaging.DeleteAll(false);
+                    PurchLineStaging.DeleteAll(false);
+                    SalesHeaderStaging.DeleteAll(false);
+                    TaskLineStaging.DeleteAll(false);
+                    PartLineStaging.DeleteAll(false);
+                    SalesHeader.SetRange("Document Type", SalesHeader."Document Type"::Invoice);
+                    SalesHeader.SetRange("Sell-to Customer No.", '');
+                    SalesHeader.DeleteAll(true);
                 end;
             }
         }

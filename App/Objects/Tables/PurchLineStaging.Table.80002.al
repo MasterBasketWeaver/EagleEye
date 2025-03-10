@@ -17,7 +17,7 @@ table 80002 "EE Purch. Line Staging"
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(10; id; Text[20])
+        field(10; "Header id"; Text[20])
         {
             DataClassification = CustomerContent;
             Editable = false;
@@ -85,7 +85,7 @@ table 80002 "EE Purch. Line Staging"
         {
             Clustered = true;
         }
-        key(K2; id, "Header Entry No.") { }
+        key(K2; "Header id", "Header Entry No.") { }
     }
 
     trigger OnInsert()

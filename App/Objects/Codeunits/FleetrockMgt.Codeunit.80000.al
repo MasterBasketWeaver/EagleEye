@@ -84,12 +84,12 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
     [TryFunction]
-    procedure TryToInsertPOStagingRecords(var OrderJsonObj: JsonObject; var ImportEntryNo: Integer)
+    procedure TryToInsertPOStagingRecords(var OrderJsonObj: JsonObject; var ImportEntryNo: Integer; CreateOrder: Boolean)
     begin
-        ImportEntryNo := InsertPOStagingRecords(OrderJsonObj);
+        ImportEntryNo := InsertPOStagingRecords(OrderJsonObj, CreateOrder);
     end;
 
-    procedure InsertPOStagingRecords(var OrderJsonObj: JsonObject): Integer
+    procedure InsertPOStagingRecords(var OrderJsonObj: JsonObject; CreateOrder: Boolean): Integer
     var
         PurchHeaderStaging: Record "EE Purch. Header Staging";
         EntryNo: Integer;
@@ -108,9 +108,11 @@ codeunit 80000 "EE Fleetrock Mgt."
             PurchHeaderStaging.Modify(true);
         end;
         PurchHeaderStaging.Get(EntryNo);
-        if PurchHeaderStaging.Processed then
-            Error('Purchase Order %1 has already been processed.', PurchHeaderStaging."Entry No.");
-        CreatePurchaseOrder(PurchHeaderStaging);
+        if CreateOrder then begin
+            if PurchHeaderStaging.Processed then
+                Error('Purchase Order %1 has already been processed.', PurchHeaderStaging."Entry No.");
+            CreatePurchaseOrder(PurchHeaderStaging);
+        end;
         exit(EntryNo);
     end;
 
@@ -150,7 +152,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchaseHeader.Init();
         PurchaseHeader.SetHideValidationDialog(true);
         PurchaseHeader.Validate("Document Type", Enum::"Purchase Document Type"::Order);
-        PurchaseHeader.Validate("Posting Date", DT2Date(PurchHeaderStaging.Closed));
+        PurchaseHeader.Validate("Posting Date", DT2Date(PurchHeaderStaging.Received));
         PurchaseHeader.Insert(true);
         DocNo := PurchaseHeader."No.";
 
@@ -178,27 +180,15 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchaseLine: Record "Purchase Line";
         PurchLineStaging: Record "EE Purch. Line Staging";
         LineNo: Integer;
-        Taxable: Boolean;
     begin
-        PurchLineStaging.SetRange(id, PurchHeaderStaging.id);
+        PurchLineStaging.SetRange("Header id", PurchHeaderStaging.id);
         PurchLineStaging.SetRange("Header Entry No.", PurchHeaderStaging."Entry No.");
         if not PurchLineStaging.FindSet() then
             exit;
-        Taxable := PurchHeaderStaging.tax_total <> 0;
+        // Taxable := PurchHeaderStaging.tax_total <> 0;
         repeat
             LineNo += 10000;
-            PurchaseLine.Init();
-            PurchaseLine.Validate("Document Type", Enum::"Purchase Document Type"::Order);
-            PurchaseLine.Validate("Document No.", DocNo);
-            PurchaseLine.Validate("Line No.", LineNo);
-            PurchaseLine.Validate(Type, PurchaseLine.Type::"G/L Account");
-            PurchaseLine.Validate("No.", FleetRockSetup."Purchase G/L Account No.");
-            PurchaseLine.Validate(Quantity, PurchLineStaging.part_quantity);
-            PurchaseLine.Validate("Unit Cost", PurchLineStaging.unit_price);
-            PurchaseLine.Validate("Direct Unit Cost", PurchLineStaging.unit_price);
-            PurchaseLine.Description := CopyStr(PurchLineStaging.part_description, 1, MaxStrLen(PurchaseLine.Description));
-            PurchaseLine.Validate("Tax Group Code", FleetrockSetup."Tax Group Code");
-            PurchaseLine.Insert(true);
+            AddPurchaseLine(PurchaseLine, PurchLineStaging, DocNo, LineNo);
         until PurchLineStaging.Next() = 0;
     end;
 
@@ -511,7 +501,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             PurchLineStaging.Init();
             PurchLineStaging."Entry No." := EntryNo;
             PurchLineStaging."Header Entry No." := PurchHeaderStaging."Entry No.";
-            PurchLineStaging.id := PurchHeaderStaging.id;
+            PurchLineStaging."Header id" := PurchHeaderStaging.id;
             PurchLineStaging.part_id := GetJsonValueAsText(LineJsonObj, 'part_id');
             PurchLineStaging.part_number := GetJsonValueAsText(LineJsonObj, 'part_number');
             PurchLineStaging.part_description := GetJsonValueAsText(LineJsonObj, 'part_description');
@@ -527,7 +517,7 @@ codeunit 80000 "EE Fleetrock Mgt."
     end;
 
 
-    local procedure GetJsonValueAsText(var JsonObj: JsonObject; KeyName: Text): Text
+    procedure GetJsonValueAsText(var JsonObj: JsonObject; KeyName: Text): Text
     var
         T: JsonToken;
     begin
@@ -591,19 +581,25 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
     [TryFunction]
-    procedure TryToGetClosedPurchaseOrders(StartDateTime: DateTime; var PurchOrdersJsonArray: JsonArray; var URL: Text)
+    procedure TryToGetPurchaseOrders(StartDateTime: DateTime; var PurchOrdersJsonArray: JsonArray; var URL: Text; EventType: Enum "EE Event Type")
     begin
-        PurchOrdersJsonArray := GetClosedPurchaseOrders(StartDateTime, URL);
+        PurchOrdersJsonArray := GetPurchaseOrders(StartDateTime, URL, EventType);
     end;
 
-    procedure GetClosedPurchaseOrders(StartDateTime: DateTime; var URL: Text): JsonArray
+    // [TryFunction]
+    // procedure TryToGetReceivedPurchaseOrders(StartDateTime: DateTime; var PurchOrdersJsonArray: JsonArray; var URL: Text)
+    // begin
+    //     PurchOrdersJsonArray := GetPurchaseOrders(StartDateTime, URL, Enum::"EE Event Type"::Received);
+    // end;
+
+    procedure GetPurchaseOrders(StartDateTime: DateTime; var URL: Text; EventType: Enum "EE Event Type"): JsonArray
     var
         APIToken: Text;
         EndDateTime: DateTime;
     begin
         GetEventParameters(APIToken, StartDateTime, EndDateTime);
-        URL := StrSubstNo('%1/API/GetPO?username=%2&event=closed&token=%3&start=%4&end=%5', FleetrockSetup."Integration URL",
-            FleetrockSetup.Username, APIToken, Format(StartDateTime, 0, 9), Format(EndDateTime, 0, 9));
+        URL := StrSubstNo('%1/API/GetPO?username=%2&event=%3&token=%4&start=%5&end=%6', FleetrockSetup."Integration URL",
+            FleetrockSetup.Username, EventType, APIToken, Format(StartDateTime, 0, 9), Format(EndDateTime, 0, 9));
         exit(RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, URL, 'purchase_orders'));
     end;
 
@@ -881,7 +877,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         SalesLine: Record "Sales Line";
         TaskLineStaging: Record "EE Task Line Staging";
         PartLineStaging: Record "EE Part Line Staging";
-        LineNo: Integer;
+        LineNo, DescrLength : Integer;
     begin
         SalesHeader.Get(SalesHeader."Document Type"::Invoice, DocNo);
         SalesHeader.SetHideValidationDialog(true);
@@ -904,11 +900,17 @@ codeunit 80000 "EE Fleetrock Mgt."
         SalesLine.SetRange("Document No.", SalesHeader."No.");
         if SalesLine.FindLast() then
             LineNo := SalesLine."Line No.";
+        DescrLength := MaxStrLen(SalesLine.Description);
         repeat
             SalesLine.SetRange("EE Task/Part Id", TaskLineStaging.task_id);
-            if SalesLine.IsEmpty() then begin
+            if not SalesLine.FindFirst() then begin
                 LineNo += 10000;
                 AddTaskSalesLine(SalesLine, TaskLineStaging, SalesHeader."No.", LineNo);
+            end else begin
+                // SalesLine.Validate(Quantity, TaskLineStaging.labor_hours);
+                // SalesLine.Validate("Unit Price", TaskLineStaging.labor_hourly_rate);
+                // SalesLine.Description := CopyStr(TaskLineStaging.labor_system_code, 1, DescrLength);
+                // SalesLine.Modify(true);
             end;
             if TaskLineStaging."Part Lines" > 0 then begin
                 PartLineStaging.SetRange("Task Entry No.", TaskLineStaging."Entry No.");
@@ -916,17 +918,77 @@ codeunit 80000 "EE Fleetrock Mgt."
                 if PartLineStaging.FindSet() then
                     repeat
                         SalesLine.SetRange("EE Task/Part Id", PartLineStaging.part_id);
-                        if SalesLine.IsEmpty() then begin
+                        if not SalesLine.FindFirst() then begin
                             LineNo += 10000;
                             AddPartSalesLine(SalesLine, PartLineStaging, SalesHeader."No.", LineNo);
+                        end else begin
+                            // SalesLine.Validate(Quantity, PartLineStaging.part_quantity);
+                            // SalesLine.Validate("Unit Price", PartLineStaging.part_price);
+                            // SalesLine.Description := CopyStr(PartLineStaging.part_description, 1, DescrLength);
+                            // SalesLine.Modify(true);
                         end;
                     until PartLineStaging.Next() = 0;
             end;
         until TaskLineStaging.Next() = 0;
     end;
 
+    [TryFunction]
+    procedure TryToUpdatePurchaseOrder(var PurchaseHeaderStaging: Record "EE Purch. Header Staging"; DocNo: Code[20])
+    var
+        PurchaseHeader: Record "Purchase Header";
+        PurchaseLine: Record "Purchase Line";
+        PurchLineStaging: Record "EE Purch. Line Staging";
+        LineNo: Integer;
+    begin
+        PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, DocNo);
+        PurchaseHeader.SetHideValidationDialog(true);
+        PurchaseHeader.Validate("Posting Date", DT2Date(PurchaseHeaderStaging.Closed));
+        PurchaseHeader.Modify(true);
+        if PurchaseHeaderStaging."Document No." <> PurchaseHeader."No." then begin
+            PurchaseHeaderStaging.Validate("Document No.", PurchaseHeader."No.");
+            PurchaseHeaderStaging.Modify(true);
+        end;
+        PurchLineStaging.SetCurrentKey("Header Id", "Header Entry No.");
+        PurchLineStaging.SetRange("Header Id", PurchaseHeaderStaging.id);
+        PurchLineStaging.SetRange("Header Entry No.", PurchaseHeaderStaging."Entry No.");
+        if not PurchLineStaging.FindSet() then
+            exit;
 
+        PurchaseLine.SetRange("Document Type", PurchaseHeader."Document Type");
+        PurchaseLine.SetRange("Document No.", PurchaseHeader."No.");
+        if PurchaseLine.FindLast() then
+            LineNo := PurchaseLine."Line No.";
+        repeat
+            PurchaseLine.SetRange("EE Part Id", PurchLineStaging.part_id);
+            if not PurchaseLine.FindFirst() then begin
+                LineNo += 10000;
+                AddPurchaseLine(PurchaseLine, PurchLineStaging, PurchaseHeader."No.", LineNo);
+            end else begin
+                PurchaseLine.Validate(Quantity, PurchLineStaging.part_quantity);
+                PurchaseLine.Validate("Unit Cost", PurchLineStaging.unit_price);
+                PurchaseLine.Validate("Direct Unit Cost", PurchLineStaging.unit_price);
+                PurchaseLine.Description := CopyStr(PurchLineStaging.part_description, 1, MaxStrLen(PurchaseLine.Description));
+                PurchaseLine.Modify(true);
+            end;
+        until PurchLineStaging.Next() = 0;
+    end;
 
+    local procedure AddPurchaseLine(var PurchaseLine: Record "Purchase Line"; var PurchLineStaging: Record "EE Purch. Line Staging"; DocNo: Code[20]; LineNo: Integer)
+    begin
+        PurchaseLine.Init();
+        PurchaseLine.Validate("Document Type", Enum::"Purchase Document Type"::Order);
+        PurchaseLine.Validate("Document No.", DocNo);
+        PurchaseLine.Validate("Line No.", LineNo);
+        PurchaseLine.Validate(Type, PurchaseLine.Type::"G/L Account");
+        PurchaseLine.Validate("No.", FleetRockSetup."Purchase G/L Account No.");
+        PurchaseLine.Validate(Quantity, PurchLineStaging.part_quantity);
+        PurchaseLine.Validate("Unit Cost", PurchLineStaging.unit_price);
+        PurchaseLine.Validate("Direct Unit Cost", PurchLineStaging.unit_price);
+        PurchaseLine.Description := CopyStr(PurchLineStaging.part_description, 1, MaxStrLen(PurchaseLine.Description));
+        PurchaseLine.Validate("Tax Group Code", FleetrockSetup."Tax Group Code");
+        PurchaseLine.Validate("EE Part Id", PurchLineStaging.part_id);
+        PurchaseLine.Insert(true);
+    end;
 
 
 

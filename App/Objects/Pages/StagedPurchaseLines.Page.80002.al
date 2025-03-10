@@ -19,7 +19,7 @@ page 80002 "EE Staged Purchased Lines"
                 {
                     ApplicationArea = All;
                 }
-                field(id; Rec.id)
+                field(id; Rec."Header id")
                 {
                     ApplicationArea = All;
                 }
