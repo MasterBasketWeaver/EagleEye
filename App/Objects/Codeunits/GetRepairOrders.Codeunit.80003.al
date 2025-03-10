@@ -62,10 +62,10 @@ codeunit 80003 "EE Get Repair Orders"
                             Success := FleetRockMgt.TryToUpdateRepairOrder(SalesHeaderStaging, SalesHeaderStaging."Document No.");
                     end else
                         Success := FleetRockMgt.TryToUpdateRepairOrder(SalesHeaderStaging, SalesHeader."No.");
-                    // if Success then begin
-                    //     SalesHeader.Get(SalesHeader."Document Type"::Invoice, SalesHeaderStaging."Document No.");
-                    //     Success := TryToPostInvoice(SalesHeader);
-                    // end;
+                    if Success then begin
+                        SalesHeader.Get(SalesHeader."Document Type"::Invoice, SalesHeaderStaging."Document No.");
+                        Success := TryToPostInvoice(SalesHeader);
+                    end;
                 end;
             end else begin
                 if FleetRockMgt.GetJsonValueAsText(OrderJsonObj, 'status') = 'In Progress' then
