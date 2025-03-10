@@ -20,7 +20,7 @@ codeunit 80001 "EE Get Purchase Orders"
         StartDateTime: DateTime;
         URL, s : Text;
         EntryNo, ImportEntryNo : Integer;
-        Success, IsReceived : Boolean;
+        Success, IsReceived, LogEntry : Boolean;
     begin
         if ImportEntry.FindLast() then
             EntryNo := ImportEntry."Entry No.";
@@ -46,6 +46,7 @@ codeunit 80001 "EE Get Purchase Orders"
             exit;
 
         PurchaseHeader.SetCurrentKey("EE Fleetrock ID");
+        LogEntry := not IsReceived;
         foreach T in JsonArry do begin
             OrderJsonObj := T.AsObject();
             OrderJsonObj.Get('id', T);
@@ -55,10 +56,12 @@ codeunit 80001 "EE Get Purchase Orders"
             ClearLastError();
             Success := false;
             if IsReceived then begin
-                if FleetRockMgt.GetJsonValueAsText(OrderJsonObj, 'status') = 'Received' then
+                if FleetRockMgt.GetJsonValueAsText(OrderJsonObj, 'status') = 'Received' then begin
+                    LogEntry := true;
                     if FleetRockMgt.TryToCheckIfAlreadyImported(s, PurchaseHeader) then
                         Success := FleetRockMgt.TryToInsertPOStagingRecords(OrderJsonObj, ImportEntryNo, true);
-            end else begin
+                end;
+            end else
                 if FleetRockMgt.TryToInsertPOStagingRecords(OrderJsonObj, ImportEntryNo, false) and PurchaseHeaderStaging.Get(ImportEntryNo) then begin
                     PurchaseHeader.SetCurrentKey("EE Fleetrock ID");
                     PurchaseHeader.SetRange("EE Fleetrock ID", PurchaseHeaderStaging.id);
@@ -69,11 +72,12 @@ codeunit 80001 "EE Get Purchase Orders"
                     end else
                         Success := FleetRockMgt.TryToUpdatePurchaseOrder(PurchaseHeaderStaging, PurchaseHeader."No.");
                 end;
+            if LogEntry then begin
+                EntryNo += 1;
+                FleetRockMgt.InsertImportEntry(EntryNo, Success and (GetLastErrorText() = ''), ImportEntryNo,
+                    ImportEntry."Document Type"::"Purchase Order", EventType, Enum::"EE Direction"::Import,
+                    GetLastErrorText(), URL, 'GET');
             end;
-            EntryNo += 1;
-            FleetRockMgt.InsertImportEntry(EntryNo, Success and (GetLastErrorText() = ''), ImportEntryNo,
-                ImportEntry."Document Type"::"Purchase Order", EventType, Enum::"EE Direction"::Import,
-                GetLastErrorText(), URL, 'GET');
         end;
     end;
 }
