@@ -2,7 +2,7 @@ pageextension 80008 "EE Posted Purchase Invoices" extends "Posted Purchase Invoi
 {
     layout
     {
-        addlast(Control1)
+        addafter("No.")
         {
             field("EE Fleetrock ID"; Rec."EE Fleetrock ID")
             {

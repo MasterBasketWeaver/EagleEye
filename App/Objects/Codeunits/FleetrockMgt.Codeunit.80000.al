@@ -692,8 +692,11 @@ codeunit 80000 "EE Fleetrock Mgt."
         SalesHeaderStaging.Init();
         SalesHeaderStaging."Entry No." := EntryNo;
         RecVar := SalesHeaderStaging;
+
         PopulateStagingTable(RecVar, OrderJsonObj, Database::"EE Sales Header Staging", SalesHeaderStaging.FieldNo(id));
         SalesHeaderStaging := RecVar;
+        if FleetrockSetup."Internal Customer Name" <> '' then
+            SalesHeaderStaging."Internal Customer" := SalesHeaderStaging.customer_name = FleetrockSetup."Internal Customer Name";
         SalesHeaderStaging.Insert(true);
 
         if not OrderJsonObj.Get('tasks', T) then
@@ -746,7 +749,12 @@ codeunit 80000 "EE Fleetrock Mgt."
         DocNo: Code[20];
     begin
         GetAndCheckSetup();
-        FleetrockSetup.TestField("Repair G/L Account No.");
+        FleetrockSetup.TestField("External Labor G/L Account No.");
+        FleetrockSetup.TestField("External Parts G/L Account No.");
+        if FleetrockSetup."Internal Customer Name" <> '' then begin
+            FleetrockSetup.TestField("Internal Labor G/L Account No.");
+            FleetrockSetup.TestField("Internal Parts G/L Account No.");
+        end;
         FleetrockSetup.TestField("Customer Posting Group");
         FleetrockSetup.TestField("Tax Group Code");
         FleetrockSetup.TestField("Tax Area Code");
@@ -823,27 +831,30 @@ codeunit 80000 "EE Fleetrock Mgt."
         PartLineStaging.SetRange("Header Entry No.", SalesHeaderStaging."Entry No.");
         repeat
             LineNo += 10000;
-            AddTaskSalesLine(SalesLine, TaskLineStaging, DocNo, LineNo);
+            AddTaskSalesLine(SalesLine, TaskLineStaging, DocNo, LineNo, SalesHeaderStaging."Internal Customer");
             if TaskLineStaging."Part Lines" > 0 then begin
                 PartLineStaging.SetRange("Task Entry No.", TaskLineStaging."Entry No.");
                 PartLineStaging.SetRange("Task Id", TaskLineStaging.task_id);
                 if PartLineStaging.FindSet() then
                     repeat
                         LineNo += 10000;
-                        AddPartSalesLine(SalesLine, PartLineStaging, DocNo, LineNo);
+                        AddPartSalesLine(SalesLine, PartLineStaging, DocNo, LineNo, SalesHeaderStaging."Internal Customer");
                     until PartLineStaging.Next() = 0;
             end;
         until TaskLineStaging.Next() = 0;
     end;
 
-    local procedure AddTaskSalesLine(var SalesLine: Record "Sales Line"; var TaskLineStaging: Record "EE Task Line Staging"; DocNo: Code[20]; LineNo: Integer)
+    local procedure AddTaskSalesLine(var SalesLine: Record "Sales Line"; var TaskLineStaging: Record "EE Task Line Staging"; DocNo: Code[20]; LineNo: Integer; Internal: Boolean)
     begin
         SalesLine.Init();
         SalesLine.Validate("Document Type", Enum::"Sales Document Type"::Invoice);
         SalesLine.Validate("Document No.", DocNo);
         SalesLine.Validate("Line No.", LineNo);
         SalesLine.Validate(Type, SalesLine.Type::"G/L Account");
-        SalesLine.Validate("No.", FleetRockSetup."Repair G/L Account No.");
+        if Internal then
+            SalesLine.Validate("No.", FleetRockSetup."Internal Labor G/L Account No.")
+        else
+            SalesLine.Validate("No.", FleetRockSetup."External Labor G/L Account No.");
         SalesLine.Validate(Quantity, TaskLineStaging.labor_hours);
         SalesLine.Validate("Unit Price", TaskLineStaging.labor_hourly_rate);
         SalesLine.Description := CopyStr(TaskLineStaging.labor_system_code, 1, MaxStrLen(SalesLine.Description));
@@ -852,14 +863,17 @@ codeunit 80000 "EE Fleetrock Mgt."
         SalesLine.Insert(true);
     end;
 
-    local procedure AddPartSalesLine(var SalesLine: Record "Sales Line"; var PartLineStaging: Record "EE Part Line Staging"; DocNo: Code[20]; LineNo: Integer)
+    local procedure AddPartSalesLine(var SalesLine: Record "Sales Line"; var PartLineStaging: Record "EE Part Line Staging"; DocNo: Code[20]; LineNo: Integer; Internal: Boolean)
     begin
         SalesLine.Init();
         SalesLine.Validate("Document Type", Enum::"Sales Document Type"::Invoice);
         SalesLine.Validate("Document No.", DocNo);
         SalesLine.Validate("Line No.", LineNo);
         SalesLine.Validate(Type, SalesLine.Type::"G/L Account");
-        SalesLine.Validate("No.", FleetRockSetup."Repair G/L Account No.");
+        if Internal then
+            SalesLine.Validate("No.", FleetRockSetup."Internal Parts G/L Account No.")
+        else
+            SalesLine.Validate("No.", FleetRockSetup."External Parts G/L Account No.");
         SalesLine.Validate(Quantity, PartLineStaging.part_quantity);
         SalesLine.Validate("Unit Price", PartLineStaging.part_price);
         SalesLine.Description := CopyStr(PartLineStaging.part_description, 1, MaxStrLen(SalesLine.Description));
@@ -905,12 +919,12 @@ codeunit 80000 "EE Fleetrock Mgt."
             SalesLine.SetRange("EE Task/Part Id", TaskLineStaging.task_id);
             if not SalesLine.FindFirst() then begin
                 LineNo += 10000;
-                AddTaskSalesLine(SalesLine, TaskLineStaging, SalesHeader."No.", LineNo);
+                AddTaskSalesLine(SalesLine, TaskLineStaging, SalesHeader."No.", LineNo, SalesHeaderStaging."Internal Customer");
             end else begin
-                // SalesLine.Validate(Quantity, TaskLineStaging.labor_hours);
-                // SalesLine.Validate("Unit Price", TaskLineStaging.labor_hourly_rate);
-                // SalesLine.Description := CopyStr(TaskLineStaging.labor_system_code, 1, DescrLength);
-                // SalesLine.Modify(true);
+                SalesLine.Validate(Quantity, TaskLineStaging.labor_hours);
+                SalesLine.Validate("Unit Price", TaskLineStaging.labor_hourly_rate);
+                SalesLine.Description := CopyStr(TaskLineStaging.labor_system_code, 1, DescrLength);
+                SalesLine.Modify(true);
             end;
             if TaskLineStaging."Part Lines" > 0 then begin
                 PartLineStaging.SetRange("Task Entry No.", TaskLineStaging."Entry No.");
@@ -920,12 +934,12 @@ codeunit 80000 "EE Fleetrock Mgt."
                         SalesLine.SetRange("EE Task/Part Id", PartLineStaging.part_id);
                         if not SalesLine.FindFirst() then begin
                             LineNo += 10000;
-                            AddPartSalesLine(SalesLine, PartLineStaging, SalesHeader."No.", LineNo);
+                            AddPartSalesLine(SalesLine, PartLineStaging, SalesHeader."No.", LineNo, SalesHeaderStaging."Internal Customer");
                         end else begin
-                            // SalesLine.Validate(Quantity, PartLineStaging.part_quantity);
-                            // SalesLine.Validate("Unit Price", PartLineStaging.part_price);
-                            // SalesLine.Description := CopyStr(PartLineStaging.part_description, 1, DescrLength);
-                            // SalesLine.Modify(true);
+                            SalesLine.Validate(Quantity, PartLineStaging.part_quantity);
+                            SalesLine.Validate("Unit Price", PartLineStaging.part_price);
+                            SalesLine.Description := CopyStr(PartLineStaging.part_description, 1, DescrLength);
+                            SalesLine.Modify(true);
                         end;
                     until PartLineStaging.Next() = 0;
             end;

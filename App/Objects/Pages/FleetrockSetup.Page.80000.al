@@ -9,18 +9,47 @@ page 80000 "EE Fleetrock Setup"
     {
         area(Content)
         {
+            group("G/L Mappings")
+            {
+                group("Purchase Orders")
+                {
+                    field("Purchase G/L Account No."; Rec."Purchase G/L Account No.")
+                    {
+                        ApplicationArea = all;
+                        ShowMandatory = true;
+                    }
+                }
+                group("Repair Orders")
+                {
+                    field("Internal Customer Name"; Rec."Internal Customer Name")
+                    {
+                        ApplicationArea = all;
+                    }
+                    field("Internal Labor G/L Account No."; Rec."Internal Labor G/L Account No.")
+                    {
+                        ApplicationArea = all;
+                        ShowMandatory = true;
+                    }
+                    field("Internal Parts G/L Account No."; Rec."Internal Parts G/L Account No.")
+                    {
+                        ApplicationArea = all;
+                        ShowMandatory = true;
+                    }
+                    field("External Labor G/L Account No."; Rec."External Labor G/L Account No.")
+                    {
+                        ApplicationArea = all;
+                        ShowMandatory = true;
+                    }
+                    field("External Parts G/L Account No."; Rec."External Parts G/L Account No.")
+                    {
+                        ApplicationArea = all;
+                        ShowMandatory = true;
+                    }
+                }
+            }
+
             group(Defaults)
             {
-                field("Purchase G/L Account No."; Rec."Purchase G/L Account No.")
-                {
-                    ApplicationArea = all;
-                    ShowMandatory = true;
-                }
-                field("Repair G/L Account No."; Rec."Repair G/L Account No.")
-                {
-                    ApplicationArea = all;
-                    ShowMandatory = true;
-                }
                 field("Vendor Posting Group"; Rec."Vendor Posting Group")
                 {
                     ApplicationArea = all;

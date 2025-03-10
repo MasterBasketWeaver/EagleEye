@@ -107,6 +107,10 @@ page 80004 "EE Staged Repair Order Headers"
                 {
                     ApplicationArea = all;
                 }
+                field("Internal Customer"; Rec."Internal Customer")
+                {
+                    ApplicationArea = all;
+                }
                 field(customer_name; Rec.customer_name)
                 {
                     ApplicationArea = all;
