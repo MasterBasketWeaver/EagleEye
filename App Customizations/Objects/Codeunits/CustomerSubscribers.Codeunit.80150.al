@@ -6,4 +6,11 @@ codeunit 80150 "EE Custom Subscribers"
         if Rec."Description 2" = '' then
             Rec."Description 2" := CopyStr(Rec.Description, 1, MaxStrLen(Rec."Description 2"));
     end;
+
+    [EventSubscriber(ObjectType::Table, Database::"Sales Line", OnAfterValidateEvent, "No.", false, false)]
+    local procedure SalesLineOnAfterValidateNo(var Rec: Record "Sales Line")
+    begin
+        if Rec."Description 2" = '' then
+            Rec."Description 2" := CopyStr(Rec.Description, 1, MaxStrLen(Rec."Description 2"));
+    end;
 }
