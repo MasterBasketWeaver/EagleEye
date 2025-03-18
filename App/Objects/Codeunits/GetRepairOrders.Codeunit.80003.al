@@ -18,7 +18,7 @@ codeunit 80003 "EE Get Repair Orders"
         StartDateTime: DateTime;
         ObjId, URL : Text;
         EntryNo, ImportEntryNo : Integer;
-        Success: Boolean;
+        Success, LogEntry : Boolean;
     begin
         if ImportEntry.FindLast() then
             EntryNo := ImportEntry."Entry No.";
@@ -51,8 +51,10 @@ codeunit 80003 "EE Get Repair Orders"
             ObjId := FleetRockMgt.GetJsonValueAsText(OrderJsonObj, 'id');
             ImportEntryNo := 0;
             Success := false;
+            LogEntry := false;
             ClearLastError();
             if OrderStatus = OrderStatus::invoiced then begin
+                LogEntry := true;
                 if FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, false) and SalesHeaderStaging.Get(ImportEntryNo) then begin
                     SalesHeader.SetCurrentKey("EE Fleetrock ID");
                     SalesHeader.SetRange("EE Fleetrock ID", SalesHeaderStaging.id);
@@ -67,15 +69,18 @@ codeunit 80003 "EE Get Repair Orders"
                         Success := TryToPostInvoice(SalesHeader);
                     end;
                 end;
-            end else begin
-                if FleetRockMgt.GetJsonValueAsText(OrderJsonObj, 'status') = 'In Progress' then
+            end else
+                if FleetRockMgt.GetJsonValueAsText(OrderJsonObj, 'status') = 'In Progress' then begin
+                    LogEntry := true;
                     if FleetRockMgt.TryToCheckIfAlreadyImported(ObjId, SalesHeader) then
                         Success := FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, true);
+                end;
+            if LogEntry then begin
+                EntryNo += 1;
+                FleetRockMgt.InsertImportEntry(EntryNo, Success and (GetLastErrorText() = ''), ImportEntryNo,
+                    ImportEntry."Document Type"::"Repair Order", EventType, Enum::"EE Direction"::Import,
+                    GetLastErrorText(), URL, 'GET');
             end;
-            EntryNo += 1;
-            FleetRockMgt.InsertImportEntry(EntryNo, Success and (GetLastErrorText() = ''), ImportEntryNo,
-                ImportEntry."Document Type"::"Repair Order", EventType, Enum::"EE Direction"::Import,
-                GetLastErrorText(), URL, 'GET');
         end;
     end;
 
