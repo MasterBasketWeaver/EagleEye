@@ -1,52 +1,24 @@
 codeunit 80000 "EE Fleetrock Mgt."
 {
-    Permissions = tabledata "EE Fleetrock Setup" = rimd,
-    tabledata "EE Purch. Header Staging" = rimd,
-    tabledata "EE Purch. Line Staging" = rimd,
-    tabledata "EE Import/Export Entry" = rimd,
-    tabledata "EE Sales Header Staging" = rimd,
-    tabledata "EE Task Line Staging" = rimd,
-    tabledata "EE Part Line Staging" = rimd,
-    tabledata "Purchase Header" = rimd,
-    tabledata "Purchase Line" = rimd,
-    tabledata "Sales Header" = rimd,
-    tabledata "Sales Line" = rimd,
-    tabledata "Vendor" = rimd,
-    tabledata "Payment Terms" = rimd,
-    tabledata "G/L Account" = rimd,
-    tabledata "Purch. Inv. Header" = r,
-    tabledata "Purch. Inv. Line" = r,
-    tabledata "Sales Invoice Header" = r,
-    tabledata "Sales Invoice Line" = r;
+    Permissions = tabledata "EE Fleetrock Setup" = RIMD,
+    tabledata "EE Purch. Header Staging" = RIMD,
+    tabledata "EE Purch. Line Staging" = RIMD,
+    tabledata "EE Import/Export Entry" = RIMD,
+    tabledata "EE Sales Header Staging" = RIMD,
+    tabledata "EE Task Line Staging" = RIMD,
+    tabledata "EE Part Line Staging" = RIMD,
+    tabledata "Purchase Header" = RIMD,
+    tabledata "Purchase Line" = RIMD,
+    tabledata "Sales Header" = RIMD,
+    tabledata "Sales Line" = RIMD,
+    tabledata "Vendor" = RIMD,
+    tabledata "Payment Terms" = RIMD,
+    tabledata "G/L Account" = RIMD,
+    tabledata "Purch. Inv. Header" = R,
+    tabledata "Purch. Inv. Line" = R,
+    tabledata "Sales Invoice Header" = R,
+    tabledata "Sales Invoice Line" = R;
 
-
-    // [EventSubscriber(ObjectType::Table, Database::"G/L Account", OnAfterInsertEvent, '', false, false)]
-    // local procedure GLAccountOnAfterInsert(var Rec: Record "G/L Account")
-    // begin
-    //     SyncGLToFleetRock(Rec, false);
-    // end;
-
-    // [EventSubscriber(ObjectType::Table, Database::"G/L Account", OnAfterModifyEvent, '', false, false)]
-    // local procedure GLAccountOnAfterModify(var Rec: Record "G/L Account")
-    // begin
-    //     SyncGLToFleetRock(Rec, false);
-    // end;
-
-    // [EventSubscriber(ObjectType::Table, Database::"G/L Account", OnAfterDeleteEvent, '', false, false)]
-    // local procedure GLAccountOnAfterDelete(var Rec: Record "G/L Account")
-    // begin
-    //     SyncGLToFleetRock(Rec, true);
-    // end;
-
-    // [EventSubscriber(ObjectType::Table, Database::"G/L Account", OnAfterRenameEvent, '', false, false)]
-    // local procedure GLAccountOnRenameDelete(var Rec: Record "G/L Account")
-    // begin
-    //     SyncGLToFleetRock(Rec, false);
-    // end;
-
-    // procedure SyncGLToFleetRock(var GLAccount: Record "G/L Account"; Deleted: Boolean)
-    // begin
-    // end;
 
 
     local procedure GetAndCheckSetup()
@@ -73,7 +45,7 @@ codeunit 80000 "EE Fleetrock Mgt."
     var
         JsonTkn: JsonToken;
     begin
-        JsonTkn := RestAPIMgt.GetResponseAsJsonToken(FleetrockSetup, StrSubstNo('%1/API/GetToken?username=%2&key=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, FleetrockSetup."API Key"), 'token');
+        JsonTkn := RestAPIMgt.GetResponseAsJsonToken(StrSubstNo('%1/API/GetToken?username=%2&key=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, FleetrockSetup."API Key"), 'token');
         JsonTkn.WriteTo(FleetrockSetup."API Token");
         FleetrockSetup.Validate("API Token", FleetrockSetup."API Token".Replace('"', ''));
         FleetrockSetup.Validate("API Token Expiry Date", CalcDate('<+180D>', Today()));
@@ -300,17 +272,17 @@ codeunit 80000 "EE Fleetrock Mgt."
         Vendor.Validate("Vendor Posting Group", FleetrockSetup."Vendor Posting Group");
         Vendor.Validate("Tax Liable", true);
         Vendor.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
-        Vendor.Validate(Address, GetJsonValueAsText(VendorObj, 'street_address_1'));
-        Vendor.Validate("Address 2", GetJsonValueAsText(VendorObj, 'street_address_2'));
-        Vendor.Validate("City", GetJsonValueAsText(VendorObj, 'city'));
-        Vendor.Validate(County, GetJsonValueAsText(VendorObj, 'state'));
+        Vendor.Validate(Address, JsonMgt.GetJsonValueAsText(VendorObj, 'street_address_1'));
+        Vendor.Validate("Address 2", JsonMgt.GetJsonValueAsText(VendorObj, 'street_address_2'));
+        Vendor.Validate("City", JsonMgt.GetJsonValueAsText(VendorObj, 'city'));
+        Vendor.Validate(County, JsonMgt.GetJsonValueAsText(VendorObj, 'state'));
         // if Vendor.County = '' then
-        //     Vendor.Validate(County, GetJsonValueAsText(VendorObj, 'province'));
-        Vendor."Country/Region Code" := GetJsonValueAsText(VendorObj, 'country');
-        Vendor.Validate("Post Code", GetJsonValueAsText(VendorObj, 'zip_code'));
-        Vendor.Validate("Phone No.", GetJsonValueAsText(VendorObj, 'phone'));
-        Vendor.Validate("E-Mail", GetJsonValueAsText(VendorObj, 'email'));
-        PaymentTermDays := Round(GetJsonValueAsDecimal(VendorObj, 'payment_term_days'), 1);
+        //     Vendor.Validate(County, JsonMgt.GetJsonValueAsText(VendorObj, 'province'));
+        Vendor."Country/Region Code" := JsonMgt.GetJsonValueAsText(VendorObj, 'country');
+        Vendor.Validate("Post Code", JsonMgt.GetJsonValueAsText(VendorObj, 'zip_code'));
+        Vendor.Validate("Phone No.", JsonMgt.GetJsonValueAsText(VendorObj, 'phone'));
+        Vendor.Validate("E-Mail", JsonMgt.GetJsonValueAsText(VendorObj, 'email'));
+        PaymentTermDays := Round(JsonMgt.GetJsonValueAsDecimal(VendorObj, 'payment_term_days'), 1);
         if PaymentTermDays = 0 then
             Vendor.Validate("Payment Terms Code", FleetrockSetup."Payment Terms")
         else
@@ -325,7 +297,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         T: JsonToken;
     begin
         CheckToGetAPIToken();
-        VendorArray := RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetSuppliers?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, CheckToGetAPIToken()), 'suppliers');
+        VendorArray := RestAPIMgt.GetResponseAsJsonArray(StrSubstNo('%1/API/GetSuppliers?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, CheckToGetAPIToken()), 'suppliers');
         foreach T in VendorArray do begin
             VendorObj := T.AsObject();
             if VendorObj.Get('name', T) then
@@ -381,15 +353,15 @@ codeunit 80000 "EE Fleetrock Mgt."
         Customer.Validate(Name, SalesHeaderStaging.vendor_name);
         Customer.Validate("EE Source Type", Customer."EE Source Type"::Fleetrock);
         Customer.Validate("EE Source No.", SourceNo);
-        Customer.Validate("EE Source Search Name", GetJsonValueAsText(CustomerObj, 'username'));
-        Customer.Validate(Name, StrSubstNo('%1 %2', GetJsonValueAsText(CustomerObj, 'first_name'), GetJsonValueAsText(CustomerObj, 'last_name')).Trim());
-        Customer.Validate(Address, GetJsonValueAsText(CustomerObj, 'street_address'));
-        Customer.Validate("City", GetJsonValueAsText(CustomerObj, 'city'));
-        Customer.Validate(County, GetJsonValueAsText(CustomerObj, 'state'));
+        Customer.Validate("EE Source Search Name", JsonMgt.GetJsonValueAsText(CustomerObj, 'username'));
+        Customer.Validate(Name, StrSubstNo('%1 %2', JsonMgt.GetJsonValueAsText(CustomerObj, 'first_name'), JsonMgt.GetJsonValueAsText(CustomerObj, 'last_name')).Trim());
+        Customer.Validate(Address, JsonMgt.GetJsonValueAsText(CustomerObj, 'street_address'));
+        Customer.Validate("City", JsonMgt.GetJsonValueAsText(CustomerObj, 'city'));
+        Customer.Validate(County, JsonMgt.GetJsonValueAsText(CustomerObj, 'state'));
         if Customer.County = '' then
-            Customer.Validate(County, GetJsonValueAsText(CustomerObj, 'province'));
-        Customer."Country/Region Code" := GetJsonValueAsText(CustomerObj, 'country');
-        Customer.Validate("Post Code", GetJsonValueAsText(CustomerObj, 'zip_code'));
+            Customer.Validate(County, JsonMgt.GetJsonValueAsText(CustomerObj, 'province'));
+        Customer."Country/Region Code" := JsonMgt.GetJsonValueAsText(CustomerObj, 'country');
+        Customer.Validate("Post Code", JsonMgt.GetJsonValueAsText(CustomerObj, 'zip_code'));
         Customer.Validate("Customer Posting Group", FleetrockSetup."Customer Posting Group");
         Customer.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
         Customer.Validate("Payment Terms Code", FleetrockSetup."Payment Terms");
@@ -407,7 +379,7 @@ codeunit 80000 "EE Fleetrock Mgt."
     // s: Text;
     begin
         CheckToGetAPIToken();
-        CustomerArray := RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetUsers?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, CheckToGetAPIToken()), 'users');
+        CustomerArray := RestAPIMgt.GetResponseAsJsonArray(StrSubstNo('%1/API/GetUsers?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, CheckToGetAPIToken()), 'users');
 
         // CustomerArray.WriteTo(s);
         // if not Confirm(s) then
@@ -469,23 +441,23 @@ codeunit 80000 "EE Fleetrock Mgt."
     begin
         PurchHeaderStaging.Init();
         PurchHeaderStaging."Entry No." := EntryNo;
-        PurchHeaderStaging.id := GetJsonValueAsText(OrderJsonObj, 'id');
-        PurchHeaderStaging.supplier_name := GetJsonValueAsText(OrderJsonObj, 'supplier_name');
-        PurchHeaderStaging.supplier_custom_id := GetJsonValueAsText(OrderJsonObj, 'supplier_custom_id');
-        PurchHeaderStaging.recipient_name := GetJsonValueAsText(OrderJsonObj, 'recipient_name');
-        PurchHeaderStaging.tag := GetJsonValueAsText(OrderJsonObj, 'tag');
-        PurchHeaderStaging.status := GetJsonValueAsText(OrderJsonObj, 'status');
-        PurchHeaderStaging.date_created := GetJsonValueAsText(OrderJsonObj, 'date_created');
-        PurchHeaderStaging.date_opened := GetJsonValueAsText(OrderJsonObj, 'date_opened');
-        PurchHeaderStaging.date_received := GetJsonValueAsText(OrderJsonObj, 'date_received');
-        PurchHeaderStaging.date_closed := GetJsonValueAsText(OrderJsonObj, 'date_closed');
-        PurchHeaderStaging.payment_term_days := GetJsonValueAsDecimal(OrderJsonObj, 'payment_term_days');
-        PurchHeaderStaging.invoice_number := GetJsonValueAsText(OrderJsonObj, 'invoice_number');
-        PurchHeaderStaging.subtotal := GetJsonValueAsDecimal(OrderJsonObj, 'subtotal');
-        PurchHeaderStaging.tax_total := GetJsonValueAsDecimal(OrderJsonObj, 'tax_total');
-        PurchHeaderStaging.shipping_total := GetJsonValueAsDecimal(OrderJsonObj, 'shipping_total');
-        PurchHeaderStaging.other_total := GetJsonValueAsDecimal(OrderJsonObj, 'other_total');
-        PurchHeaderStaging.grand_total := GetJsonValueAsDecimal(OrderJsonObj, 'grand_total');
+        PurchHeaderStaging.id := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'id');
+        PurchHeaderStaging.supplier_name := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'supplier_name');
+        PurchHeaderStaging.supplier_custom_id := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'supplier_custom_id');
+        PurchHeaderStaging.recipient_name := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'recipient_name');
+        PurchHeaderStaging.tag := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'tag');
+        PurchHeaderStaging.status := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'status');
+        PurchHeaderStaging.date_created := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'date_created');
+        PurchHeaderStaging.date_opened := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'date_opened');
+        PurchHeaderStaging.date_received := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'date_received');
+        PurchHeaderStaging.date_closed := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'date_closed');
+        PurchHeaderStaging.payment_term_days := JsonMgt.GetJsonValueAsDecimal(OrderJsonObj, 'payment_term_days');
+        PurchHeaderStaging.invoice_number := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'invoice_number');
+        PurchHeaderStaging.subtotal := JsonMgt.GetJsonValueAsDecimal(OrderJsonObj, 'subtotal');
+        PurchHeaderStaging.tax_total := JsonMgt.GetJsonValueAsDecimal(OrderJsonObj, 'tax_total');
+        PurchHeaderStaging.shipping_total := JsonMgt.GetJsonValueAsDecimal(OrderJsonObj, 'shipping_total');
+        PurchHeaderStaging.other_total := JsonMgt.GetJsonValueAsDecimal(OrderJsonObj, 'other_total');
+        PurchHeaderStaging.grand_total := JsonMgt.GetJsonValueAsDecimal(OrderJsonObj, 'grand_total');
         PurchHeaderStaging.Insert(true);
 
 
@@ -502,40 +474,22 @@ codeunit 80000 "EE Fleetrock Mgt."
             PurchLineStaging."Entry No." := EntryNo;
             PurchLineStaging."Header Entry No." := PurchHeaderStaging."Entry No.";
             PurchLineStaging."Header id" := PurchHeaderStaging.id;
-            PurchLineStaging.part_id := GetJsonValueAsText(LineJsonObj, 'part_id');
-            PurchLineStaging.part_number := GetJsonValueAsText(LineJsonObj, 'part_number');
-            PurchLineStaging.part_description := GetJsonValueAsText(LineJsonObj, 'part_description');
-            PurchLineStaging.part_system_code := GetJsonValueAsText(LineJsonObj, 'part_system_code');
-            PurchLineStaging.part_type := GetJsonValueAsText(LineJsonObj, 'part_type');
-            PurchLineStaging.tag := GetJsonValueAsText(LineJsonObj, 'tag');
-            PurchLineStaging.part_quantity := GetJsonValueAsDecimal(LineJsonObj, 'part_quantity');
-            PurchLineStaging.unit_price := GetJsonValueAsDecimal(LineJsonObj, 'unit_price');
-            PurchLineStaging.line_total := GetJsonValueAsDecimal(LineJsonObj, 'line_total');
-            PurchLineStaging.date_added := GetJsonValueAsText(LineJsonObj, 'date_added');
+            PurchLineStaging.part_id := JsonMgt.GetJsonValueAsText(LineJsonObj, 'part_id');
+            PurchLineStaging.part_number := JsonMgt.GetJsonValueAsText(LineJsonObj, 'part_number');
+            PurchLineStaging.part_description := JsonMgt.GetJsonValueAsText(LineJsonObj, 'part_description');
+            PurchLineStaging.part_system_code := JsonMgt.GetJsonValueAsText(LineJsonObj, 'part_system_code');
+            PurchLineStaging.part_type := JsonMgt.GetJsonValueAsText(LineJsonObj, 'part_type');
+            PurchLineStaging.tag := JsonMgt.GetJsonValueAsText(LineJsonObj, 'tag');
+            PurchLineStaging.part_quantity := JsonMgt.GetJsonValueAsDecimal(LineJsonObj, 'part_quantity');
+            PurchLineStaging.unit_price := JsonMgt.GetJsonValueAsDecimal(LineJsonObj, 'unit_price');
+            PurchLineStaging.line_total := JsonMgt.GetJsonValueAsDecimal(LineJsonObj, 'line_total');
+            PurchLineStaging.date_added := JsonMgt.GetJsonValueAsText(LineJsonObj, 'date_added');
             PurchLineStaging.Insert(true);
         end;
     end;
 
 
-    procedure GetJsonValueAsText(var JsonObj: JsonObject; KeyName: Text): Text
-    var
-        T: JsonToken;
-    begin
-        if not JsonObj.Get(KeyName, T) then
-            exit('');
-        exit(T.AsValue().AsText());
-    end;
 
-    local procedure GetJsonValueAsDecimal(var JsonObj: JsonObject; KeyName: Text): Decimal
-    var
-        T: JsonToken;
-    begin
-        if not JsonObj.Get(KeyName, T) then
-            exit(0);
-        if Format(T.AsValue()) = '""' then
-            exit(0);
-        exit(T.AsValue().AsDecimal());
-    end;
 
 
 
@@ -548,7 +502,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         UnitJsonObj: JsonObject;
     begin
         APIToken := CheckToGetAPIToken();
-        JsonArry := RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetUnits?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, APIToken), 'units');
+        JsonArry := RestAPIMgt.GetResponseAsJsonArray(StrSubstNo('%1/API/GetUnits?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, APIToken), 'units');
         foreach T in JsonArry do begin
             UnitJsonObj := T.AsObject();
         end;
@@ -560,7 +514,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         APIToken: Text;
     begin
         APIToken := CheckToGetAPIToken();
-        exit(RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetSuppliers?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, APIToken), 'suppliers'));
+        exit(RestAPIMgt.GetResponseAsJsonArray(StrSubstNo('%1/API/GetSuppliers?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, APIToken), 'suppliers'));
     end;
 
 
@@ -575,7 +529,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         APIToken: Text;
     begin
         APIToken := CheckToGetAPIToken();
-        exit(RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetPO?username=%2&status=%3&token=%4', FleetrockSetup."Integration URL", FleetrockSetup.Username, Status, APIToken), 'purchase_orders'));
+        exit(RestAPIMgt.GetResponseAsJsonArray(StrSubstNo('%1/API/GetPO?username=%2&status=%3&token=%4', FleetrockSetup."Integration URL", FleetrockSetup.Username, Status, APIToken), 'purchase_orders'));
     end;
 
 
@@ -600,7 +554,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         GetEventParameters(APIToken, StartDateTime, EndDateTime);
         URL := StrSubstNo('%1/API/GetPO?username=%2&event=%3&token=%4&start=%5&end=%6', FleetrockSetup."Integration URL",
             FleetrockSetup.Username, EventType, APIToken, Format(StartDateTime, 0, 9), Format(EndDateTime, 0, 9));
-        exit(RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, URL, 'purchase_orders'));
+        exit(RestAPIMgt.GetResponseAsJsonArray(URL, 'purchase_orders'));
     end;
 
 
@@ -624,7 +578,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         GetEventParameters(APIToken, StartDateTime, EndDateTime);
         URL := StrSubstNo('%1/API/GetRO?username=%2&event=%3&token=%4&start=%5&end=%6', FleetrockSetup."Integration URL",
             FleetrockSetup.Username, Status, APIToken, Format(StartDateTime, 0, 9), Format(EndDateTime, 0, 9));
-        exit(RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, URL, 'repair_orders'));
+        exit(RestAPIMgt.GetResponseAsJsonArray(URL, 'repair_orders'));
     end;
 
 
@@ -1020,12 +974,12 @@ codeunit 80000 "EE Fleetrock Mgt."
         FieldRec.SetRange(Type, FieldRec.Type::Text);
         if FieldRec.FindSet() then
             repeat
-                RecRef.Field(FieldRec."No.").Value(GetJsonValueAsText(OrderJsonObj, FieldRec.FieldName));
+                RecRef.Field(FieldRec."No.").Value(JsonMgt.GetJsonValueAsText(OrderJsonObj, FieldRec.FieldName));
             until FieldRec.Next() = 0;
         FieldRec.SetRange(Type, FieldRec.Type::Decimal);
         if FieldRec.FindSet() then
             repeat
-                RecRef.Field(FieldRec."No.").Value(GetJsonValueAsDecimal(OrderJsonObj, FieldRec.FieldName));
+                RecRef.Field(FieldRec."No.").Value(JsonMgt.GetJsonValueAsDecimal(OrderJsonObj, FieldRec.FieldName));
             until FieldRec.Next() = 0;
         RecRef.SetTable(RecVar);
     end;
@@ -1089,7 +1043,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         APIToken := CheckToGetAPIToken();
         URL := StrSubstNo('%1/API/UpdateRO?token=%2', FleetrockSetup."Integration URL", APIToken);
         JsonBody := CreateUpdateRepairOrderJsonBody(FleetrockSetup.Username, OrderId, PaidDateTime);
-        if not RestAPIMgt.TryToGetResponseAsJsonArray(FleetrockSetup, URL, 'response', 'POST', JsonBody, ResponseArray) then begin
+        if not RestAPIMgt.TryToGetResponseAsJsonArray(URL, 'response', 'POST', JsonBody, ResponseArray) then begin
             InsertImportEntry(EntryNo + 1, false, 0, Enum::"EE Import Type"::"Repair Order", Enum::"EE Event Type"::Paid,
                 Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', JsonBody);
             exit;
@@ -1177,4 +1131,5 @@ codeunit 80000 "EE Fleetrock Mgt."
     var
         FleetrockSetup: Record "EE Fleetrock Setup";
         RestAPIMgt: Codeunit "EE REST API Mgt.";
+        JsonMgt: Codeunit "EE Json Mgt.";
 }

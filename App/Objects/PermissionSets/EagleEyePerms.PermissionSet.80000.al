@@ -9,11 +9,11 @@ permissionset 80000 "EE Eagle Eye Perms."
     table "EE Sales Header Staging" = x,
     table "EE Task Line Staging" = x,
     table "EE Part Line Staging" = x,
-    tabledata "EE Fleetrock Setup" = rimd,
-    tabledata "EE Purch. Header Staging" = rimd,
-    tabledata "EE Purch. Line Staging" = rimd,
-    tabledata "EE Import/Export Entry" = rimd,
-    tabledata "EE Sales Header Staging" = rimd,
-    tabledata "EE Task Line Staging" = rimd,
-    tabledata "EE Part Line Staging" = rimd;
+    tabledata "EE Fleetrock Setup" = RIMD,
+    tabledata "EE Purch. Header Staging" = RIMD,
+    tabledata "EE Purch. Line Staging" = RIMD,
+    tabledata "EE Import/Export Entry" = RIMD,
+    tabledata "EE Sales Header Staging" = RIMD,
+    tabledata "EE Task Line Staging" = RIMD,
+    tabledata "EE Part Line Staging" = RIMD;
 }

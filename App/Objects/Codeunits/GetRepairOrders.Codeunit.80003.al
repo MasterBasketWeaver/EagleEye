@@ -7,9 +7,10 @@ codeunit 80003 "EE Get Repair Orders"
     trigger OnRun()
     var
         SalesHeader: Record "Sales Header";
-        FleetRockMgt: Codeunit "EE Fleetrock Mgt.";
         ImportEntry: Record "EE Import/Export Entry";
         SalesHeaderStaging: Record "EE Sales Header Staging";
+        FleetRockMgt: Codeunit "EE Fleetrock Mgt.";
+        JsonMgt: Codeunit "EE Json Mgt.";
         OrderStatus: Enum "EE Repair Order Status";
         EventType: Enum "EE Event Type";
         JsonArry: JsonArray;
@@ -48,7 +49,7 @@ codeunit 80003 "EE Get Repair Orders"
         SalesHeader.SetCurrentKey("EE Fleetrock ID");
         foreach T in JsonArry do begin
             OrderJsonObj := T.AsObject();
-            ObjId := FleetRockMgt.GetJsonValueAsText(OrderJsonObj, 'id');
+            ObjId := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'id');
             ImportEntryNo := 0;
             Success := false;
             ClearLastError();
@@ -68,7 +69,7 @@ codeunit 80003 "EE Get Repair Orders"
                     end;
                 end;
             end else begin
-                if FleetRockMgt.GetJsonValueAsText(OrderJsonObj, 'status') = 'In Progress' then
+                if JsonMgt.GetJsonValueAsText(OrderJsonObj, 'status') = 'In Progress' then
                     if FleetRockMgt.TryToCheckIfAlreadyImported(ObjId, SalesHeader) then
                         Success := FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, true);
             end;
