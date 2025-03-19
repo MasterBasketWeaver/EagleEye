@@ -110,7 +110,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchHeaderStaging.Get(EntryNo);
         if CreateOrder then begin
             if PurchHeaderStaging.Processed then
-                Error('Purchase Order %1 has already been processed.', PurchHeaderStaging."Entry No.");
+                Error('Staged Purchase Header %1 has already been processed.', PurchHeaderStaging."Entry No.");
             CreatePurchaseOrder(PurchHeaderStaging);
         end;
         exit(EntryNo);
@@ -681,8 +681,11 @@ codeunit 80000 "EE Fleetrock Mgt."
 
         PopulateStagingTable(RecVar, OrderJsonObj, Database::"EE Sales Header Staging", SalesHeaderStaging.FieldNo(id));
         SalesHeaderStaging := RecVar;
-        if FleetrockSetup."Internal Customer Name" <> '' then
-            SalesHeaderStaging."Internal Customer" := SalesHeaderStaging.customer_name = FleetrockSetup."Internal Customer Name";
+        if FleetrockSetup."Internal Customer Names" <> '' then
+            if FleetrockSetup."Internal Customer Names".Contains('|') then
+                SalesHeaderStaging."Internal Customer" := IsInternalCustomer(FleetrockSetup."Internal Customer Names", SalesHeaderStaging.customer_name)
+            else
+                SalesHeaderStaging."Internal Customer" := SalesHeaderStaging.customer_name = FleetrockSetup."Internal Customer Names";
         SalesHeaderStaging.Insert(true);
 
         if not OrderJsonObj.Get('tasks', T) then
@@ -727,6 +730,14 @@ codeunit 80000 "EE Fleetrock Mgt."
         end;
     end;
 
+    local procedure IsInternalCustomer(InternalNames: Text; OrderName: Text): Boolean
+    var
+        CustomerNames: List of [Text];
+    begin
+        CustomerNames := InternalNames.Split('|');
+        exit(CustomerNames.Contains(OrderName));
+    end;
+
 
 
     procedure CreateSalesOrder(var SalesHeaderStaging: Record "EE Sales Header Staging")
@@ -737,7 +748,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         GetAndCheckSetup();
         FleetrockSetup.TestField("External Labor G/L Account No.");
         FleetrockSetup.TestField("External Parts G/L Account No.");
-        if FleetrockSetup."Internal Customer Name" <> '' then begin
+        if FleetrockSetup."Internal Customer Names" <> '' then begin
             FleetrockSetup.TestField("Internal Labor G/L Account No.");
             FleetrockSetup.TestField("Internal Parts G/L Account No.");
         end;

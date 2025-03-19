@@ -21,7 +21,7 @@ page 80000 "EE Fleetrock Setup"
                 }
                 group("Repair Orders")
                 {
-                    field("Internal Customer Name"; Rec."Internal Customer Name")
+                    field("Internal Customer Name"; Rec."Internal Customer Names")
                     {
                         ApplicationArea = all;
                     }
