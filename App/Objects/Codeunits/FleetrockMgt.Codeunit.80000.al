@@ -350,24 +350,23 @@ codeunit 80000 "EE Fleetrock Mgt."
         PaymentTermDays: Integer;
         IsSourceCompany: Boolean;
     begin
-        if SalesHeaderStaging.vendor_company_id <> '' then
-            SourceNo := SalesHeaderStaging.vendor_company_id
+        if SalesHeaderStaging.customer_company_id <> '' then
+            SourceNo := SalesHeaderStaging.customer_company_id
         else
-            if SalesHeaderStaging.vendor_name <> '' then begin
-                SourceNo := SalesHeaderStaging.vendor_name;
+            if SalesHeaderStaging.customer_name <> '' then begin
+                SourceNo := SalesHeaderStaging.customer_name;
                 IsSourceCompany := true;
             end else
-                Error('vendor_name or vendor_company_id must be specified.');
+                Error('customer_name or customer_company_id must be specified.');
         Customer.SetRange("EE Source Type", Customer."EE Source Type"::Fleetrock);
         Customer.SetRange("EE Source No.", SourceNo);
         if Customer.FindFirst() then
             exit(Customer."No.");
 
         if not GetCustomerDetails(SourceNo, IsSourceCompany, CustomerObj) then begin
-            // Error('User %1 not found.', SourceNo);
             Customer.Init();
             Customer.Insert(true);
-            Customer.Validate(Name, SalesHeaderStaging.vendor_name);
+            Customer.Validate(Name, SalesHeaderStaging.customer_name);
             Customer.Validate("EE Source Type", Customer."EE Source Type"::Fleetrock);
             Customer.Validate("EE Source No.", SourceNo);
             Customer.Validate("Customer Posting Group", FleetrockSetup."Customer Posting Group");
@@ -378,7 +377,7 @@ codeunit 80000 "EE Fleetrock Mgt."
 
         Customer.Init();
         Customer.Insert(true);
-        Customer.Validate(Name, SalesHeaderStaging.vendor_name);
+        Customer.Validate(Name, SalesHeaderStaging.customer_name);
         Customer.Validate("EE Source Type", Customer."EE Source Type"::Fleetrock);
         Customer.Validate("EE Source No.", SourceNo);
         Customer.Validate("EE Source Search Name", GetJsonValueAsText(CustomerObj, 'username'));
@@ -402,17 +401,9 @@ codeunit 80000 "EE Fleetrock Mgt."
         CustomerArray: JsonArray;
         T: JsonToken;
         SourceType: Text;
-
-    // b: Boolean;
-    // s: Text;
     begin
         CheckToGetAPIToken();
         CustomerArray := RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetUsers?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, CheckToGetAPIToken()), 'users');
-
-        // CustomerArray.WriteTo(s);
-        // if not Confirm(s) then
-        //     Error('');
-
         if CustomerArray.Count() = 0 then
             exit(false);
 
@@ -422,16 +413,11 @@ codeunit 80000 "EE Fleetrock Mgt."
             SourceType := 'company_id';
         foreach T in CustomerArray do begin
             CustomerObj := T.AsObject();
-
-            // CustomerArray.WriteTo(s);
-            // if not Confirm(s) then
-            //     Error('');
-
-            if CustomerObj.Get(SourceType, T) then begin
+            if CustomerObj.Get(SourceType, T) then
                 if T.AsValue().AsText() = SourceValue then
                     exit(true);
-            end;
         end;
+        exit(false);
     end;
 
     local procedure GetPaymentTerms(PaymentTermsDays: Integer): Code[10]
@@ -958,6 +944,8 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchaseHeader.SetHideValidationDialog(true);
         PurchaseHeader.Validate("Posting Date", DT2Date(PurchaseHeaderStaging.Closed));
         PurchaseHeader.Modify(true);
+        PurchaseHeaderStaging.Processed := true;
+        PurchaseHeaderStaging.Modify(true);
         if PurchaseHeaderStaging."Document No." <> PurchaseHeader."No." then begin
             PurchaseHeaderStaging.Validate("Document No.", PurchaseHeader."No.");
             PurchaseHeaderStaging.Modify(true);
