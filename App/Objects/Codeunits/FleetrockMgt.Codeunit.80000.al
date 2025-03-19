@@ -14,10 +14,10 @@ codeunit 80000 "EE Fleetrock Mgt."
     tabledata "Vendor" = rimd,
     tabledata "Payment Terms" = rimd,
     tabledata "G/L Account" = rimd,
-    tabledata "Purch. Inv. Header" = r,
-    tabledata "Purch. Inv. Line" = r,
-    tabledata "Sales Invoice Header" = r,
-    tabledata "Sales Invoice Line" = r;
+    tabledata "Purch. Inv. Header" = rm,
+    tabledata "Purch. Inv. Line" = rm,
+    tabledata "Sales Invoice Header" = rm,
+    tabledata "Sales Invoice Line" = rm;
 
 
     // [EventSubscriber(ObjectType::Table, Database::"G/L Account", OnAfterInsertEvent, '', false, false)]
@@ -1055,36 +1055,44 @@ codeunit 80000 "EE Fleetrock Mgt."
         CustLedgerEntry.SetRange("Document Type", CustLedgerEntry."Document Type"::Payment);
         if not CustLedgerEntry.FindSet() then
             exit;
+        CustLedgerEntry2.SetLoadFields("Closed by Entry No.", "Document Type", "Document No.", "Closed at Date");
         CustLedgerEntry2.SetCurrentKey("Closed by Entry No.");
         CustLedgerEntry2.SetRange("Document Type", CustLedgerEntry."Document Type"::Invoice);
+        SalesInvHeader.SetRange(Closed, true);
+        SalesInvHeader.SetRange("Remaining Amount", 0);
+        SalesInvHeader.SetFilter("EE Fleetrock ID", '<>%1', '');
         repeat
             CustLedgerEntry2.SetRange("Closed by Entry No.", CustLedgerEntry."Entry No.");
             if CustLedgerEntry2.FindFirst() then begin
-                if SalesInvHeader.Get(CustLedgerEntry2."Document No.") then
-                    if SalesInvHeader."EE Fleetrock ID" <> '' then begin
-                        if CustLedgerEntry2."Closed at Date" = Today() then
-                            PaymentDateTime := CurrentDateTime()
-                        else
-                            PaymentDateTime := CreateDateTime(CustLedgerEntry2."Closed at Date", Time());
-                        UpdatePaidRepairOrder(SalesInvHeader."EE Fleetrock ID", PaymentDateTime);
-                    end;
+                SalesInvHeader.SetRange("No.", CustLedgerEntry2."Document No.");
+                if SalesInvHeader.FindFirst() then begin
+                    if CustLedgerEntry2."Closed at Date" = Today() then
+                        PaymentDateTime := CurrentDateTime()
+                    else
+                        PaymentDateTime := CreateDateTime(CustLedgerEntry2."Closed at Date", Time());
+                    UpdatePaidRepairOrder(SalesInvHeader."EE Fleetrock ID", PaymentDateTime, SalesInvHeader);
+                end;
             end;
-
         until CustLedgerEntry.Next() = 0;
     end;
 
-    local procedure UpdatePaidRepairOrder(OrderId: Text; PaidDateTime: DateTime)
+    procedure UpdatePaidRepairOrder(OrderId: Text; PaidDateTime: DateTime; var SalesInvHeader: Record "Sales Invoice Header")
     var
         ImportEntry: Record "EE Import/Export Entry";
         ResponseArray: JsonArray;
         JsonBody, ResponseObj : JsonObject;
         T: JsonToken;
-        APIToken, URL : Text;
+        APIToken, URL, s : Text;
         EntryNo: Integer;
         Success: Boolean;
     begin
         if ImportEntry.FindLast() then
             EntryNo := ImportEntry."Entry No.";
+        if SalesInvHeader."EE Sent Payment" and (SalesInvHeader."EE Sent Payment DateTime" <> 0DT) then begin
+            InsertImportEntry(EntryNo + 1, false, 0, Enum::"EE Import Type"::"Repair Order", Enum::"EE Event Type"::Paid,
+                Enum::"EE Direction"::Export, StrSubstNo('Invoice %1 already sent payment at %2', SalesInvHeader."No.", SalesInvHeader."EE Sent Payment DateTime"), URL, 'POST', JsonBody);
+            exit;
+        end;
         APIToken := CheckToGetAPIToken();
         URL := StrSubstNo('%1/API/UpdateRO?token=%2', FleetrockSetup."Integration URL", APIToken);
         JsonBody := CreateUpdateRepairOrderJsonBody(FleetrockSetup.Username, OrderId, PaidDateTime);
@@ -1093,14 +1101,22 @@ codeunit 80000 "EE Fleetrock Mgt."
                 Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', JsonBody);
             exit;
         end;
-        if ResponseArray.Count() <> 0 then
-            foreach T in ResponseArray do begin
-                EntryNo += 1;
-                ClearLastError();
-                Success := TryToHandleRepairUpdateResponse(T, OrderId);
-                InsertImportEntry(EntryNo, Success and (GetLastErrorText() = ''), 0, Enum::"EE Import Type"::"Repair Order",
-                    Enum::"EE Event Type"::Paid, Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', JsonBody);
-            end;
+        if (ResponseArray.Count() = 0) then
+            exit;
+        if not ResponseArray.Get(1, T) then begin
+            ResponseArray.WriteTo(s);
+            InsertImportEntry(EntryNo + 1, false, 0, Enum::"EE Import Type"::"Repair Order", Enum::"EE Event Type"::Paid,
+               Enum::"EE Direction"::Export, 'Failed to load results token from response array: ' + s, URL, 'POST', JsonBody);
+            exit;
+        end;
+        EntryNo += 1;
+        ClearLastError();
+        Success := TryToHandleRepairUpdateResponse(T, OrderId);
+        InsertImportEntry(EntryNo, Success and (GetLastErrorText() = ''), 0, Enum::"EE Import Type"::"Repair Order",
+            Enum::"EE Event Type"::Paid, Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', JsonBody);
+        SalesInvHeader."EE Sent Payment" := Success;
+        SalesInvHeader."EE Sent Payment DateTime" := CurrentDateTime();
+        SalesInvHeader.Modify(true);
     end;
 
     [TryFunction]
@@ -1115,12 +1131,8 @@ codeunit 80000 "EE Fleetrock Mgt."
             ResponseObj.WriteTo(s);
             Error('Invalid response message:\%1', s);
         end;
-        if T.AsValue().AsText() <> 'success' then begin
-            ResponseObj.Get('ro_id', T);
-            OrderId := T.AsValue().AsText();
-            ResponseObj.Get('message', T);
-            Error('Failed to update Repair Order %1:\%2', OrderId, T.AsValue().AsText());
-        end;
+        if T.AsValue().AsText() <> 'success' then
+            Error('Failed to update Repair Order %1:\%2', OrderId, GetJsonValueAsText(ResponseObj, 'message'));
     end;
 
     local procedure CreateUpdateRepairOrderJsonBody(UserName: Text; RepairOrderId: Text; PaidDateTime: DateTime): JsonObject

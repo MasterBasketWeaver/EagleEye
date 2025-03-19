@@ -22,7 +22,7 @@ table 80003 "EE Import/Export Entry"
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(4; "Error Message"; Text[250])
+        field(4; "Error Message"; Text[512])
         {
             DataClassification = CustomerContent;
             Editable = false;
