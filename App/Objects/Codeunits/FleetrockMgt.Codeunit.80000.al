@@ -300,7 +300,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             Vendor.Validate("EE Source No.", PurchHeaderStaging.supplier_name);
             Vendor.Validate("Vendor Posting Group", FleetrockSetup."Vendor Posting Group");
             Vendor.Validate("Tax Liable", true);
-            Vendor.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
+            // Vendor.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
             Vendor.Modify(true);
             exit(Vendor."No.");
         end;
@@ -313,7 +313,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         Vendor.Validate("EE Source No.", PurchHeaderStaging.supplier_name);
         Vendor.Validate("Vendor Posting Group", FleetrockSetup."Vendor Posting Group");
         Vendor.Validate("Tax Liable", true);
-        Vendor.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
+        // Vendor.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
         Vendor.Validate(Address, GetJsonValueAsText(VendorObj, 'street_address_1'));
         Vendor.Validate("Address 2", GetJsonValueAsText(VendorObj, 'street_address_2'));
         Vendor.Validate("City", GetJsonValueAsText(VendorObj, 'city'));
