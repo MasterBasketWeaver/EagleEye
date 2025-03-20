@@ -983,6 +983,12 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, DocNo);
         PurchaseHeader.SetHideValidationDialog(true);
         PurchaseHeader.Validate("Posting Date", DT2Date(PurchaseHeaderStaging.Closed));
+        if PurchaseHeaderStaging.invoice_number <> '' then begin
+            if PurchaseHeaderStaging.invoice_number <> PurchaseHeader."Vendor Invoice No." then
+                PurchaseHeader.Validate("Vendor Invoice No.", PurchaseHeaderStaging.invoice_number);
+        end else
+            if PurchaseHeaderStaging.id <> PurchaseHeader."Vendor Invoice No." then
+                PurchaseHeader.Validate("Vendor Invoice No.", PurchaseHeaderStaging.id);
         PurchaseHeader.Modify(true);
         PurchaseHeaderStaging.Processed := true;
         PurchaseHeaderStaging.Modify(true);
