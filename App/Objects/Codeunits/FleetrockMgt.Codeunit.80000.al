@@ -124,8 +124,8 @@ codeunit 80000 "EE Fleetrock Mgt."
         GetAndCheckSetup();
         FleetrockSetup.TestField("Purchase G/L Account No.");
         FleetrockSetup.TestField("Vendor Posting Group");
-        FleetrockSetup.TestField("Tax Group Code");
-        FleetrockSetup.TestField("Tax Area Code");
+        // FleetrockSetup.TestField("Tax Group Code");
+        // FleetrockSetup.TestField("Tax Area Code");
         FleetrockSetup.TestField("Payment Terms");
         if not TryToCreatePurchaseOrder(PurchHeaderStaging, DocNo) then begin
             PurchHeaderStaging."Processed Error" := true;
@@ -164,13 +164,17 @@ codeunit 80000 "EE Fleetrock Mgt."
         end;
 
         PurchaseHeader.Validate("Buy-from Vendor No.", VendorNo);
-        PurchaseHeader.Validate("Payment Terms Code", GetPaymentTerms(PurchHeaderStaging.payment_term_days));
+        if PurchaseHeader."Payment Terms Code" = '' then
+            if PurchHeaderStaging.payment_term_days = 0 then
+                PurchaseHeader.Validate("Payment Terms Code", FleetrockSetup."Payment Terms")
+            else
+                PurchaseHeader.Validate("Payment Terms Code", GetPaymentTerms(PurchHeaderStaging.payment_term_days));
         PurchaseHeader.Validate("EE Fleetrock ID", PurchHeaderStaging.id);
         if PurchHeaderStaging.invoice_number <> '' then
             PurchaseHeader.Validate("Vendor Invoice No.", PurchHeaderStaging.invoice_number)
         else
             PurchaseHeader.Validate("Vendor Invoice No.", PurchHeaderStaging.id);
-        PurchaseHeader.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
+        // PurchaseHeader.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
         PurchaseHeader.Modify(true);
         CreatePurchaseLines(PurchHeaderStaging, DocNo);
     end;
@@ -185,13 +189,32 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchLineStaging.SetRange("Header Entry No.", PurchHeaderStaging."Entry No.");
         if not PurchLineStaging.FindSet() then
             exit;
-        // Taxable := PurchHeaderStaging.tax_total <> 0;
         repeat
             LineNo += 10000;
             AddPurchaseLine(PurchaseLine, PurchLineStaging, DocNo, LineNo);
         until PurchLineStaging.Next() = 0;
+        if PurchHeaderStaging.tax_total <> 0 then
+            AddExtraPurchLine(LineNo, DocNo, 'Taxes', PurchHeaderStaging.tax_total, GetTaxLineID());
+        if PurchHeaderStaging.shipping_total <> 0 then
+            AddExtraPurchLine(LineNo, DocNo, 'Shipping', PurchHeaderStaging.shipping_total, GetShippingLineID());
+        if PurchHeaderStaging.other_total <> 0 then
+            AddExtraPurchLine(LineNo, DocNo, 'Other Charges', PurchHeaderStaging.other_total, GetOtherLineID());
     end;
 
+
+    local procedure AddExtraPurchLine(var LineNo: Integer; DocNo: Code[20]; Descr: Text; Amount: Decimal; LineID: Code[20])
+    var
+        PurchLine: Record "Purchase Line";
+        PurchLineStaging: Record "EE Purch. Line Staging";
+    begin
+        LineNo += 10000;
+        PurchLineStaging.Init();
+        PurchLineStaging.part_quantity := 1;
+        PurchLineStaging.unit_price := Amount;
+        PurchLineStaging.part_description := Descr;
+        PurchLineStaging.part_id := LineID;
+        AddPurchaseLine(PurchLine, PurchLineStaging, DocNo, LineNo);
+    end;
 
 
 
@@ -985,6 +1008,43 @@ codeunit 80000 "EE Fleetrock Mgt."
                 PurchaseLine.Modify(true);
             end;
         until PurchLineStaging.Next() = 0;
+
+        UpdateExtraPurchaseLines(PurchaseLine, PurchaseHeaderStaging, PurchaseHeader."No.", LineNo, GetTaxLineID(), PurchaseHeaderStaging.tax_total, 'Taxes');
+        UpdateExtraPurchaseLines(PurchaseLine, PurchaseHeaderStaging, PurchaseHeader."No.", LineNo, GetShippingLineID(), PurchaseHeaderStaging.shipping_total, 'Shipping');
+        UpdateExtraPurchaseLines(PurchaseLine, PurchaseHeaderStaging, PurchaseHeader."No.", LineNo, GetOtherLineID(), PurchaseHeaderStaging.other_total, 'Other Charges');
+    end;
+
+
+    local procedure GetShippingLineID(): Code[20]
+    begin
+        exit('shipping');
+    end;
+
+    local procedure GetTaxLineID(): Code[20]
+    begin
+        exit('tax');
+    end;
+
+    local procedure GetOtherLineID(): Code[20]
+    begin
+        exit('other');
+    end;
+
+    local procedure UpdateExtraPurchaseLines(var PurchaseLine: Record "Purchase Line"; var PurchaseHeaderStaging: Record "EE Purch. Header Staging"; DocNo: Code[20]; LineNo: Integer; LineID: Code[20]; Amount: Decimal; Descr: Text)
+    begin
+        PurchaseLine.SetRange("EE Part Id", LineID);
+        if Amount <> 0 then begin
+            if PurchaseLine.FindFirst() then begin
+                PurchaseLine.Validate("Unit Cost", Amount);
+                PurchaseLine.Validate("Direct Unit Cost", Amount);
+                PurchaseLine.Modify(true);
+            end else begin
+                LineNo += 10000;
+                AddExtraPurchLine(LineNo, DocNo, Descr, Amount, LineID);
+            end;
+        end else
+            if PurchaseLine.FindFirst() then
+                PurchaseLine.Delete(true);
     end;
 
     local procedure AddPurchaseLine(var PurchaseLine: Record "Purchase Line"; var PurchLineStaging: Record "EE Purch. Line Staging"; DocNo: Code[20]; LineNo: Integer)
@@ -999,7 +1059,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchaseLine.Validate("Unit Cost", PurchLineStaging.unit_price);
         PurchaseLine.Validate("Direct Unit Cost", PurchLineStaging.unit_price);
         PurchaseLine.Description := CopyStr(PurchLineStaging.part_description, 1, MaxStrLen(PurchaseLine.Description));
-        PurchaseLine.Validate("Tax Group Code", FleetrockSetup."Tax Group Code");
+        // PurchaseLine.Validate("Tax Group Code", FleetrockSetup."Tax Group Code");
         PurchaseLine.Validate("EE Part Id", PurchLineStaging.part_id);
         PurchaseLine.Insert(true);
     end;
