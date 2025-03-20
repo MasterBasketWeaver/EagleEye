@@ -19,6 +19,7 @@ codeunit 80001 "EE Get Purchase Orders"
         JsonVal: JsonValue;
         StartDateTime: DateTime;
         URL, s : Text;
+        DocNo: Code[20];
         ImportEntryNo: Integer;
         Success, IsReceived, LogEntry : Boolean;
     begin
@@ -58,17 +59,18 @@ codeunit 80001 "EE Get Purchase Orders"
                     if FleetRockMgt.TryToCheckIfAlreadyImported(s, PurchaseHeader) then
                         Success := FleetRockMgt.TryToInsertPOStagingRecords(OrderJsonObj, ImportEntryNo, true);
                 end;
-            end else
+            end else begin
+                LogEntry := true;
                 if FleetRockMgt.TryToInsertPOStagingRecords(OrderJsonObj, ImportEntryNo, false) and PurchaseHeaderStaging.Get(ImportEntryNo) then begin
                     PurchaseHeader.SetCurrentKey("EE Fleetrock ID");
                     PurchaseHeader.SetRange("EE Fleetrock ID", PurchaseHeaderStaging.id);
-                    if not PurchaseHeader.FindFirst() then begin
-                        FleetRockMgt.CreatePurchaseOrder(PurchaseHeaderStaging);
-                        if PurchaseHeaderStaging."Document No." <> '' then
-                            Success := FleetRockMgt.TryToUpdatePurchaseOrder(PurchaseHeaderStaging, PurchaseHeaderStaging."Document No.");
-                    end else
-                        Success := FleetRockMgt.TryToUpdatePurchaseOrder(PurchaseHeaderStaging, PurchaseHeader."No.");
+                    if PurchaseHeader.FindFirst() then
+                        Success := FleetRockMgt.TryToUpdatePurchaseOrder(PurchaseHeaderStaging, PurchaseHeader)
+                    else
+                        if FleetRockMgt.TryToCreatePurchaseOrder(PurchaseHeaderStaging, DocNo) then
+                            Success := FleetRockMgt.TryToUpdatePurchaseOrder(PurchaseHeaderStaging, DocNo);
                 end;
+            end;
             if LogEntry then
                 FleetRockMgt.InsertImportEntry(Success and (GetLastErrorText() = ''), ImportEntryNo,
                     ImportEntry."Document Type"::"Purchase Order", EventType, Enum::"EE Direction"::Import,

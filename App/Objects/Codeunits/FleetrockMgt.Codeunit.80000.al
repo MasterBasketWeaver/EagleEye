@@ -140,13 +140,18 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
     [TryFunction]
-    local procedure TryToCreatePurchaseOrder(var PurchHeaderStaging: Record "EE Purch. Header Staging"; var DocNo: Code[20])
+    procedure TryToCreatePurchaseOrder(var PurchHeaderStaging: Record "EE Purch. Header Staging"; var DocNo: Code[20])
     var
         PurchaseHeader: Record "Purchase Header";
         Vendor: Record Vendor;
         VendorNo: Code[20];
     begin
         CheckIfAlreadyImported(PurchHeaderStaging.id, PurchaseHeader);
+        if PurchaseHeader."No." <> '' then begin
+            UpdatePurchaseOrder(PurchHeaderStaging, PurchaseHeader);
+            DocNo := PurchaseHeader."No.";
+            exit;
+        end;
         PurchaseHeader.Init();
         PurchaseHeader.SetHideValidationDialog(true);
         PurchaseHeader.Validate("Document Type", Enum::"Purchase Document Type"::Order);
@@ -252,30 +257,18 @@ codeunit 80000 "EE Fleetrock Mgt."
     end;
 
     procedure CheckIfAlreadyImported(ImportId: Text; var PurchaseHeader: Record "Purchase Header"): Boolean
-    begin
-        exit(CheckIfAlreadyImported(ImportId, PurchaseHeader, true));
-    end;
-
-    procedure CheckIfAlreadyImported(ImportId: Text; var PurchaseHeader: Record "Purchase Header"; ShowAsError: Boolean): Boolean
     var
         PurchInvHeader: Record "Purch. Inv. Header";
     begin
-        PurchaseHeader.SetCurrentKey("EE Fleetrock ID");
-        PurchaseHeader.SetRange("EE Fleetrock ID", ImportId);
-        if PurchaseHeader.FindFirst() then
-            if ShowAsError then
-                Error('Fleetrock Purchase Order %1 has already been imported as order %2.', ImportId, PurchaseHeader."No.")
-            else
-                exit(true);
         PurchInvHeader.SetCurrentKey("EE Fleetrock ID");
         PurchInvHeader.SetRange("EE Fleetrock ID", ImportId);
         if PurchInvHeader.FindFirst() then
-            if ShowAsError then
-                Error('Fleetrock Purchase Order %1 has already been imported as order %2, and posted as invoice %3.', ImportId, PurchInvHeader."Order No.", PurchInvHeader."No.")
-            else
-                exit(true);
-        exit(false);
+            Error('Fleetrock Purchase Order %1 has already been imported as order %2, and posted as invoice %3.', ImportId, PurchInvHeader."Order No.", PurchInvHeader."No.");
+        PurchaseHeader.SetCurrentKey("EE Fleetrock ID");
+        PurchaseHeader.SetRange("EE Fleetrock ID", ImportId);
+        if PurchaseHeader.FindFirst() then;
     end;
+
 
 
     [TryFunction]
@@ -474,6 +467,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         Lines: JsonArray;
         LineJsonObj: JsonObject;
         T: JsonToken;
+        LineEntryNo: Integer;
     begin
         if PurchHeaderStaging.FindLast() then
             EntryNo := PurchHeaderStaging."Entry No.";
@@ -501,16 +495,16 @@ codeunit 80000 "EE Fleetrock Mgt."
 
         PurchLineStaging.LockTable();
         if PurchLineStaging.FindLast() then
-            EntryNo := PurchLineStaging."Entry No."
+            LineEntryNo := PurchLineStaging."Entry No."
         else
-            EntryNo := 0;
+            LineEntryNo := 0;
         OrderJsonObj.Get('line_items', T);
         Lines := T.AsArray();
         foreach T in Lines do begin
-            EntryNo += 1;
+            LineEntryNo += 1;
             LineJsonObj := T.AsObject();
             PurchLineStaging.Init();
-            PurchLineStaging."Entry No." := EntryNo;
+            PurchLineStaging."Entry No." := LineEntryNo;
             PurchLineStaging."Header Entry No." := PurchHeaderStaging."Entry No.";
             PurchLineStaging."Header id" := PurchHeaderStaging.id;
             PurchLineStaging.part_id := GetJsonValueAsText(LineJsonObj, 'part_id');
@@ -691,12 +685,11 @@ codeunit 80000 "EE Fleetrock Mgt."
         SalesHeaderStaging: Record "EE Sales Header Staging";
         TaskLineStaging: Record "EE Task Line Staging";
         PartLineStaging: Record "EE Part Line Staging";
-
         TaskLines, PartLines : JsonArray;
         TaskLineJsonObj, PartLineJsonObj : JsonObject;
         T: JsonToken;
         RecVar: Variant;
-        PartEntryNo: Integer;
+        LineEntryNo, PartEntryNo : Integer;
     begin
         SalesHeaderStaging.LockTable();
         if SalesHeaderStaging.FindLast() then
@@ -722,17 +715,17 @@ codeunit 80000 "EE Fleetrock Mgt."
             exit;
         TaskLineStaging.LockTable();
         if TaskLineStaging.FindLast() then
-            EntryNo := TaskLineStaging."Entry No."
+            LineEntryNo := TaskLineStaging."Entry No."
         else
-            EntryNo := 0;
+            LineEntryNo := 0;
         PartLineStaging.LockTable();
         if PartLineStaging.FindLast() then
             PartEntryNo := PartLineStaging."Entry No.";
         foreach T in TaskLines do begin
-            EntryNo += 1;
+            LineEntryNo += 1;
             TaskLineJsonObj := T.AsObject();
             TaskLineStaging.Init();
-            TaskLineStaging."Entry No." := EntryNo;
+            TaskLineStaging."Entry No." := LineEntryNo;
             TaskLineStaging."Header Entry No." := SalesHeaderStaging."Entry No.";
             TaskLineStaging."Header Id" := SalesHeaderStaging.id;
             RecVar := TaskLineStaging;
@@ -976,13 +969,28 @@ codeunit 80000 "EE Fleetrock Mgt."
     procedure TryToUpdatePurchaseOrder(var PurchaseHeaderStaging: Record "EE Purch. Header Staging"; DocNo: Code[20])
     var
         PurchaseHeader: Record "Purchase Header";
-        PurchaseLine: Record "Purchase Line";
-        PurchLineStaging: Record "EE Purch. Line Staging";
-        LineNo: Integer;
     begin
         PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, DocNo);
+        UpdatePurchaseOrder(PurchaseHeaderStaging, PurchaseHeader);
+    end;
+
+    [TryFunction]
+    procedure TryToUpdatePurchaseOrder(var PurchaseHeaderStaging: Record "EE Purch. Header Staging"; var PurchaseHeader: Record "Purchase Header")
+    begin
+        UpdatePurchaseOrder(PurchaseHeaderStaging, PurchaseHeader);
+    end;
+
+    procedure UpdatePurchaseOrder(var PurchaseHeaderStaging: Record "EE Purch. Header Staging"; var PurchaseHeader: Record "Purchase Header")
+    var
+        PurchaseLine: Record "Purchase Line";
+        PurchLineStaging: Record "EE Purch. Line Staging";
+        ClosedDate: Date;
+        LineNo: Integer;
+    begin
         PurchaseHeader.SetHideValidationDialog(true);
-        PurchaseHeader.Validate("Posting Date", DT2Date(PurchaseHeaderStaging.Closed));
+        ClosedDate := DT2Date(PurchaseHeaderStaging.Closed);
+        if ClosedDate <> 0D then
+            PurchaseHeader.Validate("Posting Date", ClosedDate);
         if PurchaseHeaderStaging.invoice_number <> '' then begin
             if PurchaseHeaderStaging.invoice_number <> PurchaseHeader."Vendor Invoice No." then
                 PurchaseHeader.Validate("Vendor Invoice No.", PurchaseHeaderStaging.invoice_number);
@@ -990,12 +998,11 @@ codeunit 80000 "EE Fleetrock Mgt."
             if PurchaseHeaderStaging.id <> PurchaseHeader."Vendor Invoice No." then
                 PurchaseHeader.Validate("Vendor Invoice No.", PurchaseHeaderStaging.id);
         PurchaseHeader.Modify(true);
+
         PurchaseHeaderStaging.Processed := true;
-        PurchaseHeaderStaging.Modify(true);
-        if PurchaseHeaderStaging."Document No." <> PurchaseHeader."No." then begin
+        if PurchaseHeaderStaging."Document No." <> PurchaseHeader."No." then
             PurchaseHeaderStaging.Validate("Document No.", PurchaseHeader."No.");
-            PurchaseHeaderStaging.Modify(true);
-        end;
+        PurchaseHeaderStaging.Modify(true);
         PurchLineStaging.SetCurrentKey("Header Id", "Header Entry No.");
         PurchLineStaging.SetRange("Header Id", PurchaseHeaderStaging.id);
         PurchLineStaging.SetRange("Header Entry No.", PurchaseHeaderStaging."Entry No.");
@@ -1019,6 +1026,13 @@ codeunit 80000 "EE Fleetrock Mgt."
                 PurchaseLine.Modify(true);
             end;
         until PurchLineStaging.Next() = 0;
+        PurchaseLine.SetFilter("EE Part Id", '<>%1', '');
+        if PurchaseLine.FindSet() then
+            repeat
+                PurchLineStaging.SetRange(part_id, PurchaseLine."EE Part Id");
+                if PurchLineStaging.IsEmpty() then
+                    PurchaseLine.Delete(true);
+            until PurchaseLine.Next() = 0;
 
         UpdateExtraPurchaseLines(PurchaseLine, PurchaseHeaderStaging, PurchaseHeader."No.", LineNo, GetTaxLineID(), PurchaseHeaderStaging.tax_total, 'Taxes');
         UpdateExtraPurchaseLines(PurchaseLine, PurchaseHeaderStaging, PurchaseHeader."No.", LineNo, GetShippingLineID(), PurchaseHeaderStaging.shipping_total, 'Shipping');
