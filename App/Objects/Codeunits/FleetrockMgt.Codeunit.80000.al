@@ -427,7 +427,9 @@ codeunit 80000 "EE Fleetrock Mgt."
     begin
         if PaymentTermsDays <= 0 then
             Error('Payment Term Days must be greater than zero: %1.', PaymentTermsDays);
-        PaymentTerms.SetFilter(Code, StrSubstNo('*%1*', PaymentTermsDays));
+        Evaluate(DateForm, StrSubstNo('<%1D>', PaymentTermsDays));
+        PaymentTerms.SetFilter(Code, '%1|%2\%3', StrSubstNo('*%1*', PaymentTermsDays), StrSubstNo('NET%1', PaymentTermsDays), StrSubstNo('%1 DAYS', PaymentTermsDays));
+        PaymentTerms.SetRange("Due Date Calculation", DateForm);
         if PaymentTerms.FindFirst() then
             exit(PaymentTerms.Code);
         PaymentTerms.SetRange(Code);
@@ -437,7 +439,6 @@ codeunit 80000 "EE Fleetrock Mgt."
         PaymentTerms.Init();
         PaymentTerms.Validate(Code, StrSubstNo('%1D', PaymentTermsDays));
         PaymentTerms.Validate(Description, StrSubstNo('%1 days', PaymentTermsDays));
-        Evaluate(DateForm, StrSubstNo('<%1D>', PaymentTermsDays));
         PaymentTerms.Validate("Due Date Calculation", DateForm);
         PaymentTerms.Insert(true);
         exit(PaymentTerms.Code);
@@ -1078,7 +1079,7 @@ codeunit 80000 "EE Fleetrock Mgt."
 
     procedure UpdatePaidRepairOrder(OrderId: Text; PaidDateTime: DateTime; var SalesInvHeader: Record "Sales Invoice Header")
     var
-        ImportEntry: Record "EE Import/Export Entry";
+        // ImportEntry: Record "EE Import/Export Entry";
         ResponseArray: JsonArray;
         JsonBody, ResponseObj : JsonObject;
         T: JsonToken;
@@ -1086,10 +1087,8 @@ codeunit 80000 "EE Fleetrock Mgt."
         EntryNo: Integer;
         Success: Boolean;
     begin
-        if ImportEntry.FindLast() then
-            EntryNo := ImportEntry."Entry No.";
         if SalesInvHeader."EE Sent Payment" and (SalesInvHeader."EE Sent Payment DateTime" <> 0DT) then begin
-            InsertImportEntry(EntryNo + 1, false, 0, Enum::"EE Import Type"::"Repair Order", Enum::"EE Event Type"::Paid,
+            InsertImportEntry(false, 0, Enum::"EE Import Type"::"Repair Order", Enum::"EE Event Type"::Paid,
                 Enum::"EE Direction"::Export, StrSubstNo('Invoice %1 already sent payment at %2', SalesInvHeader."No.", SalesInvHeader."EE Sent Payment DateTime"), URL, 'POST', JsonBody);
             exit;
         end;
@@ -1097,7 +1096,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         URL := StrSubstNo('%1/API/UpdateRO?token=%2', FleetrockSetup."Integration URL", APIToken);
         JsonBody := CreateUpdateRepairOrderJsonBody(FleetrockSetup.Username, OrderId, PaidDateTime);
         if not RestAPIMgt.TryToGetResponseAsJsonArray(FleetrockSetup, URL, 'response', 'POST', JsonBody, ResponseArray) then begin
-            InsertImportEntry(EntryNo + 1, false, 0, Enum::"EE Import Type"::"Repair Order", Enum::"EE Event Type"::Paid,
+            InsertImportEntry(false, 0, Enum::"EE Import Type"::"Repair Order", Enum::"EE Event Type"::Paid,
                 Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', JsonBody);
             exit;
         end;
@@ -1105,11 +1104,10 @@ codeunit 80000 "EE Fleetrock Mgt."
             exit;
         if not ResponseArray.Get(1, T) then begin
             ResponseArray.WriteTo(s);
-            InsertImportEntry(EntryNo + 1, false, 0, Enum::"EE Import Type"::"Repair Order", Enum::"EE Event Type"::Paid,
+            InsertImportEntry(false, 0, Enum::"EE Import Type"::"Repair Order", Enum::"EE Event Type"::Paid,
                Enum::"EE Direction"::Export, 'Failed to load results token from response array: ' + s, URL, 'POST', JsonBody);
             exit;
         end;
-        EntryNo += 1;
         ClearLastError();
         Success := TryToHandleRepairUpdateResponse(T, OrderId);
         InsertImportEntry(EntryNo, Success and (GetLastErrorText() = ''), 0, Enum::"EE Import Type"::"Repair Order",
@@ -1152,24 +1150,39 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
 
+    procedure InsertImportEntry(Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type"; Direction: Enum "EE Direction"; ErrorMsg: Text; URL: Text; Method: Text)
+    var
+        JsonBody: JsonObject;
+        EntryNo: Integer;
+    begin
+        InsertImportEntry(EntryNo, Success, ImportEntryNo, Type, EventType, Direction, ErrorMsg, URL, Method, JsonBody);
+    end;
+
+    procedure InsertImportEntry(Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type"; Direction: Enum "EE Direction"; ErrorMsg: Text; URL: Text; Method: Text; var JsonBody: JsonObject)
+    var
+        EntryNo: Integer;
+    begin
+        InsertImportEntry(EntryNo, Success, ImportEntryNo, Type, EventType, Direction, ErrorMsg, URL, Method, JsonBody);
+    end;
 
 
-
-
-
-    procedure InsertImportEntry(EntryNo: Integer; Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type"; Direction: Enum "EE Direction"; ErrorMsg: Text; URL: Text; Method: Text)
+    procedure InsertImportEntry(var EntryNo: Integer; Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type"; Direction: Enum "EE Direction"; ErrorMsg: Text; URL: Text; Method: Text)
     var
         JsonBody: JsonObject;
     begin
         InsertImportEntry(EntryNo, Success, ImportEntryNo, Type, EventType, Direction, ErrorMsg, URL, Method, JsonBody);
     end;
 
-    procedure InsertImportEntry(EntryNo: Integer; Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type"; Direction: Enum "EE Direction"; ErrorMsg: Text; URL: Text; Method: Text; var JsonBody: JsonObject)
+    procedure InsertImportEntry(var EntryNo: Integer; Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type"; Direction: Enum "EE Direction"; ErrorMsg: Text; URL: Text; Method: Text; var JsonBody: JsonObject)
     var
         ImportEntry: Record "EE Import/Export Entry";
         s: Text;
     begin
         JsonBody.WriteTo(s);
+        ImportEntry.LockTable();
+        if ImportEntry.FindLast() then
+            EntryNo := ImportEntry."Entry No.";
+        EntryNo += 1;
         ImportEntry.Init();
         ImportEntry."Entry No." := EntryNo;
         ImportEntry."Document Type" := Type;
