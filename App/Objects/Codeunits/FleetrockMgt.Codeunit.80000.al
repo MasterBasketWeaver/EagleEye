@@ -94,9 +94,6 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchHeaderStaging: Record "EE Purch. Header Staging";
         EntryNo: Integer;
     begin
-        if PurchHeaderStaging.FindLast() then
-            EntryNo := PurchHeaderStaging."Entry No.";
-        EntryNo += 1;
         if not TryToInsertPurchStaging(OrderJsonObj, EntryNo) then begin
             if not PurchHeaderStaging.Get(EntryNo) then begin
                 PurchHeaderStaging.Init();
@@ -106,6 +103,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             PurchHeaderStaging."Import Error" := true;
             PurchHeaderStaging."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(PurchHeaderStaging."Error Message"));
             PurchHeaderStaging.Modify(true);
+            exit(EntryNo);
         end;
         PurchHeaderStaging.Get(EntryNo);
         if CreateOrder then begin
@@ -469,7 +467,7 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
     [TryFunction]
-    local procedure TryToInsertPurchStaging(var OrderJsonObj: JsonObject; EntryNo: Integer)
+    local procedure TryToInsertPurchStaging(var OrderJsonObj: JsonObject; var EntryNo: Integer)
     var
         PurchHeaderStaging: Record "EE Purch. Header Staging";
         PurchLineStaging: Record "EE Purch. Line Staging";
@@ -477,6 +475,9 @@ codeunit 80000 "EE Fleetrock Mgt."
         LineJsonObj: JsonObject;
         T: JsonToken;
     begin
+        if PurchHeaderStaging.FindLast() then
+            EntryNo := PurchHeaderStaging."Entry No.";
+        EntryNo += 1;
         PurchHeaderStaging.Init();
         PurchHeaderStaging."Entry No." := EntryNo;
         PurchHeaderStaging.id := GetJsonValueAsText(OrderJsonObj, 'id');
@@ -498,7 +499,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchHeaderStaging.grand_total := GetJsonValueAsDecimal(OrderJsonObj, 'grand_total');
         PurchHeaderStaging.Insert(true);
 
-
+        PurchLineStaging.LockTable();
         if PurchLineStaging.FindLast() then
             EntryNo := PurchLineStaging."Entry No."
         else
@@ -664,9 +665,6 @@ codeunit 80000 "EE Fleetrock Mgt."
         SalesHeaderStaging: Record "EE Sales Header Staging";
         EntryNo: Integer;
     begin
-        if SalesHeaderStaging.FindLast() then
-            EntryNo := SalesHeaderStaging."Entry No.";
-        EntryNo += 1;
         if not TryToInsertSalesStaging(OrderJsonObj, EntryNo) then begin
             if not SalesHeaderStaging.Get(EntryNo) then begin
                 SalesHeaderStaging.Init();
@@ -676,6 +674,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             SalesHeaderStaging."Import Error" := true;
             SalesHeaderStaging."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(SalesHeaderStaging."Error Message"));
             SalesHeaderStaging.Modify(true);
+            exit(EntryNo);
         end;
         SalesHeaderStaging.Get(EntryNo);
         if CreateInvoice then begin
@@ -687,7 +686,7 @@ codeunit 80000 "EE Fleetrock Mgt."
     end;
 
     [TryFunction]
-    local procedure TryToInsertSalesStaging(var OrderJsonObj: JsonObject; EntryNo: Integer)
+    local procedure TryToInsertSalesStaging(var OrderJsonObj: JsonObject; var EntryNo: Integer)
     var
         SalesHeaderStaging: Record "EE Sales Header Staging";
         TaskLineStaging: Record "EE Task Line Staging";
@@ -699,6 +698,10 @@ codeunit 80000 "EE Fleetrock Mgt."
         RecVar: Variant;
         PartEntryNo: Integer;
     begin
+        SalesHeaderStaging.LockTable();
+        if SalesHeaderStaging.FindLast() then
+            EntryNo := SalesHeaderStaging."Entry No.";
+        EntryNo += 1;
         SalesHeaderStaging.Init();
         SalesHeaderStaging."Entry No." := EntryNo;
         RecVar := SalesHeaderStaging;
@@ -717,10 +720,12 @@ codeunit 80000 "EE Fleetrock Mgt."
         TaskLines := T.AsArray();
         if TaskLines.Count() = 0 then
             exit;
+        TaskLineStaging.LockTable();
         if TaskLineStaging.FindLast() then
             EntryNo := TaskLineStaging."Entry No."
         else
             EntryNo := 0;
+        PartLineStaging.LockTable();
         if PartLineStaging.FindLast() then
             PartEntryNo := PartLineStaging."Entry No.";
         foreach T in TaskLines do begin
