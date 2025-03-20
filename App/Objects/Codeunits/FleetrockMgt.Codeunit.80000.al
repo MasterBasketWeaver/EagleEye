@@ -1079,12 +1079,10 @@ codeunit 80000 "EE Fleetrock Mgt."
 
     procedure UpdatePaidRepairOrder(OrderId: Text; PaidDateTime: DateTime; var SalesInvHeader: Record "Sales Invoice Header")
     var
-        // ImportEntry: Record "EE Import/Export Entry";
         ResponseArray: JsonArray;
         JsonBody, ResponseObj : JsonObject;
         T: JsonToken;
         APIToken, URL, s : Text;
-        EntryNo: Integer;
         Success: Boolean;
     begin
         if SalesInvHeader."EE Sent Payment" and (SalesInvHeader."EE Sent Payment DateTime" <> 0DT) then begin
@@ -1110,7 +1108,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         end;
         ClearLastError();
         Success := TryToHandleRepairUpdateResponse(T, OrderId);
-        InsertImportEntry(EntryNo, Success and (GetLastErrorText() = ''), 0, Enum::"EE Import Type"::"Repair Order",
+        InsertImportEntry(Success and (GetLastErrorText() = ''), 0, Enum::"EE Import Type"::"Repair Order",
             Enum::"EE Event Type"::Paid, Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', JsonBody);
         SalesInvHeader."EE Sent Payment" := Success;
         SalesInvHeader."EE Sent Payment DateTime" := CurrentDateTime();
@@ -1166,12 +1164,12 @@ codeunit 80000 "EE Fleetrock Mgt."
     end;
 
 
-    procedure InsertImportEntry(var EntryNo: Integer; Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type"; Direction: Enum "EE Direction"; ErrorMsg: Text; URL: Text; Method: Text)
-    var
-        JsonBody: JsonObject;
-    begin
-        InsertImportEntry(EntryNo, Success, ImportEntryNo, Type, EventType, Direction, ErrorMsg, URL, Method, JsonBody);
-    end;
+    // procedure InsertImportEntry(var EntryNo: Integer; Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type"; Direction: Enum "EE Direction"; ErrorMsg: Text; URL: Text; Method: Text)
+    // var
+    //     JsonBody: JsonObject;
+    // begin
+    //     InsertImportEntry(EntryNo, Success, ImportEntryNo, Type, EventType, Direction, ErrorMsg, URL, Method, JsonBody);
+    // end;
 
     procedure InsertImportEntry(var EntryNo: Integer; Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type"; Direction: Enum "EE Direction"; ErrorMsg: Text; URL: Text; Method: Text; var JsonBody: JsonObject)
     var
