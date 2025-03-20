@@ -428,8 +428,8 @@ codeunit 80000 "EE Fleetrock Mgt."
         if PaymentTermsDays <= 0 then
             Error('Payment Term Days must be greater than zero: %1.', PaymentTermsDays);
         Evaluate(DateForm, StrSubstNo('<%1D>', PaymentTermsDays));
-        PaymentTerms.SetFilter(Code, '%1|%2\%3', StrSubstNo('*%1*', PaymentTermsDays), StrSubstNo('NET%1', PaymentTermsDays), StrSubstNo('%1 DAYS', PaymentTermsDays));
         PaymentTerms.SetRange("Due Date Calculation", DateForm);
+        PaymentTerms.SetFilter(Code, '%1|%2', StrSubstNo('NET%1', PaymentTermsDays), StrSubstNo('%1 DAYS', PaymentTermsDays));
         if PaymentTerms.FindFirst() then
             exit(PaymentTerms.Code);
         PaymentTerms.SetRange(Code);
