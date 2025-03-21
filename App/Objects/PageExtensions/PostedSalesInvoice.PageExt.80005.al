@@ -8,6 +8,10 @@ pageextension 80005 "EE Posted Sales Invoice" extends "Posted Sales Invoice"
             {
                 ApplicationArea = all;
             }
+            field("EE Load Number"; Rec."EE Load Number")
+            {
+                ApplicationArea = all;
+            }
         }
     }
 

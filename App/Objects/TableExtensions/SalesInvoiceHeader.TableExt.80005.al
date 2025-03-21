@@ -20,6 +20,12 @@ tableextension 80005 "EE Sales Inv. Header" extends "Sales Invoice Header"
             Editable = false;
             Caption = 'Sent Payment DateTime';
         }
+        field(80010; "EE Load Number"; Code[35])
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+            Caption = 'Load Number';
+        }
     }
 
     keys

@@ -8,6 +8,10 @@ pageextension 80012 "EE Sales Invoice List" extends "Sales Invoice List"
             {
                 ApplicationArea = all;
             }
+            field("EE Load Number"; Rec."EE Load Number")
+            {
+                ApplicationArea = all;
+            }
         }
     }
 }

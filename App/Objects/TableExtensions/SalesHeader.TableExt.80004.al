@@ -8,6 +8,12 @@ tableextension 80004 "EE Sales Header" extends "Sales Header"
             Editable = false;
             Caption = 'Fleetrock ID';
         }
+        field(80010; "EE Load Number"; Code[35])
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+            Caption = 'Load Number';
+        }
     }
 
     keys
