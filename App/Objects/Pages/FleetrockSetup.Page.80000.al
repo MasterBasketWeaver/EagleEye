@@ -13,7 +13,7 @@ page 80000 "EE Fleetrock Setup"
             {
                 group("Purchase Orders")
                 {
-                    field("Purchase G/L Account No."; Rec."Purchase G/L Account No.")
+                    field("Purchase Item No."; Rec."Purchase Item No.")
                     {
                         ApplicationArea = all;
                         ShowMandatory = true;
@@ -25,22 +25,22 @@ page 80000 "EE Fleetrock Setup"
                     {
                         ApplicationArea = all;
                     }
-                    field("Internal Labor G/L Account No."; Rec."Internal Labor G/L Account No.")
+                    field("Internal Labor Item No."; Rec."Internal Labor Item No.")
                     {
                         ApplicationArea = all;
                         ShowMandatory = true;
                     }
-                    field("Internal Parts G/L Account No."; Rec."Internal Parts G/L Account No.")
+                    field("Internal Parts Item No."; Rec."Internal Parts Item No.")
                     {
                         ApplicationArea = all;
                         ShowMandatory = true;
                     }
-                    field("External Labor G/L Account No."; Rec."External Labor G/L Account No.")
+                    field("External Labor Item No."; Rec."External Labor Item No.")
                     {
                         ApplicationArea = all;
                         ShowMandatory = true;
                     }
-                    field("External Parts G/L Account No."; Rec."External Parts G/L Account No.")
+                    field("External Parts Item No."; Rec."External Parts Item No.")
                     {
                         ApplicationArea = all;
                         ShowMandatory = true;

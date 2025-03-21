@@ -20,33 +20,6 @@ codeunit 80000 "EE Fleetrock Mgt."
     tabledata "Sales Invoice Line" = rm;
 
 
-    // [EventSubscriber(ObjectType::Table, Database::"G/L Account", OnAfterInsertEvent, '', false, false)]
-    // local procedure GLAccountOnAfterInsert(var Rec: Record "G/L Account")
-    // begin
-    //     SyncGLToFleetRock(Rec, false);
-    // end;
-
-    // [EventSubscriber(ObjectType::Table, Database::"G/L Account", OnAfterModifyEvent, '', false, false)]
-    // local procedure GLAccountOnAfterModify(var Rec: Record "G/L Account")
-    // begin
-    //     SyncGLToFleetRock(Rec, false);
-    // end;
-
-    // [EventSubscriber(ObjectType::Table, Database::"G/L Account", OnAfterDeleteEvent, '', false, false)]
-    // local procedure GLAccountOnAfterDelete(var Rec: Record "G/L Account")
-    // begin
-    //     SyncGLToFleetRock(Rec, true);
-    // end;
-
-    // [EventSubscriber(ObjectType::Table, Database::"G/L Account", OnAfterRenameEvent, '', false, false)]
-    // local procedure GLAccountOnRenameDelete(var Rec: Record "G/L Account")
-    // begin
-    //     SyncGLToFleetRock(Rec, false);
-    // end;
-
-    // procedure SyncGLToFleetRock(var GLAccount: Record "G/L Account"; Deleted: Boolean)
-    // begin
-    // end;
 
 
     local procedure GetAndCheckSetup()
@@ -120,7 +93,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         DocNo: Code[20];
     begin
         GetAndCheckSetup();
-        FleetrockSetup.TestField("Purchase G/L Account No.");
+        FleetrockSetup.TestField("Purchase Item No.");
         FleetrockSetup.TestField("Vendor Posting Group");
         // FleetrockSetup.TestField("Tax Group Code");
         // FleetrockSetup.TestField("Tax Area Code");
@@ -808,11 +781,11 @@ codeunit 80000 "EE Fleetrock Mgt."
         DocNo: Code[20];
     begin
         GetAndCheckSetup();
-        FleetrockSetup.TestField("External Labor G/L Account No.");
-        FleetrockSetup.TestField("External Parts G/L Account No.");
+        FleetrockSetup.TestField("External Labor Item No.");
+        FleetrockSetup.TestField("External Parts Item No.");
         if FleetrockSetup."Internal Customer Names" <> '' then begin
-            FleetrockSetup.TestField("Internal Labor G/L Account No.");
-            FleetrockSetup.TestField("Internal Parts G/L Account No.");
+            FleetrockSetup.TestField("Internal Labor Item No.");
+            FleetrockSetup.TestField("Internal Parts Item No.");
         end;
         FleetrockSetup.TestField("Customer Posting Group");
         FleetrockSetup.TestField("Tax Group Code");
@@ -910,11 +883,11 @@ codeunit 80000 "EE Fleetrock Mgt."
         SalesLine.Validate("Document Type", Enum::"Sales Document Type"::Invoice);
         SalesLine.Validate("Document No.", DocNo);
         SalesLine.Validate("Line No.", LineNo);
-        SalesLine.Validate(Type, SalesLine.Type::"G/L Account");
+        SalesLine.Validate(Type, SalesLine.Type::Item);
         if Internal then
-            SalesLine.Validate("No.", FleetRockSetup."Internal Labor G/L Account No.")
+            SalesLine.Validate("No.", FleetRockSetup."Internal Labor Item No.")
         else
-            SalesLine.Validate("No.", FleetRockSetup."External Labor G/L Account No.");
+            SalesLine.Validate("No.", FleetRockSetup."External Labor Item No.");
         SalesLine.Validate(Quantity, TaskLineStaging.labor_hours);
         SalesLine.Validate("Unit Price", TaskLineStaging.labor_hourly_rate);
         SalesLine.Description := CopyStr(TaskLineStaging.labor_system_code, 1, MaxStrLen(SalesLine.Description));
@@ -932,11 +905,11 @@ codeunit 80000 "EE Fleetrock Mgt."
         SalesLine.Validate("Document Type", Enum::"Sales Document Type"::Invoice);
         SalesLine.Validate("Document No.", DocNo);
         SalesLine.Validate("Line No.", LineNo);
-        SalesLine.Validate(Type, SalesLine.Type::"G/L Account");
+        SalesLine.Validate(Type, SalesLine.Type::Item);
         if Internal then
-            SalesLine.Validate("No.", FleetRockSetup."Internal Parts G/L Account No.")
+            SalesLine.Validate("No.", FleetRockSetup."Internal Parts Item No.")
         else
-            SalesLine.Validate("No.", FleetRockSetup."External Parts G/L Account No.");
+            SalesLine.Validate("No.", FleetRockSetup."External Parts Item No.");
         SalesLine.Validate(Quantity, PartLineStaging.part_quantity);
         if PartLineStaging."Unit Cost" <> 0 then
             SalesLine.Validate("Unit Cost", PartLineStaging."Unit Cost");
@@ -1126,13 +1099,12 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchaseLine.Validate("Document Type", Enum::"Purchase Document Type"::Order);
         PurchaseLine.Validate("Document No.", DocNo);
         PurchaseLine.Validate("Line No.", LineNo);
-        PurchaseLine.Validate(Type, PurchaseLine.Type::"G/L Account");
-        PurchaseLine.Validate("No.", FleetRockSetup."Purchase G/L Account No.");
+        PurchaseLine.Validate(Type, PurchaseLine.Type::Item);
+        PurchaseLine.Validate("No.", FleetRockSetup."Purchase Item No.");
         PurchaseLine.Validate(Quantity, PurchLineStaging.part_quantity);
         PurchaseLine.Validate("Unit Cost", PurchLineStaging.unit_price);
         PurchaseLine.Validate("Direct Unit Cost", PurchLineStaging.unit_price);
         PurchaseLine.Description := CopyStr(PurchLineStaging.part_description, 1, MaxStrLen(PurchaseLine.Description));
-        // PurchaseLine.Validate("Tax Group Code", FleetrockSetup."Tax Group Code");
         PurchaseLine.Validate("EE Part Id", PurchLineStaging.part_id);
         PurchaseLine.Insert(true);
     end;

@@ -5,10 +5,37 @@ codeunit 80006 "EE Upgrade"
 
     trigger OnUpgradePerCompany()
     begin
-        // UpdateData();
+        UpdateData();
     end;
 
     procedure UpdateData()
+    begin
+        // ClearGLSetups();
+    end;
+
+
+    local procedure ClearGLSetups()
+    var
+        Item: Record "Item";
+        FleetrockSetup: Record "EE Fleetrock Setup";
+    begin
+        if not FleetrockSetup.Get() then
+            exit;
+        if not Item.Get(FleetrockSetup."Purchase Item No.") then
+            FleetrockSetup."Purchase Item No." := '';
+        if not Item.Get(FleetrockSetup."Internal Labor Item No.") then
+            FleetrockSetup."Internal Labor Item No." := '';
+        if not Item.Get(FleetrockSetup."External Labor Item No.") then
+            FleetrockSetup."External Labor Item No." := '';
+        if not Item.Get(FleetrockSetup."Internal Parts Item No.") then
+            FleetrockSetup."Internal Parts Item No." := '';
+        if not Item.Get(FleetrockSetup."External Parts Item No.") then
+            FleetrockSetup."External Parts Item No." := '';
+        FleetrockSetup.Modify(false);
+    end;
+
+
+    local procedure ClearImportEntries()
     var
         ImportExportEntry: Record "EE Import/Export Entry";
     begin

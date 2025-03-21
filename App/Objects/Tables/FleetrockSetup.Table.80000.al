@@ -34,10 +34,10 @@ table 80000 "EE Fleetrock Setup"
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(7; "Purchase G/L Account No."; Code[20])
+        field(7; "Purchase Item No."; Code[20])
         {
             DataClassification = CustomerContent;
-            TableRelation = "G/L Account"."No.";
+            TableRelation = "Item"."No.";
         }
         field(8; "Vendor Posting Group"; Code[20])
         {
@@ -74,25 +74,25 @@ table 80000 "EE Fleetrock Setup"
             TableRelation = "Payment Terms".Code;
         }
 
-        field(20; "Internal Labor G/L Account No."; Code[20])
+        field(20; "Internal Labor Item No."; Code[20])
         {
             DataClassification = CustomerContent;
-            TableRelation = "G/L Account"."No.";
+            TableRelation = "Item"."No.";
         }
-        field(21; "Internal Parts G/L Account No."; Code[20])
+        field(21; "Internal Parts Item No."; Code[20])
         {
             DataClassification = CustomerContent;
-            TableRelation = "G/L Account"."No.";
+            TableRelation = "Item"."No.";
         }
-        field(22; "External Labor G/L Account No."; Code[20])
+        field(22; "External Labor Item No."; Code[20])
         {
             DataClassification = CustomerContent;
-            TableRelation = "G/L Account"."No.";
+            TableRelation = "Item"."No.";
         }
-        field(23; "External Parts G/L Account No."; Code[20])
+        field(23; "External Parts Item No."; Code[20])
         {
             DataClassification = CustomerContent;
-            TableRelation = "G/L Account"."No.";
+            TableRelation = "Item"."No.";
         }
         field(24; "Internal Customer Names"; Text[1024])
         {
