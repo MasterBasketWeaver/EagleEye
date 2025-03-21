@@ -358,6 +358,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             Customer.Validate("EE Source No.", SourceNo);
             Customer.Validate("Customer Posting Group", FleetrockSetup."Customer Posting Group");
             Customer.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
+            Customer.Validate("Tax Liable", true);
             Customer.Modify(true);
             exit(Customer."No.");
         end;
@@ -379,6 +380,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         Customer.Validate("Customer Posting Group", FleetrockSetup."Customer Posting Group");
         Customer.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
         Customer.Validate("Payment Terms Code", FleetrockSetup."Payment Terms");
+        Customer.Validate("Tax Liable", true);
         Customer.Modify(true);
         exit(Customer."No.");
     end;
