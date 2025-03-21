@@ -64,6 +64,10 @@ page 80006 "EE Staged Part Lines"
                 {
                     ApplicationArea = all;
                 }
+                field("Unit Cost"; Rec."Unit Cost")
+                {
+                    ApplicationArea = all;
+                }
                 field(part_quantity; Rec.part_quantity)
                 {
                     ApplicationArea = all;
@@ -114,6 +118,14 @@ page 80006 "EE Staged Part Lines"
                     ApplicationArea = all;
                 }
                 field("Imported By"; Rec.SystemCreatedBy)
+                {
+                    ApplicationArea = all;
+                }
+                field("Loaded Part Details"; Rec."Loaded Part Details")
+                {
+                    ApplicationArea = all;
+                }
+                field("Error Message"; Rec."Error Message")
                 {
                     ApplicationArea = all;
                 }

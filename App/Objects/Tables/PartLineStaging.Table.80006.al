@@ -118,7 +118,22 @@ table 80006 "EE Part Line Staging"
             Editable = false;
             Caption = 'date_added (UTC)';
         }
+        field(28; "Unit Cost"; Decimal)
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
         field(100; "Added At"; DateTime)
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
+        field(101; "Loaded Part Details"; Boolean)
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
+        field(102; "Error Message"; Text[512])
         {
             DataClassification = CustomerContent;
             Editable = false;

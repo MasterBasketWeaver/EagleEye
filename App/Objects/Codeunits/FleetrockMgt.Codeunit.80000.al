@@ -685,10 +685,12 @@ codeunit 80000 "EE Fleetrock Mgt."
         SalesHeaderStaging: Record "EE Sales Header Staging";
         TaskLineStaging: Record "EE Task Line Staging";
         PartLineStaging: Record "EE Part Line Staging";
+        UnitCosts: Dictionary of [Text, Decimal];
         TaskLines, PartLines : JsonArray;
-        TaskLineJsonObj, PartLineJsonObj : JsonObject;
+        TaskLineJsonObj, PartLineJsonObj, PartObj : JsonObject;
         T: JsonToken;
         RecVar: Variant;
+        APIToken: Text;
         LineEntryNo, PartEntryNo : Integer;
     begin
         SalesHeaderStaging.LockTable();
@@ -733,6 +735,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             TaskLineStaging := RecVar;
             TaskLineStaging.Insert(true);
             if TaskLineJsonObj.Get('parts', T) then begin
+                APIToken := CheckToGetAPIToken();
                 PartLines := T.AsArray();
                 foreach T in PartLines do begin
                     PartEntryNo += 1;
@@ -746,11 +749,48 @@ codeunit 80000 "EE Fleetrock Mgt."
                     RecVar := PartLineStaging;
                     PopulateStagingTable(RecVar, PartLineJsonObj, Database::"EE Part Line Staging", PartLineStaging.FieldNo("task_part_id"));
                     PartLineStaging := RecVar;
+                    if UnitCosts.ContainsKey(PartLineStaging.part_id) then
+                        PartLineStaging."Unit Cost" := UnitCosts.Get(PartLineStaging.part_id)
+                    else begin
+                        if TryToGetPart(PartLineStaging.part_id, APIToken, PartLineStaging."Loaded Part Details", PartObj) and PartLineStaging."Loaded Part Details" then
+                            PartLineStaging."Unit Cost" := GetJsonValueAsDecimal(PartObj, 'part_cost')
+                        else
+                            PartLineStaging."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(PartLineStaging."Error Message"));
+                        UnitCosts.Add(PartLineStaging.part_id, PartLineStaging."Unit Cost");
+                    end;
                     PartLineStaging.Insert(true);
                 end;
             end;
         end;
     end;
+
+
+
+    [TryFunction]
+    local procedure TryToGetPart(PartId: Text; var APIToken: Text; var Success: Boolean; var JsonObj: JsonObject)
+    begin
+        Success := GetPart(PartId, APIToken, JsonObj);
+    end;
+
+    local procedure GetPart(PartId: Text; var APIToken: Text; var JsonObj: JsonObject): Boolean
+    var
+        JsonArry: JsonArray;
+        JsonToken: JsonToken;
+        URL: Text;
+    begin
+        if APIToken = '' then
+            APIToken := CheckToGetAPIToken();
+        URL := StrSubstNo('%1/API/GetParts?username=%2&token=%3&id=%4', FleetrockSetup."Integration URL", FleetrockSetup.Username, APIToken, PartId);
+        JsonArry := RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, URL, 'parts');
+        JsonArry.WriteTo(URL);
+        if (JsonArry.Count() = 0) or not JsonArry.Get(0, JsonToken) then
+            exit(false);
+        JsonObj := JsonToken.AsObject();
+        exit(true);
+    end;
+
+
+
 
     local procedure IsInternalCustomer(InternalNames: Text; OrderName: Text): Boolean
     var
@@ -849,22 +889,23 @@ codeunit 80000 "EE Fleetrock Mgt."
         PartLineStaging.SetRange("Header Id", SalesHeaderStaging.id);
         PartLineStaging.SetRange("Header Entry No.", SalesHeaderStaging."Entry No.");
         repeat
-            LineNo += 10000;
             AddTaskSalesLine(SalesLine, TaskLineStaging, DocNo, LineNo, SalesHeaderStaging."Internal Customer");
             if TaskLineStaging."Part Lines" > 0 then begin
                 PartLineStaging.SetRange("Task Entry No.", TaskLineStaging."Entry No.");
                 PartLineStaging.SetRange("Task Id", TaskLineStaging.task_id);
                 if PartLineStaging.FindSet() then
                     repeat
-                        LineNo += 10000;
                         AddPartSalesLine(SalesLine, PartLineStaging, DocNo, LineNo, SalesHeaderStaging."Internal Customer");
                     until PartLineStaging.Next() = 0;
             end;
         until TaskLineStaging.Next() = 0;
     end;
 
-    local procedure AddTaskSalesLine(var SalesLine: Record "Sales Line"; var TaskLineStaging: Record "EE Task Line Staging"; DocNo: Code[20]; LineNo: Integer; Internal: Boolean)
+    local procedure AddTaskSalesLine(var SalesLine: Record "Sales Line"; var TaskLineStaging: Record "EE Task Line Staging"; DocNo: Code[20]; var LineNo: Integer; Internal: Boolean)
     begin
+        if TaskLineStaging.labor_hours = 0 then
+            exit;
+        LineNo += 10000;
         SalesLine.Init();
         SalesLine.Validate("Document Type", Enum::"Sales Document Type"::Invoice);
         SalesLine.Validate("Document No.", DocNo);
@@ -882,8 +923,11 @@ codeunit 80000 "EE Fleetrock Mgt."
         SalesLine.Insert(true);
     end;
 
-    local procedure AddPartSalesLine(var SalesLine: Record "Sales Line"; var PartLineStaging: Record "EE Part Line Staging"; DocNo: Code[20]; LineNo: Integer; Internal: Boolean)
+    local procedure AddPartSalesLine(var SalesLine: Record "Sales Line"; var PartLineStaging: Record "EE Part Line Staging"; DocNo: Code[20]; var LineNo: Integer; Internal: Boolean)
     begin
+        if PartLineStaging.part_quantity = 0 then
+            exit;
+        LineNo += 10000;
         SalesLine.Init();
         SalesLine.Validate("Document Type", Enum::"Sales Document Type"::Invoice);
         SalesLine.Validate("Document No.", DocNo);
@@ -894,6 +938,8 @@ codeunit 80000 "EE Fleetrock Mgt."
         else
             SalesLine.Validate("No.", FleetRockSetup."External Parts G/L Account No.");
         SalesLine.Validate(Quantity, PartLineStaging.part_quantity);
+        if PartLineStaging."Unit Cost" <> 0 then
+            SalesLine.Validate("Unit Cost", PartLineStaging."Unit Cost");
         SalesLine.Validate("Unit Price", PartLineStaging.part_price);
         SalesLine.Description := CopyStr(PartLineStaging.part_description, 1, MaxStrLen(SalesLine.Description));
         SalesLine.Validate("Tax Group Code", FleetrockSetup."Tax Group Code");
@@ -956,6 +1002,8 @@ codeunit 80000 "EE Fleetrock Mgt."
                             AddPartSalesLine(SalesLine, PartLineStaging, SalesHeader."No.", LineNo, SalesHeaderStaging."Internal Customer");
                         end else begin
                             SalesLine.Validate(Quantity, PartLineStaging.part_quantity);
+                            if PartLineStaging."Unit Cost" <> 0 then
+                                SalesLine.Validate("Unit Cost", PartLineStaging."Unit Cost");
                             SalesLine.Validate("Unit Price", PartLineStaging.part_price);
                             SalesLine.Description := CopyStr(PartLineStaging.part_description, 1, DescrLength);
                             SalesLine.Modify(true);
@@ -1185,7 +1233,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         end;
         if (ResponseArray.Count() = 0) then
             exit;
-        if not ResponseArray.Get(1, T) then begin
+        if not ResponseArray.Get(0, T) then begin
             ResponseArray.WriteTo(s);
             InsertImportEntry(false, 0, Enum::"EE Import Type"::"Repair Order", Enum::"EE Event Type"::Paid,
                Enum::"EE Direction"::Export, 'Failed to load results token from response array: ' + s, URL, 'POST', JsonBody);
