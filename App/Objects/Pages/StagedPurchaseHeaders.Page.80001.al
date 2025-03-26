@@ -35,8 +35,14 @@ page 80001 "EE Staged Purchased Headers"
                             else begin
                                 PurchInvHeader.SetCurrentKey("Order No.");
                                 PurchInvHeader.SetRange("Order No.", Rec."Document No.");
-                                if PurchInvHeader.FindFirst() then
-                                    Page.Run(Page::"Posted Purchase Invoice", PurchInvHeader);
+                                if not PurchInvHeader.FindFirst() then begin
+                                    PurchInvHeader.Reset();
+                                    PurchInvHeader.SetCurrentKey("Pre-Assigned No.");
+                                    PurchInvHeader.SetRange("Pre-Assigned No.", Rec."Document No.");
+                                    if not PurchInvHeader.FindFirst() then
+                                        exit;
+                                end;
+                                Page.Run(Page::"Posted Purchase Invoice", PurchInvHeader);
                             end;
                     end;
                 }
@@ -173,22 +179,6 @@ page 80001 "EE Staged Purchased Headers"
                 trigger OnAction()
                 begin
                     Message(Rec."Error Message");
-                end;
-            }
-            action("Create Purchase Order")
-            {
-                ApplicationArea = all;
-                Promoted = true;
-                PromotedCategory = Process;
-                PromotedIsBig = true;
-                PromotedOnly = true;
-                Image = Purchase;
-
-                trigger OnAction()
-                var
-                    FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
-                begin
-                    FleetrockMgt.CreatePurchaseOrder(Rec);
                 end;
             }
         }

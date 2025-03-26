@@ -34,8 +34,14 @@ page 80004 "EE Staged Repair Order Headers"
                             else begin
                                 SalesInvHeader.SetCurrentKey("Order No.");
                                 SalesInvHeader.SetRange("Order No.", Rec."Document No.");
-                                if SalesInvHeader.FindFirst() then
-                                    Page.Run(Page::"Posted Sales Invoice", SalesInvHeader);
+                                if not SalesInvHeader.FindFirst() then begin
+                                    SalesInvHeader.Reset();
+                                    SalesInvHeader.SetCurrentKey("Pre-Assigned No.");
+                                    SalesInvHeader.SetRange("Pre-Assigned No.", Rec."Document No.");
+                                    if not SalesInvHeader.FindFirst() then
+                                        exit;
+                                end;
+                                Page.Run(Page::"Posted Sales Invoice", SalesInvHeader);
                             end;
                     end;
                 }
@@ -292,22 +298,6 @@ page 80004 "EE Staged Repair Order Headers"
                 trigger OnAction()
                 begin
                     Message(Rec."Error Message");
-                end;
-            }
-            action("Create Repair Order")
-            {
-                ApplicationArea = all;
-                Promoted = true;
-                PromotedCategory = Process;
-                PromotedIsBig = true;
-                PromotedOnly = true;
-                Image = Replan;
-
-                trigger OnAction()
-                var
-                    FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
-                begin
-                    FleetrockMgt.CreateSalesOrder(Rec);
                 end;
             }
         }

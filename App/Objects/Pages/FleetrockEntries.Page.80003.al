@@ -129,7 +129,7 @@ page 80003 "EE Fleetrock Entries"
                 PromotedCategory = Process;
                 PromotedIsBig = true;
                 PromotedOnly = true;
-                Enabled = Rec."Request Body" <> '';
+                Enabled = (Rec."Request Body" <> '') and (Rec."Request Body" <> '{}');
 
                 trigger OnAction()
                 begin
