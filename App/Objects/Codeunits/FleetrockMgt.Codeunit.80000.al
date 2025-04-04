@@ -1281,9 +1281,41 @@ codeunit 80000 "EE Fleetrock Mgt."
     procedure InsertImportEntry(var EntryNo: Integer; Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type"; Direction: Enum "EE Direction"; ErrorMsg: Text; URL: Text; Method: Text; var JsonBody: JsonObject)
     var
         ImportEntry: Record "EE Import/Export Entry";
+        PurchHeaderStaging: Record "EE Purch. Header Staging";
+        SalesHeaderStaging: Record "EE Sales Header Staging";
         s: Text;
+        DocNo: Code[20];
     begin
+        if ImportEntryNo <> 0 then begin
+            PurchHeaderStaging.SetLoadFields("Entry No.", "Document No.");
+            SalesHeaderStaging.SetLoadFields("Entry No.", "Document No.");
+            case Type of
+                Type::"Purchase Order":
+                    if PurchHeaderStaging.Get(ImportEntryNo) then
+                        DocNo := PurchHeaderStaging."Document No.";
+                Type::"Repair Order":
+                    if SalesHeaderStaging.Get(ImportEntryNo) then
+                        DocNo := SalesHeaderStaging."Document No.";
+            end;
+        end;
+        ErrorMsg := CopyStr(ErrorMsg, 1, MaxStrLen(ImportEntry."Error Message"));
+        if (ErrorMsg <> '') and (DocNo <> '') then begin
+            ImportEntry.SetRange(Direction, Direction);
+            ImportEntry.SetRange("Document Type", Type);
+            ImportEntry.SetRange("Document No.", DocNo);
+            ImportEntry.SetRange("Event Type", EventType);
+            ImportEntry.SetRange("Error Message", ErrorMsg);
+            if not ImportEntry.IsEmpty() then begin
+                if PurchHeaderStaging."Entry No." <> 0 then
+                    PurchHeaderStaging.Delete(true);
+                if SalesHeaderStaging."Entry No." <> 0 then
+                    SalesHeaderStaging.Delete(true);
+                exit;
+            end;
+        end;
+
         JsonBody.WriteTo(s);
+        ImportEntry.Reset();
         ImportEntry.LockTable();
         if ImportEntry.FindLast() then
             EntryNo := ImportEntry."Entry No.";
@@ -1292,13 +1324,16 @@ codeunit 80000 "EE Fleetrock Mgt."
         ImportEntry."Entry No." := EntryNo;
         ImportEntry."Document Type" := Type;
         ImportEntry.Success := Success;
-        ImportEntry."Error Message" := CopyStr(ErrorMsg, 1, MaxStrLen(ImportEntry."Error Message"));
+        ImportEntry."Error Message" := ErrorMsg;
         ImportEntry."Import Entry No." := ImportEntryNo;
+        if DocNo <> '' then
+            ImportEntry."Document No." := DocNo;
         ImportEntry."Event Type" := EventType;
         ImportEntry.URL := CopyStr(URL, 1, MaxStrLen(ImportEntry.URL));
         ImportEntry.Method := CopyStr(Method, 1, MaxStrLen(ImportEntry.Method));
         ImportEntry."Request Body" := CopyStr(s, 1, MaxStrLen(ImportEntry."Request Body"));
         ImportEntry.Direction := Direction;
+
         ImportEntry.Insert(true);
     end;
 

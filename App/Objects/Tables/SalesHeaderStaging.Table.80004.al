@@ -329,6 +329,17 @@ table 80004 "EE Sales Header Staging"
         FormatDateValues();
     end;
 
+    trigger OnDelete()
+    var
+        PartLineStaging: Record "EE Part Line Staging";
+        TaskLineStaging: Record "EE Task Line Staging";
+    begin
+        PartLineStaging.SetRange("Header Entry No.", Rec."Entry No.");
+        PartLineStaging.DeleteAll(true);
+        TaskLineStaging.SetRange("Header Entry No.", Rec."Entry No.");
+        TaskLineStaging.DeleteAll(true);
+    end;
+
     procedure FormatDateValues()
     var
         TypeHelper: Codeunit "Type Helper";

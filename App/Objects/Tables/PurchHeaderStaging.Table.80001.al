@@ -175,6 +175,14 @@ table 80001 "EE Purch. Header Staging"
         FormatDateValues();
     end;
 
+    trigger OnDelete()
+    var
+        PurchLineStaging: Record "EE Purch. Line Staging";
+    begin
+        PurchLineStaging.SetRange("Header Entry No.", Rec."Entry No.");
+        PurchLineStaging.DeleteAll(true);
+    end;
+
     procedure FormatDateValues()
     var
         TypeHelper: Codeunit "Type Helper";

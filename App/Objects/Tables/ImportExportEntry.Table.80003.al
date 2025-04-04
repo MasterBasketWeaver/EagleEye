@@ -65,6 +65,11 @@ table 80003 "EE Import/Export Entry"
             DataClassification = CustomerContent;
             Editable = false;
         }
+        field(12; "Document No."; Code[20])
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
     }
 
     keys
