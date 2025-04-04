@@ -1,7 +1,10 @@
 codeunit 80006 "EE Upgrade"
 {
     Subtype = Upgrade;
-    Permissions = tabledata "EE Import/Export Entry" = RIMD;
+    Permissions = tabledata "EE Import/Export Entry" = RIMD,
+    tabledata "EE Sales Header Staging" = RM,
+    tabledata "EE Purch. Header Staging" = RM;
+
 
     trigger OnUpgradePerCompany()
     begin
@@ -11,6 +14,37 @@ codeunit 80006 "EE Upgrade"
     procedure UpdateData()
     begin
         // ClearGLSetups();
+        PopulateDocumentNos();
+    end;
+
+    local procedure PopulateDocumentNos()
+    var
+        ImportExportEntry: Record "EE Import/Export Entry";
+        PurchHeaderStaging: Record "EE Purch. Header Staging";
+        SalesHeaderStaging: Record "EE Sales Header Staging";
+    begin
+        ImportExportEntry.SetFilter("Document No.", '<>%1', '');
+        if not ImportExportEntry.IsEmpty() then
+            exit;
+
+        ImportExportEntry.SetRange("Document No.", '');
+        ImportExportEntry.SetFilter("Import Entry No.", '<>%1', 0);
+        ImportExportEntry.SetRange("Document Type", ImportExportEntry."Document Type"::"Repair Order");
+        if ImportExportEntry.FindSet() then
+            repeat
+                if SalesHeaderStaging.Get(ImportExportEntry."Import Entry No.") then begin
+                    ImportExportEntry."Document No." := SalesHeaderStaging."Document No.";
+                    ImportExportEntry.Modify(false);
+                end;
+            until ImportExportEntry.Next() = 0;
+        ImportExportEntry.SetRange("Document Type", ImportExportEntry."Document Type"::"Purchase Order");
+        if ImportExportEntry.FindSet() then
+            repeat
+                if PurchHeaderStaging.Get(ImportExportEntry."Import Entry No.") then begin
+                    ImportExportEntry."Document No." := PurchHeaderStaging."Document No.";
+                    ImportExportEntry.Modify(false);
+                end;
+            until ImportExportEntry.Next() = 0;
     end;
 
 
