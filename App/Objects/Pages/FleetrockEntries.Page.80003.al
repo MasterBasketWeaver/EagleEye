@@ -157,6 +157,7 @@ page 80003 "EE Fleetrock Entries"
                     Rec.SetRange("Import Entry No.", 0);
                     Rec.SetRange(Success, false);
                     Rec.DeleteAll(true);
+                    Rec.Reset();
                 end;
             }
         }
