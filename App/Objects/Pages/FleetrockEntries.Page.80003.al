@@ -28,6 +28,10 @@ page 80003 "EE Fleetrock Entries"
                 {
                     ApplicationArea = All;
                 }
+                field("Document No."; Rec."Document No.")
+                {
+                    ApplicationArea = all;
+                }
                 field("Event Type"; Rec."Event Type")
                 {
                     ApplicationArea = all;
@@ -134,6 +138,25 @@ page 80003 "EE Fleetrock Entries"
                 trigger OnAction()
                 begin
                     Message(Rec."Request Body");
+                end;
+            }
+            action("Clear Entries")
+            {
+                ApplicationArea = all;
+                Image = Delete;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+
+                trigger OnAction()
+                begin
+                    if not Confirm('Delete all invalid entries?') then
+                        exit;
+                    Rec.Reset();
+                    Rec.SetRange("Import Entry No.", 0);
+                    Rec.SetRange(Success, false);
+                    Rec.DeleteAll(true);
                 end;
             }
         }
