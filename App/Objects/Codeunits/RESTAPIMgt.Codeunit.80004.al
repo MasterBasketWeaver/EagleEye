@@ -94,22 +94,44 @@ codeunit 80004 "EE REST API Mgt."
     end;
 
     local procedure SendRequest(Method: Text; URL: Text; var ResponseText: Text; var Content: HttpContent; ContentLength: Integer): Boolean
+    begin
+
+    end;
+
+    local procedure SendRequest(Method: Text; URL: Text; var ResponseText: Text; var Content: HttpContent; ContentLength: Integer; UseBoundary: Boolean): Boolean
     var
         HttpClient: HttpClient;
         Headers: HttpHeaders;
         HttpRequestMessage: HttpRequestMessage;
         HttpResponseMessage: HttpResponseMessage;
+        ContentText: TextBuilder;
+        Boundary: Integer;
+        s: Text;
     begin
         HttpRequestMessage.SetRequestUri(URL);
         HttpRequestMessage.Method(Method);
 
-        if (Method <> 'GET') and (ContentLength > 0) then begin
-            HttpRequestMessage.Content(Content);
-            Content.GetHeaders(Headers);
-            AddHeader(Headers, 'Content-Type', 'multipart/form-data');
-            // AddHeader(Headers, 'Accept', 'application/json');
-            AddHeader(Headers, 'Content-Length', Format(ContentLength));
-        end;
+        if (Method <> 'GET') and (ContentLength > 0) then
+            if UseBoundary then begin
+                Boundary := Random(999999999);
+                while Boundary < 100000000 do
+                    Boundary := Boundary * 10;
+
+                ContentText.AppendLine(StrSubstNo('--%1', Boundary));
+                ContentText.AppendLine('Content-Type: application/json');
+                ContentText.AppendLine('');
+                Content.ReadAs(s);
+                ContentText.AppendLine(s);
+                ContentText.AppendLine(StrSubstNo('--%1--', Boundary));
+                Content.WriteFrom(ContentText.ToText());
+
+                HttpRequestMessage.Content(Content);
+                Content.GetHeaders(Headers);
+                AddHeader(Headers, 'Content-Type', StrSubstNo('multipart/form-data; boundary="%1"', Boundary));
+                AddHeader(Headers, 'Content-Length', Format(ContentText.Length()));
+            end else begin
+
+            end;
 
         if not HttpClient.Send(HttpRequestMessage, HttpResponseMessage) then begin
             ResponseText := StrSubstNo('Unable to send request:\%1', GetLastErrorText());

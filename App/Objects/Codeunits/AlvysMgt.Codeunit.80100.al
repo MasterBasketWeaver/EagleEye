@@ -44,6 +44,7 @@ codeunit 80100 "EE Alvys Mgt."
         //     "grant_type": "client_credentials"
         // }
 
+
         JsonBody.Add('tenant_id', AlvysSetup."Tenant ID");
         JsonBody.Add('client_id', AlvysSetup."Client ID");
         JsonBody.Add('client_secret', AlvysSetup."Client Secret");
