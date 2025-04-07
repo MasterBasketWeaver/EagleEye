@@ -31,6 +31,7 @@ codeunit 80100 "EE Alvys Mgt."
         HourDelay: Duration;
         SendTime: DateTime;
         JsonBody: JsonObject;
+        ContentBody: TextBuilder;
         URL: Text;
     begin
         SendTime := CurrentDateTime();
@@ -50,8 +51,15 @@ codeunit 80100 "EE Alvys Mgt."
         JsonBody.Add('client_secret', AlvysSetup."Client Secret");
         JsonBody.Add('grant_type', 'client_credentials');
 
+        // ContentBody.AppendLine(StrSubstNo('tenant_id: "%1"', AlvysSetup."Tenant ID"));
+        // ContentBody.AppendLine(StrSubstNo('client_id: "%1"', AlvysSetup."Client ID"));
+        // ContentBody.AppendLine(StrSubstNo('client_secret: "%1"', AlvysSetup."Client Secret"));
+        // ContentBody.AppendLine(StrSubstNo('grant_type: "%1"', 'client_credentials'));
 
+
+        // JsonTkn := RestAPIMgt.GetResponseWithFormDataBodyAsJsonToken('POST', URL, 'access_token', ContentBody);
         JsonTkn := RestAPIMgt.GetResponseWithJsonBodyAsJsonToken('POST', URL, 'access_token', JsonBody);
+
         JsonTkn.WriteTo(AlvysSetup."API Token");
 
         HourDelay := 3600;
