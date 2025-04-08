@@ -158,6 +158,10 @@ page 80003 "EE Fleetrock Entries"
                     Rec.SetRange(Success, false);
                     Rec.DeleteAll(true);
                     Rec.Reset();
+                    Rec.SetRange("Document No.", '');
+                    Rec.SetRange(Success, false);
+                    Rec.DeleteAll(true);
+                    Rec.Reset();
                 end;
             }
         }

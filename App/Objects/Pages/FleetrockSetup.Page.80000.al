@@ -115,6 +115,24 @@ page 80000 "EE Fleetrock Setup"
                     ApplicationArea = all;
                     Visible = Rec."Use API Token";
                 }
+                group("Vendor Account")
+                {
+                    field("Vendor Username"; Rec."Vendor Username")
+                    {
+                        ApplicationArea = All;
+                        ShowMandatory = true;
+                    }
+                    field("Vendor API Key"; Rec."Vendor API Key")
+                    {
+                        ApplicationArea = All;
+                        ShowMandatory = true;
+                    }
+                    field("Vendor API Token"; Rec."Vendor API Token")
+                    {
+                        ApplicationArea = All;
+                        Visible = Rec."Use API Token";
+                    }
+                }
             }
         }
     }
@@ -136,7 +154,7 @@ page 80000 "EE Fleetrock Setup"
                 var
                     FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
                 begin
-                    Message(FleetrockMgt.CheckToGetAPIToken(Rec));
+                    Message('Default: %1\Vendor: %2', FleetrockMgt.CheckToGetAPIToken(Rec), FleetrockMgt.CheckToGetAPIToken(Rec, true));
                     CurrPage.Update(false);
                 end;
             }

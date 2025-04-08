@@ -7,9 +7,9 @@ codeunit 80003 "EE Get Repair Orders"
     trigger OnRun()
     var
         SalesHeader: Record "Sales Header";
-        FleetRockMgt: Codeunit "EE Fleetrock Mgt.";
         ImportEntry: Record "EE Import/Export Entry";
         SalesHeaderStaging: Record "EE Sales Header Staging";
+        FleetRockMgt: Codeunit "EE Fleetrock Mgt.";
         OrderStatus: Enum "EE Repair Order Status";
         EventType: Enum "EE Event Type";
         JsonArry: JsonArray;

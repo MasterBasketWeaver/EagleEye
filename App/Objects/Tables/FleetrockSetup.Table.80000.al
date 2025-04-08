@@ -98,6 +98,20 @@ table 80000 "EE Fleetrock Setup"
         {
             DataClassification = CustomerContent;
         }
+
+        field(33; "Vendor Username"; Text[100])
+        {
+            DataClassification = CustomerContent;
+        }
+        field(34; "Vendor API Key"; Text[100])
+        {
+            DataClassification = CustomerContent;
+        }
+        field(35; "Vendor API Token"; Text[256])
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
     }
 
     keys

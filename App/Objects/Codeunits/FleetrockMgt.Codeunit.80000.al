@@ -21,38 +21,69 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
 
-
     local procedure GetAndCheckSetup()
+    begin
+        GetAndCheckSetup(false);
+    end;
+
+    local procedure GetAndCheckSetup(UseVendorKey: Boolean)
     begin
         FleetrockSetup.Get();
         FleetrockSetup.TestField("Integration URL");
-        FleetrockSetup.TestField("Username");
-        FleetrockSetup.TestField("API Key");
+        if UseVendorKey then begin
+            FleetrockSetup.TestField("Vendor Username");
+            FleetrockSetup.TestField("Vendor API Key");
+        end else begin
+            FleetrockSetup.TestField("Username");
+            FleetrockSetup.TestField("API Key");
+        end;
     end;
 
     procedure CheckToGetAPIToken(): Text
+    begin
+        exit(CheckToGetAPIToken(false));
+    end;
+
+    procedure CheckToGetAPIToken(UseVendorKey: Boolean): Text
     var
         ResponseText: Text;
     begin
-        GetAndCheckSetup();
+        GetAndCheckSetup(UseVendorKey);
         if not FleetrockSetup."Use API Token" then
-            exit(FleetrockSetup."API Key");
+            if UseVendorKey then
+                exit(FleetrockSetup."Vendor API Key")
+            else
+                exit(FleetrockSetup."API Key");
         if (FleetrockSetup."API Token" <> '') and (FleetrockSetup."API Token Expiry Date" >= Today()) then
             exit(FleetrockSetup."API Token");
-        exit(CheckToGetAPIToken(FleetrockSetup));
+        exit(CheckToGetAPIToken(FleetrockSetup, UseVendorKey));
     end;
 
     procedure CheckToGetAPIToken(var FleetrockSetup: Record "EE Fleetrock Setup"): Text
+    begin
+        exit(CheckToGetAPIToken(FleetrockSetup, false));
+    end;
+
+    procedure CheckToGetAPIToken(var FleetrockSetup: Record "EE Fleetrock Setup"; UseVendorKey: Boolean): Text
     var
         JsonTkn: JsonToken;
+        Username, APIKey, s : Text;
     begin
-        JsonTkn := RestAPIMgt.GetResponseAsJsonToken(FleetrockSetup, StrSubstNo('%1/API/GetToken?username=%2&key=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, FleetrockSetup."API Key"), 'token');
-        JsonTkn.WriteTo(FleetrockSetup."API Token");
-        FleetrockSetup.Validate("API Token", FleetrockSetup."API Token".Replace('"', ''));
-        FleetrockSetup.Validate("API Token Expiry Date", CalcDate('<+180D>', Today()));
-        FleetrockSetup.Validate("Use API Token", true);
+        if UseVendorKey then begin
+            Username := FleetrockSetup."Vendor Username";
+            APIKey := FleetrockSetup."Vendor API Key";
+        end else begin
+            Username := FleetrockSetup.Username;
+            APIKey := FleetrockSetup."API Key";
+        end;
+        JsonTkn := RestAPIMgt.GetResponseAsJsonToken(FleetrockSetup, StrSubstNo('%1/API/GetToken?username=%2&key=%3', FleetrockSetup."Integration URL", Username, APIKey), 'token');
+        JsonTkn.WriteTo(s);
+        s := s.Replace('"', '');
+        FleetrockSetup.Validate("API Token", s);
+        // FleetrockSetup.Validate("API Token Expiry Date", CalcDate('<+180D>', Today()));
+        // FleetrockSetup.Validate("Use API Token", true);
         FleetrockSetup.Modify(true);
-        exit(FleetrockSetup."API Token");
+        exit(s);
     end;
 
 
@@ -577,7 +608,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         APIToken: Text;
         EndDateTime: DateTime;
     begin
-        GetEventParameters(APIToken, StartDateTime, EndDateTime);
+        GetEventParameters(APIToken, StartDateTime, EndDateTime, false);
         URL := StrSubstNo('%1/API/GetPO?username=%2&event=%3&token=%4&start=%5&end=%6', FleetrockSetup."Integration URL",
             FleetrockSetup.Username, EventType, APIToken, Format(StartDateTime, 0, 9), Format(EndDateTime, 0, 9));
         exit(RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, URL, 'purchase_orders'));
@@ -601,7 +632,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         APIToken: Text;
         EndDateTime: DateTime;
     begin
-        GetEventParameters(APIToken, StartDateTime, EndDateTime);
+        GetEventParameters(APIToken, StartDateTime, EndDateTime, true);
         URL := StrSubstNo('%1/API/GetRO?username=%2&event=%3&token=%4&start=%5&end=%6', FleetrockSetup."Integration URL",
             FleetrockSetup.Username, Status, APIToken, Format(StartDateTime, 0, 9), Format(EndDateTime, 0, 9));
         exit(RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, URL, 'repair_orders'));
@@ -609,9 +640,11 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
 
-    local procedure GetEventParameters(var APIToken: Text; var StartDateTime: DateTime; var EndDateTime: DateTime)
+    local procedure GetEventParameters(var APIToken: Text; var StartDateTime: DateTime; var EndDateTime: DateTime; UseVendorKey: Boolean)
     begin
         APIToken := CheckToGetAPIToken();
+        if UseVendorKey then
+            CheckToGetAPIToken(true);
         if StartDateTime = 0DT then begin
             FleetrockSetup.TestField("Earliest Import DateTime");
             StartDateTime := FleetrockSetup."Earliest Import DateTime";
@@ -665,7 +698,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         TaskLineJsonObj, PartLineJsonObj, PartObj : JsonObject;
         T: JsonToken;
         RecVar: Variant;
-        APIToken: Text;
+        APIToken, VendorAPIToken : Text;
         LineEntryNo, PartEntryNo : Integer;
     begin
         SalesHeaderStaging.LockTable();
@@ -711,6 +744,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             TaskLineStaging.Insert(true);
             if TaskLineJsonObj.Get('parts', T) then begin
                 APIToken := CheckToGetAPIToken();
+                VendorAPIToken := CheckToGetAPIToken(true);
                 PartLines := T.AsArray();
                 foreach T in PartLines do begin
                     PartEntryNo += 1;
@@ -727,7 +761,8 @@ codeunit 80000 "EE Fleetrock Mgt."
                     if UnitCosts.ContainsKey(PartLineStaging.part_id) then
                         PartLineStaging."Unit Cost" := UnitCosts.Get(PartLineStaging.part_id)
                     else begin
-                        if TryToGetPart(PartLineStaging.part_id, APIToken, PartLineStaging."Loaded Part Details", PartObj) and PartLineStaging."Loaded Part Details" then
+                        ClearLastError();
+                        if TryToGetPart(PartLineStaging.part_id, VendorAPIToken, PartLineStaging."Loaded Part Details", PartObj) and PartLineStaging."Loaded Part Details" then
                             PartLineStaging."Unit Cost" := GetJsonValueAsDecimal(PartObj, 'part_cost')
                         else
                             PartLineStaging."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(PartLineStaging."Error Message"));
@@ -754,8 +789,8 @@ codeunit 80000 "EE Fleetrock Mgt."
         URL: Text;
     begin
         if APIToken = '' then
-            APIToken := CheckToGetAPIToken();
-        URL := StrSubstNo('%1/API/GetParts?username=%2&token=%3&id=%4', FleetrockSetup."Integration URL", FleetrockSetup.Username, APIToken, PartId);
+            APIToken := CheckToGetAPIToken(true);
+        URL := StrSubstNo('%1/API/GetParts?username=%2&token=%3&id=%4', FleetrockSetup."Integration URL", FleetrockSetup."Vendor Username", APIToken, PartId);
         JsonArry := RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, URL, 'parts');
         JsonArry.WriteTo(URL);
         if (JsonArry.Count() = 0) or not JsonArry.Get(0, JsonToken) then
@@ -1299,10 +1334,10 @@ codeunit 80000 "EE Fleetrock Mgt."
             end;
         end;
         ErrorMsg := CopyStr(ErrorMsg, 1, MaxStrLen(ImportEntry."Error Message"));
-        if (ErrorMsg <> '') and (DocNo <> '') then begin
+        if (ErrorMsg <> '') then begin
             ImportEntry.SetRange(Direction, Direction);
             ImportEntry.SetRange("Document Type", Type);
-            ImportEntry.SetRange("Document No.", DocNo);
+            ImportEntry.SetFilter("Document No.", DocNo);
             ImportEntry.SetRange("Event Type", EventType);
             ImportEntry.SetRange("Error Message", ErrorMsg);
             if not ImportEntry.IsEmpty() then begin
