@@ -1113,7 +1113,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         exit('other');
     end;
 
-    local procedure UpdateExtraPurchaseLines(var PurchaseLine: Record "Purchase Line"; var PurchaseHeaderStaging: Record "EE Purch. Header Staging"; DocNo: Code[20]; LineNo: Integer; LineID: Code[20]; Amount: Decimal; Descr: Text)
+    local procedure UpdateExtraPurchaseLines(var PurchaseLine: Record "Purchase Line"; var PurchaseHeaderStaging: Record "EE Purch. Header Staging"; DocNo: Code[20]; var LineNo: Integer; LineID: Code[20]; Amount: Decimal; Descr: Text)
     begin
         PurchaseLine.SetRange("EE Part Id", LineID);
         if Amount <> 0 then begin

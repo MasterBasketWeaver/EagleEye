@@ -83,37 +83,22 @@ page 80000 "EE Fleetrock Setup"
                     ApplicationArea = All;
                     ShowMandatory = true;
                 }
-                field("Username"; Rec.Username)
-                {
-                    ApplicationArea = All;
-                    ShowMandatory = true;
-                }
-                field("API Key"; Rec."API Key")
-                {
-                    ApplicationArea = All;
-                    ShowMandatory = true;
-                }
                 field("Earliest Import DateTime"; Rec."Earliest Import DateTime")
                 {
                     ApplicationArea = all;
                 }
-                field("Use API Token"; Rec."Use API Token")
+                group("Customer Account")
                 {
-                    ApplicationArea = all;
-                    trigger OnValidate()
-                    begin
-                        CurrPage.Update(false);
-                    end;
-                }
-                field("API Token"; Rec."API Token")
-                {
-                    ApplicationArea = All;
-                    Visible = Rec."Use API Token";
-                }
-                field("API Token Expiry Date"; Rec."API Token Expiry Date")
-                {
-                    ApplicationArea = all;
-                    Visible = Rec."Use API Token";
+                    field("Username"; Rec.Username)
+                    {
+                        ApplicationArea = All;
+                        ShowMandatory = true;
+                    }
+                    field("API Key"; Rec."API Key")
+                    {
+                        ApplicationArea = All;
+                        ShowMandatory = true;
+                    }
                 }
                 group("Vendor Account")
                 {
@@ -130,6 +115,27 @@ page 80000 "EE Fleetrock Setup"
                     field("Vendor API Token"; Rec."Vendor API Token")
                     {
                         ApplicationArea = All;
+                        Visible = Rec."Use API Token";
+                    }
+                }
+                group(Token)
+                {
+                    field("Use API Token"; Rec."Use API Token")
+                    {
+                        ApplicationArea = all;
+                        trigger OnValidate()
+                        begin
+                            CurrPage.Update(false);
+                        end;
+                    }
+                    field("API Token"; Rec."API Token")
+                    {
+                        ApplicationArea = All;
+                        Visible = Rec."Use API Token";
+                    }
+                    field("API Token Expiry Date"; Rec."API Token Expiry Date")
+                    {
+                        ApplicationArea = all;
                         Visible = Rec."Use API Token";
                     }
                 }
