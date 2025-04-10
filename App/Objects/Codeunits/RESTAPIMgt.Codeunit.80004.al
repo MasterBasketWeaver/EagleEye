@@ -18,13 +18,13 @@ codeunit 80004 "EE REST API Mgt."
         exit(JsonTkn);
     end;
 
-    procedure GetResponseWithFormDataBodyAsJsonToken(Method: Text; URL: Text; TokenName: Text; var ContentBody: TextBuilder): Variant
+    procedure GetResponseWithFormDataBodyAsJsonToken(Method: Text; URL: Text; TokenName: Text; var FormData: Dictionary of [Text, Text]): Variant
     var
         ResponseText: Text;
         JsonObj: JsonObject;
         JsonTkn: JsonToken;
     begin
-        if not SendRequestWithFormDataBody(Method, URL, ContentBody, ResponseText) then
+        if not SendFormDataRequest(Method, URL, FormData, ResponseText) then
             Error(ResponseText);
         JsonObj.ReadFrom(ResponseText);
         if not JsonObj.Get(TokenName, JsonTkn) then begin
@@ -110,13 +110,12 @@ codeunit 80004 "EE REST API Mgt."
         exit(SendRequest(Method, URL, ResponseText, Content, StrLen(s), UseBoundary));
     end;
 
-    local procedure SendRequestWithFormDataBody(Method: Text; URL: Text; var ContentBody: TextBuilder; var ResponseText: Text): Boolean
-    var
-        Content: HttpContent;
-    begin
-        Content.WriteFrom(ContentBody.ToText());
-        exit(SendRequest(Method, URL, ResponseText, Content, ContentBody.Length(), true));
-    end;
+    // local procedure SendRequestWithFormDataBody(Method: Text; URL: Text; var FormData: Dictionary of [Text, Text];; var ResponseText: Text): Boolean
+    // var
+    // begin
+    //     exit(SendFormDataRequest(Method, URL, FormData, ResponseText));
+    //     // exit(SendRequest(Method, URL, ResponseText, Content, ContentBody.Length(), true));
+    // end;
 
     local procedure SendRequest(Method: Text; URL: Text; var ResponseText: Text): Boolean
     var
@@ -129,6 +128,10 @@ codeunit 80004 "EE REST API Mgt."
     begin
         SendRequest(Method, URL, ResponseText, Content, ContentLength, false);
     end;
+
+
+
+
 
     local procedure SendRequest(Method: Text; URL: Text; var ResponseText: Text; var Content: HttpContent; ContentLength: Integer; UseBoundary: Boolean): Boolean
     var
@@ -172,7 +175,7 @@ codeunit 80004 "EE REST API Mgt."
                 AddHeader(Headers, 'Content-Type', StrSubstNo('multipart/form-data; boundary="%1"', Boundary));
                 AddHeader(Headers, 'Content-Length', Format(ContentText.Length()));
                 HttpRequestMessage.GetHeaders(Headers);
-                AddHeader(Headers, 'Host', 'integrations.alvys.com');
+                // AddHeader(Headers, 'Host', 'integrations.alvys.com');
             end else begin
                 HttpRequestMessage.Content(Content);
                 Content.GetHeaders(Headers);
@@ -180,11 +183,8 @@ codeunit 80004 "EE REST API Mgt."
                 AddHeader(Headers, 'Content-Length', Format(ContentLength));
             end;
 
+        // Send the request
         if not HttpClient.Send(HttpRequestMessage, HttpResponseMessage) then begin
-
-            if not Confirm('failed') then
-                Error('');
-
             ResponseText := StrSubstNo('Unable to send request:\%1', GetLastErrorText());
             exit(false);
         end;
@@ -198,5 +198,66 @@ codeunit 80004 "EE REST API Mgt."
         if Headers.Contains(KeyName) then
             Headers.Remove(KeyName);
         Headers.Add(KeyName, ValueName);
+    end;
+
+    local procedure SendFormDataRequest(Method: Text; URL: Text; var FormData: Dictionary of [Text, Text]; var ResponseText: Text): Boolean
+    var
+        HttpClient: HttpClient;
+        Headers: HttpHeaders;
+        HttpRequestMessage: HttpRequestMessage;
+        HttpResponseMessage: HttpResponseMessage;
+        Content: HttpContent;
+        ContentText: TextBuilder;
+        Boundary: Integer;
+        FormKey: Text;
+        FormValue: Text;
+    begin
+        HttpRequestMessage.SetRequestUri(URL);
+        HttpRequestMessage.Method(Method);
+
+        Boundary := GenerateBoundary();
+        foreach FormKey in FormData.Keys do begin
+            FormData.Get(FormKey, FormValue);
+            ContentText.AppendLine(StrSubstNo('--%1', Boundary));
+            ContentText.AppendLine(StrSubstNo('Content-Disposition: form-data; %1: "%2"', FormKey, FormValue));
+            ContentText.AppendLine('');
+            // ContentText.AppendLine(FormValue);
+            //tenant_id: "EA455"
+        end;
+        ContentText.AppendLine(StrSubstNo('--%1--', Boundary));
+
+        if not Confirm(ContentText.ToText()) then
+            Error('');
+
+        // Set the content
+        Content.WriteFrom(ContentText.ToText());
+        HttpRequestMessage.Content(Content);
+
+        // Set headers
+        Content.GetHeaders(Headers);
+        AddHeader(Headers, 'Content-Type', StrSubstNo('multipart/form-data; boundary="%1"', Boundary));
+        AddHeader(Headers, 'Content-Length', Format(ContentText.Length()));
+        HttpRequestMessage.GetHeaders(Headers);
+        // AddHeader(Headers, 'Host', 'integrations.alvys.com');
+
+        // Send the request
+        if not HttpClient.Send(HttpRequestMessage, HttpResponseMessage) then begin
+            ResponseText := StrSubstNo('Unable to send request:\%1', GetLastErrorText());
+            exit(false);
+        end;
+
+        HttpResponseMessage.Content().ReadAs(ResponseText);
+        exit(HttpResponseMessage.IsSuccessStatusCode());
+    end;
+
+    local procedure GenerateBoundary(): Integer
+    var
+        Boundary: Integer;
+    begin
+        Randomize();
+        Boundary := Random(999999999);
+        while Boundary < 100000000 do
+            Boundary := Boundary * 10 + Random(10) - 1;
+        exit(Boundary);
     end;
 }
