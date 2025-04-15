@@ -118,17 +118,26 @@ codeunit 80000 "EE Fleetrock Mgt."
         exit(EntryNo);
     end;
 
+
+
+
+    local procedure CheckPurchaseOrderSetup()
+    begin
+        FleetrockSetup.TestField("Purchase Item No.");
+        FleetrockSetup.TestField("Vendor Posting Group");
+        FleetrockSetup.TestField("Tax Area Code");
+        FleetrockSetup.TestField("Non-Taxable Tax Group Code");
+        FleetrockSetup.TestField("Payment Terms");
+    end;
+
     procedure CreatePurchaseOrder(var PurchHeaderStaging: Record "EE Purch. Header Staging")
     var
         PurchaseHeader: Record "Purchase Header";
         DocNo: Code[20];
     begin
         GetAndCheckSetup();
-        FleetrockSetup.TestField("Purchase Item No.");
-        FleetrockSetup.TestField("Vendor Posting Group");
-        // FleetrockSetup.TestField("Tax Group Code");
-        // FleetrockSetup.TestField("Tax Area Code");
-        FleetrockSetup.TestField("Payment Terms");
+        CheckPurchaseOrderSetup();
+
         if not TryToCreatePurchaseOrder(PurchHeaderStaging, DocNo) then begin
             PurchHeaderStaging."Processed Error" := true;
             PurchHeaderStaging."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(PurchHeaderStaging."Error Message"));
@@ -178,10 +187,7 @@ codeunit 80000 "EE Fleetrock Mgt."
                 PurchaseHeader.Validate("Payment Terms Code", GetPaymentTerms(PurchHeaderStaging.payment_term_days));
         PurchaseHeader.Validate("EE Fleetrock ID", PurchHeaderStaging.id);
         if PurchHeaderStaging.invoice_number <> '' then
-            PurchaseHeader.Validate("Vendor Invoice No.", PurchHeaderStaging.invoice_number)
-        else
-            PurchaseHeader.Validate("Vendor Invoice No.", PurchHeaderStaging.id);
-        // PurchaseHeader.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
+            PurchaseHeader.Validate("Vendor Invoice No.", PurchHeaderStaging.invoice_number);
         PurchaseHeader.Modify(true);
         CreatePurchaseLines(PurchHeaderStaging, DocNo);
     end;
@@ -812,12 +818,8 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
 
-    procedure CreateSalesOrder(var SalesHeaderStaging: Record "EE Sales Header Staging")
-    var
-        SalesaseHeader: Record "Sales Header";
-        DocNo: Code[20];
+    local procedure CheckRepairOrderSetup()
     begin
-        GetAndCheckSetup();
         FleetrockSetup.TestField("External Labor Item No.");
         FleetrockSetup.TestField("External Parts Item No.");
         if FleetrockSetup."Internal Customer Names" <> '' then begin
@@ -832,6 +834,16 @@ codeunit 80000 "EE Fleetrock Mgt."
         FleetrockSetup.TestField("Fees Tax Group Code");
         FleetrockSetup.TestField("Non-Taxable Tax Group Code");
         FleetrockSetup.TestField("Payment Terms");
+    end;
+
+
+    procedure CreateSalesOrder(var SalesHeaderStaging: Record "EE Sales Header Staging")
+    var
+        SalesaseHeader: Record "Sales Header";
+        DocNo: Code[20];
+    begin
+        GetAndCheckSetup();
+        CheckRepairOrderSetup();
         if not TryToCreateSalesOrder(SalesHeaderStaging, DocNo) then begin
             SalesHeaderStaging."Processed Error" := true;
             SalesHeaderStaging."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(SalesHeaderStaging."Error Message"));
@@ -1046,6 +1058,8 @@ codeunit 80000 "EE Fleetrock Mgt."
         PartLineStaging: Record "EE Part Line Staging";
         LineNo, DescrLength : Integer;
     begin
+        GetAndCheckSetup();
+        CheckRepairOrderSetup();
         SalesHeader.Get(SalesHeader."Document Type"::Invoice, DocNo);
         SalesHeader.SetHideValidationDialog(true);
         SalesHeader.Validate("Posting Date", DT2Date(SalesHeaderStaging."Invoiced At"));
@@ -1135,16 +1149,15 @@ codeunit 80000 "EE Fleetrock Mgt."
         ClosedDate: Date;
         LineNo: Integer;
     begin
+        GetAndCheckSetup();
+        CheckPurchaseOrderSetup();
         PurchaseHeader.SetHideValidationDialog(true);
         ClosedDate := DT2Date(PurchaseHeaderStaging.Closed);
         if ClosedDate <> 0D then
             PurchaseHeader.Validate("Posting Date", ClosedDate);
-        if PurchaseHeaderStaging.invoice_number <> '' then begin
+        if PurchaseHeaderStaging.invoice_number <> '' then
             if PurchaseHeaderStaging.invoice_number <> PurchaseHeader."Vendor Invoice No." then
                 PurchaseHeader.Validate("Vendor Invoice No.", PurchaseHeaderStaging.invoice_number);
-        end else
-            if PurchaseHeaderStaging.id <> PurchaseHeader."Vendor Invoice No." then
-                PurchaseHeader.Validate("Vendor Invoice No.", PurchaseHeaderStaging.id);
         PurchaseHeader.Modify(true);
 
         PurchaseHeaderStaging.Processed := true;
@@ -1239,6 +1252,8 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchaseLine.Validate("Unit Cost", PurchLineStaging.unit_price);
         PurchaseLine.Validate("Direct Unit Cost", PurchLineStaging.unit_price);
         PurchaseLine.Description := CopyStr(PurchLineStaging.part_description, 1, MaxStrLen(PurchaseLine.Description));
+        PurchaseLine.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
+        PurchaseLine.Validate("Tax Group Code", FleetrockSetup."Non-Taxable Tax Group Code");
         PurchaseLine.Validate("EE Part Id", PurchLineStaging.part_id);
         PurchaseLine.Insert(true);
     end;
