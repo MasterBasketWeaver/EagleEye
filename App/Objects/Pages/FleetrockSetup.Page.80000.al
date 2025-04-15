@@ -9,7 +9,7 @@ page 80000 "EE Fleetrock Setup"
     {
         area(Content)
         {
-            group("G/L Mappings")
+            group("Item & G/L Mappings")
             {
                 group("Purchase Orders")
                 {
@@ -45,6 +45,25 @@ page 80000 "EE Fleetrock Setup"
                         ApplicationArea = all;
                         ShowMandatory = true;
                     }
+                    field("Labor Cost"; Rec."Labor Cost")
+                    {
+                        ApplicationArea = all;
+                    }
+                    group("Fees")
+                    {
+                        field("Additional Fee's G/L No."; Rec."Additional Fee's G/L No.")
+                        {
+                            ApplicationArea = all;
+                        }
+                        // field("Administration G/L No."; Rec."Administration G/L No.")
+                        // {
+                        //     ApplicationArea = all;
+                        // }
+                        // field("Diagnostic G/L No."; Rec."Diagnostic G/L No.")
+                        // {
+                        //     ApplicationArea = all;
+                        // }
+                    }
                 }
             }
 
@@ -60,20 +79,43 @@ page 80000 "EE Fleetrock Setup"
                     ApplicationArea = all;
                     ShowMandatory = true;
                 }
-                field("Tax Group Code"; Rec."Tax Group Code")
-                {
-                    ApplicationArea = all;
-                    ShowMandatory = true;
-                }
-                field("Tax Area Code"; Rec."Tax Area Code")
-                {
-                    ApplicationArea = all;
-                    ShowMandatory = true;
-                }
                 field("Payment Terms"; Rec."Payment Terms")
                 {
                     ApplicationArea = all;
                     ShowMandatory = true;
+                }
+                group("Taxes")
+                {
+                    field("Tax Jurisdiction Code"; Rec."Tax Jurisdiction Code")
+                    {
+                        ApplicationArea = all;
+                        ShowMandatory = true;
+                    }
+                    field("Tax Area Code"; Rec."Tax Area Code")
+                    {
+                        ApplicationArea = all;
+                        ShowMandatory = true;
+                    }
+                    field("Labor Tax Group Code"; Rec."Labor Tax Group Code")
+                    {
+                        ApplicationArea = all;
+                        ShowMandatory = true;
+                    }
+                    field("Parts Tax Group Code"; Rec."Parts Tax Group Code")
+                    {
+                        ApplicationArea = all;
+                        ShowMandatory = true;
+                    }
+                    field("Fees Tax Group Code"; Rec."Fees Tax Group Code")
+                    {
+                        ApplicationArea = all;
+                        ShowMandatory = true;
+                    }
+                    field("Non-Taxable Tax Group Code"; Rec."Non-Taxable Tax Group Code")
+                    {
+                        ApplicationArea = all;
+                        ShowMandatory = true;
+                    }
                 }
             }
             group(Integration)

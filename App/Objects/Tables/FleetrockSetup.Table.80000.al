@@ -49,11 +49,7 @@ table 80000 "EE Fleetrock Setup"
             DataClassification = CustomerContent;
             TableRelation = "Tax Area".Code;
         }
-        field(10; "Tax Group Code"; Code[20])
-        {
-            DataClassification = CustomerContent;
-            TableRelation = "Tax Group".Code;
-        }
+
         field(11; "Use API Token"; boolean)
         {
             DataClassification = CustomerContent;
@@ -61,6 +57,11 @@ table 80000 "EE Fleetrock Setup"
         field(12; "Earliest Import DateTime"; DateTime)
         {
             DataClassification = CustomerContent;
+        }
+        field(13; "Tax Jurisdiction Code"; Code[10])
+        {
+            DataClassification = CustomerContent;
+            TableRelation = "Tax Jurisdiction".Code;
         }
 
         field(14; "Customer Posting Group"; Code[20])
@@ -111,6 +112,47 @@ table 80000 "EE Fleetrock Setup"
         {
             DataClassification = CustomerContent;
             Editable = false;
+        }
+        field(40; "Additional Fee's G/L No."; Code[20])
+        {
+            DataClassification = CustomerContent;
+            TableRelation = "G/L Account"."No." where(Blocked = const(false), "Account Type" = const(Posting));
+        }
+        // field(41; "Administration G/L No."; Code[20])
+        // {
+        //     DataClassification = CustomerContent;
+        //     TableRelation = "G/L Account"."No." where(Blocked = const(false), "Account Type" = const(Posting));
+        // }
+        // field(42; "Diagnostic G/L No."; Code[20])
+        // {
+        //     DataClassification = CustomerContent;
+        //     TableRelation = "G/L Account"."No." where(Blocked = const(false), "Account Type" = const(Posting));
+        // }
+        field(50; "Labor Cost"; Decimal)
+        {
+            DataClassification = CustomerContent;
+            MinValue = 0;
+            DecimalPlaces = 0 : 2;
+        }
+        field(51; "Labor Tax Group Code"; Code[20])
+        {
+            DataClassification = CustomerContent;
+            TableRelation = "Tax Group".Code;
+        }
+        field(52; "Parts Tax Group Code"; Code[20])
+        {
+            DataClassification = CustomerContent;
+            TableRelation = "Tax Group".Code;
+        }
+        field(53; "Fees Tax Group Code"; Code[20])
+        {
+            DataClassification = CustomerContent;
+            TableRelation = "Tax Group".Code;
+        }
+        field(54; "Non-Taxable Tax Group Code"; Code[20])
+        {
+            DataClassification = CustomerContent;
+            TableRelation = "Tax Group".Code;
         }
     }
 

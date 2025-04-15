@@ -825,8 +825,12 @@ codeunit 80000 "EE Fleetrock Mgt."
             FleetrockSetup.TestField("Internal Parts Item No.");
         end;
         FleetrockSetup.TestField("Customer Posting Group");
-        FleetrockSetup.TestField("Tax Group Code");
+        FleetrockSetup.TestField("Tax Jurisdiction Code");
         FleetrockSetup.TestField("Tax Area Code");
+        FleetrockSetup.TestField("Labor Tax Group Code");
+        FleetrockSetup.TestField("Parts Tax Group Code");
+        FleetrockSetup.TestField("Fees Tax Group Code");
+        FleetrockSetup.TestField("Non-Taxable Tax Group Code");
         FleetrockSetup.TestField("Payment Terms");
         if not TryToCreateSalesOrder(SalesHeaderStaging, DocNo) then begin
             SalesHeaderStaging."Processed Error" := true;
@@ -909,6 +913,8 @@ codeunit 80000 "EE Fleetrock Mgt."
                     until PartLineStaging.Next() = 0;
             end;
         until TaskLineStaging.Next() = 0;
+        if SalesHeaderStaging.additional_charges > 0 then
+            AddFeeSalesLine(SalesLine, DocNo, LineNo, SalesHeaderStaging.additional_charges, SalesHeaderStaging.additional_charges_tax_rate);
     end;
 
     local procedure AddTaskSalesLine(var SalesLine: Record "Sales Line"; var TaskLineStaging: Record "EE Task Line Staging"; DocNo: Code[20]; var LineNo: Integer; Internal: Boolean)
@@ -927,8 +933,17 @@ codeunit 80000 "EE Fleetrock Mgt."
             SalesLine.Validate("No.", FleetRockSetup."External Labor Item No.");
         SalesLine.Validate(Quantity, TaskLineStaging.labor_hours);
         SalesLine.Validate("Unit Price", TaskLineStaging.labor_hourly_rate);
+        if FleetrockSetup."Labor Cost" <> 0 then
+            SalesLine.Validate("Unit Cost (LCY)", FleetrockSetup."Labor Cost");
         SalesLine.Description := CopyStr(TaskLineStaging.labor_system_code, 1, MaxStrLen(SalesLine.Description));
-        SalesLine.Validate("Tax Group Code", FleetrockSetup."Tax Group Code");
+
+        if TaskLineStaging.labor_tax_rate > 0 then begin
+            CheckToAddNewTaxRate(FleetrockSetup."Tax Jurisdiction Code", FleetrockSetup."Labor Tax Group Code", TaskLineStaging.labor_tax_rate);
+            SalesLine.Validate("Tax Group Code", FleetrockSetup."Labor Tax Group Code")
+        end else
+            SalesLine.Validate("Tax Group Code", FleetrockSetup."Non-Taxable Tax Group Code");
+        SalesLine.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
+
         SalesLine.Validate("EE Task/Part Id", TaskLineStaging.task_id);
         SalesLine.Insert(true);
     end;
@@ -949,13 +964,76 @@ codeunit 80000 "EE Fleetrock Mgt."
             SalesLine.Validate("No.", FleetRockSetup."External Parts Item No.");
         SalesLine.Validate(Quantity, PartLineStaging.part_quantity);
         if PartLineStaging."Unit Cost" <> 0 then
-            SalesLine.Validate("Unit Cost", PartLineStaging."Unit Cost");
+            SalesLine.Validate("Unit Cost (LCY)", PartLineStaging."Unit Cost");
         SalesLine.Validate("Unit Price", PartLineStaging.part_price);
         SalesLine.Description := CopyStr(PartLineStaging.part_description, 1, MaxStrLen(SalesLine.Description));
-        SalesLine.Validate("Tax Group Code", FleetrockSetup."Tax Group Code");
+
+        if PartLineStaging.part_tax_rate > 0 then begin
+            CheckToAddNewTaxRate(FleetrockSetup."Tax Jurisdiction Code", FleetrockSetup."Parts Tax Group Code", PartLineStaging.part_tax_rate);
+            SalesLine.Validate("Tax Group Code", FleetrockSetup."Parts Tax Group Code");
+        end else
+            SalesLine.Validate("Tax Group Code", FleetrockSetup."Non-Taxable Tax Group Code");
+        SalesLine.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
+
         SalesLine.Validate("EE Task/Part Id", PartLineStaging.part_id);
         SalesLine.Insert(true);
     end;
+
+    local procedure AddFeeSalesLine(var SalesLine: Record "Sales Line"; DocNo: Code[20]; var LineNo: Integer; FeeAmount: Decimal; FeeTaxRate: Decimal)
+    begin
+        LineNo += 10000;
+        SalesLine.Init();
+        SalesLine.Validate("Document Type", Enum::"Sales Document Type"::Invoice);
+        SalesLine.Validate("Document No.", DocNo);
+        SalesLine.Validate("Line No.", LineNo);
+        SalesLine.Validate(Type, SalesLine.Type::"G/L Account");
+        SalesLine.Validate("No.", FleetRockSetup."Additional Fee's G/L No.");
+        SalesLine.Validate(Quantity, 1);
+        SalesLine.Validate("Unit Price", FeeAmount);
+        SalesLine.Description := 'Additional Fees';
+
+        if FeeTaxRate > 0 then begin
+            CheckToAddNewTaxRate(FleetrockSetup."Tax Jurisdiction Code", FleetrockSetup."Fees Tax Group Code", FeeTaxRate);
+            SalesLine.Validate("Tax Group Code", FleetrockSetup."Fees Tax Group Code");
+        end else
+            SalesLine.Validate("Tax Group Code", FleetrockSetup."Non-Taxable Tax Group Code");
+        SalesLine.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
+
+        SalesLine.Validate("EE Task/Part Id", GetFeesLineID());
+        SalesLine.Insert(true);
+    end;
+
+
+
+
+    local procedure CheckToAddNewTaxRate(TaxJuriCode: Code[10]; TaxGroupCode: Code[20]; TaxAmount: Decimal)
+    var
+        TaxDetail: Record "Tax Detail";
+    begin
+        TaxDetail.SetRange("Tax Jurisdiction Code", TaxJuriCode);
+        TaxDetail.SetRange("Tax Group Code", TaxGroupCode);
+        TaxDetail.SetRange("Tax Type", TaxDetail."Tax Type"::"Sales and Use Tax");
+        if TaxDetail.FindFirst() then begin
+            TaxDetail.Validate("Tax Below Maximum", TaxAmount);
+            TaxDetail.Modify(true);
+        end else
+            AddTaxDetail(TaxJuriCode, TaxGroupCode, TaxAmount);
+    end;
+
+    local procedure AddTaxDetail(TaxJuriCode: Code[10]; TaxGroupCode: Code[20]; TaxAmount: Decimal)
+    var
+        TaxDetail: Record "Tax Detail";
+    begin
+        TaxDetail.Init();
+        TaxDetail.Validate("Tax Jurisdiction Code", TaxJuriCode);
+        TaxDetail.Validate("Tax Group Code", TaxGroupCode);
+        TaxDetail.Validate("Tax Type", TaxDetail."Tax Type"::"Sales and Use Tax");
+        TaxDetail.Validate("Tax Below Maximum", TaxAmount);
+        TaxDetail.Insert(true);
+    end;
+
+
+
 
 
 
@@ -976,6 +1054,21 @@ codeunit 80000 "EE Fleetrock Mgt."
             SalesHeaderStaging.Validate("Document No.", SalesHeader."No.");
             SalesHeaderStaging.Modify(true);
         end;
+        SalesLine.SetRange("Document Type", SalesHeader."Document Type");
+        SalesLine.SetRange("Document No.", SalesHeader."No.");
+        if SalesLine.FindLast() then
+            LineNo := SalesLine."Line No.";
+        SalesLine.SetRange("EE Task/Part Id", GetFeesLineID());
+        if SalesHeaderStaging.additional_charges <> 0 then
+            if SalesLine.FindFirst() then begin
+                SalesLine.Validate("Unit Price", SalesHeaderStaging.additional_charges);
+                SalesLine.Modify(true);
+            end else
+                AddFeeSalesLine(SalesLine, SalesHeader."No.", LineNo, SalesHeaderStaging.additional_charges, SalesHeaderStaging.additional_charges_tax_rate)
+        else
+            if SalesLine.FindFirst() then
+                SalesLine.Delete(true);
+
         TaskLineStaging.SetCurrentKey("Header Id", "Header Entry No.");
         TaskLineStaging.SetRange("Header Id", SalesHeaderStaging.id);
         TaskLineStaging.SetRange("Header Entry No.", SalesHeaderStaging."Entry No.");
@@ -985,10 +1078,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         PartLineStaging.SetCurrentKey("Header Id", "Header Entry No.", "Task Entry No.", "Task Id");
         PartLineStaging.SetRange("Header Id", SalesHeaderStaging.id);
         PartLineStaging.SetRange("Header Entry No.", SalesHeaderStaging."Entry No.");
-        SalesLine.SetRange("Document Type", SalesHeader."Document Type");
-        SalesLine.SetRange("Document No.", SalesHeader."No.");
-        if SalesLine.FindLast() then
-            LineNo := SalesLine."Line No.";
+
         DescrLength := MaxStrLen(SalesLine.Description);
         repeat
             SalesLine.SetRange("EE Task/Part Id", TaskLineStaging.task_id);
@@ -1013,7 +1103,7 @@ codeunit 80000 "EE Fleetrock Mgt."
                         end else begin
                             SalesLine.Validate(Quantity, PartLineStaging.part_quantity);
                             if PartLineStaging."Unit Cost" <> 0 then
-                                SalesLine.Validate("Unit Cost", PartLineStaging."Unit Cost");
+                                SalesLine.Validate("Unit Cost (LCY)", PartLineStaging."Unit Cost");
                             SalesLine.Validate("Unit Price", PartLineStaging.part_price);
                             SalesLine.Description := CopyStr(PartLineStaging.part_description, 1, DescrLength);
                             SalesLine.Modify(true);
@@ -1061,6 +1151,11 @@ codeunit 80000 "EE Fleetrock Mgt."
         if PurchaseHeaderStaging."Document No." <> PurchaseHeader."No." then
             PurchaseHeaderStaging.Validate("Document No.", PurchaseHeader."No.");
         PurchaseHeaderStaging.Modify(true);
+
+        UpdateExtraPurchaseLines(PurchaseLine, PurchaseHeaderStaging, PurchaseHeader."No.", LineNo, GetTaxLineID(), PurchaseHeaderStaging.tax_total, 'Taxes');
+        UpdateExtraPurchaseLines(PurchaseLine, PurchaseHeaderStaging, PurchaseHeader."No.", LineNo, GetShippingLineID(), PurchaseHeaderStaging.shipping_total, 'Shipping');
+        UpdateExtraPurchaseLines(PurchaseLine, PurchaseHeaderStaging, PurchaseHeader."No.", LineNo, GetOtherLineID(), PurchaseHeaderStaging.other_total, 'Other Charges');
+
         PurchLineStaging.SetCurrentKey("Header Id", "Header Entry No.");
         PurchLineStaging.SetRange("Header Id", PurchaseHeaderStaging.id);
         PurchLineStaging.SetRange("Header Entry No.", PurchaseHeaderStaging."Entry No.");
@@ -1091,10 +1186,6 @@ codeunit 80000 "EE Fleetrock Mgt."
                 if PurchLineStaging.IsEmpty() then
                     PurchaseLine.Delete(true);
             until PurchaseLine.Next() = 0;
-
-        UpdateExtraPurchaseLines(PurchaseLine, PurchaseHeaderStaging, PurchaseHeader."No.", LineNo, GetTaxLineID(), PurchaseHeaderStaging.tax_total, 'Taxes');
-        UpdateExtraPurchaseLines(PurchaseLine, PurchaseHeaderStaging, PurchaseHeader."No.", LineNo, GetShippingLineID(), PurchaseHeaderStaging.shipping_total, 'Shipping');
-        UpdateExtraPurchaseLines(PurchaseLine, PurchaseHeaderStaging, PurchaseHeader."No.", LineNo, GetOtherLineID(), PurchaseHeaderStaging.other_total, 'Other Charges');
     end;
 
 
@@ -1112,6 +1203,12 @@ codeunit 80000 "EE Fleetrock Mgt."
     begin
         exit('other');
     end;
+
+    local procedure GetFeesLineID(): Code[20]
+    begin
+        exit('fees');
+    end;
+
 
     local procedure UpdateExtraPurchaseLines(var PurchaseLine: Record "Purchase Line"; var PurchaseHeaderStaging: Record "EE Purch. Header Staging"; DocNo: Code[20]; var LineNo: Integer; LineID: Code[20]; Amount: Decimal; Descr: Text)
     begin

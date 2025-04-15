@@ -13,11 +13,12 @@
             "startupObjectId": 80000,
             "startupObjectType": "Page",
             // "startupCompany": "Test - Eagle Eye Logistics",
+            "startupCompany": "CRONUS USA, Inc.",
             "breakOnError": "All",
             "launchBrowser": false,
             "enableLongRunningSqlStatements": true,
             "enableSqlInformationDebugger": true,
-            // "schemaUpdateMode": "ForceSync"
+            "schemaUpdateMode": "ForceSync"
         }
         // ,
         // {

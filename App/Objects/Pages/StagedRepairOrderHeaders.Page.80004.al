@@ -300,6 +300,26 @@ page 80004 "EE Staged Repair Order Headers"
                     Message(Rec."Error Message");
                 end;
             }
+            action("Create Invoice")
+            {
+                ApplicationArea = all;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                Image = Invoice;
+
+                trigger OnAction()
+                var
+                    FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
+                    SalesHeader: Record "Sales Header";
+                begin
+                    FleetrockMgt.CreateSalesOrder(Rec);
+                    SalesHeader.SetRange("EE Fleetrock ID", Rec.id);
+                    SalesHeader.FindLast();
+                    Page.Run(Page::"Sales Invoice", SalesHeader);
+                end;
+            }
         }
     }
 }
