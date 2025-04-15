@@ -1165,6 +1165,11 @@ codeunit 80000 "EE Fleetrock Mgt."
             PurchaseHeaderStaging.Validate("Document No.", PurchaseHeader."No.");
         PurchaseHeaderStaging.Modify(true);
 
+        PurchaseLine.SetRange("Document Type", PurchaseHeader."Document Type");
+        PurchaseLine.SetRange("Document No.", PurchaseHeader."No.");
+        if PurchaseLine.FindLast() then
+            LineNo := PurchaseLine."Line No.";
+
         UpdateExtraPurchaseLines(PurchaseLine, PurchaseHeaderStaging, PurchaseHeader."No.", LineNo, GetTaxLineID(), PurchaseHeaderStaging.tax_total, 'Taxes');
         UpdateExtraPurchaseLines(PurchaseLine, PurchaseHeaderStaging, PurchaseHeader."No.", LineNo, GetShippingLineID(), PurchaseHeaderStaging.shipping_total, 'Shipping');
         UpdateExtraPurchaseLines(PurchaseLine, PurchaseHeaderStaging, PurchaseHeader."No.", LineNo, GetOtherLineID(), PurchaseHeaderStaging.other_total, 'Other Charges');
@@ -1174,11 +1179,6 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchLineStaging.SetRange("Header Entry No.", PurchaseHeaderStaging."Entry No.");
         if not PurchLineStaging.FindSet() then
             exit;
-
-        PurchaseLine.SetRange("Document Type", PurchaseHeader."Document Type");
-        PurchaseLine.SetRange("Document No.", PurchaseHeader."No.");
-        if PurchaseLine.FindLast() then
-            LineNo := PurchaseLine."Line No.";
         repeat
             PurchaseLine.SetRange("EE Part Id", PurchLineStaging.part_id);
             if not PurchaseLine.FindFirst() then begin
@@ -1192,7 +1192,7 @@ codeunit 80000 "EE Fleetrock Mgt."
                 PurchaseLine.Modify(true);
             end;
         until PurchLineStaging.Next() = 0;
-        PurchaseLine.SetFilter("EE Part Id", '<>%1', '');
+        PurchaseLine.SetFilter("EE Part Id", '<>%1&<>%2&<>%3&<>%4', '', GetTaxLineID(), GetShippingLineID(), GetOtherLineID());
         if PurchaseLine.FindSet() then
             repeat
                 PurchLineStaging.SetRange(part_id, PurchaseLine."EE Part Id");
@@ -1231,10 +1231,8 @@ codeunit 80000 "EE Fleetrock Mgt."
                 PurchaseLine.Validate("Unit Cost", Amount);
                 PurchaseLine.Validate("Direct Unit Cost", Amount);
                 PurchaseLine.Modify(true);
-            end else begin
-                LineNo += 10000;
+            end else
                 AddExtraPurchLine(LineNo, DocNo, Descr, Amount, LineID);
-            end;
         end else
             if PurchaseLine.FindFirst() then
                 PurchaseLine.Delete(true);
