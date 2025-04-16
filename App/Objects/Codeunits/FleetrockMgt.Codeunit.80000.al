@@ -291,31 +291,74 @@ codeunit 80000 "EE Fleetrock Mgt."
     var
         Vendor: Record Vendor;
         VendorObj: JsonObject;
-        T: JsonToken;
-        PaymentTermDays: Integer;
     begin
         if PurchHeaderStaging.supplier_name = '' then
             Error('supplier_name must be specified.');
         Vendor.SetRange("EE Source Type", Vendor."EE Source Type"::Fleetrock);
         Vendor.SetRange("EE Source No.", PurchHeaderStaging.supplier_name);
-        if Vendor.FindFirst() then
+        if Vendor.FindFirst() then begin
+            if GetVendorDetails(PurchHeaderStaging.supplier_name, VendorObj) then
+                if UpdateVendorFromJson(Vendor, VendorObj) then
+                    Vendor.Modify(true);
             exit(Vendor."No.");
+        end;
 
         if not GetVendorDetails(PurchHeaderStaging.supplier_name, VendorObj) then begin
-            // Error('Supplier %1 not found.', PurchHeaderStaging.supplier_name);
-            Vendor.Init();
-            Vendor.Insert(true);
-            Vendor.Validate(Name, PurchHeaderStaging.supplier_name);
-            Vendor.Validate("EE Source Type", Vendor."EE Source Type"::Fleetrock);
-            Vendor.Validate("EE Source No.", PurchHeaderStaging.supplier_name);
-            Vendor.Validate("Vendor Posting Group", FleetrockSetup."Vendor Posting Group");
-            Vendor.Validate("Tax Liable", true);
-            // Vendor.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
+            InitVendor(PurchHeaderStaging, Vendor);
             Vendor.Modify(true);
             exit(Vendor."No.");
         end;
 
+        InitVendor(PurchHeaderStaging, Vendor);
+        UpdateVendorFromJson(Vendor, VendorObj);
+        Vendor.Modify(true);
+        exit(Vendor."No.");
+    end;
 
+    local procedure UpdateVendorFromJson(var Vendor: Record Vendor; var VendorObj: JsonObject): Boolean
+    var
+        Vendor2: Record Vendor;
+        PaymentTermsCode: Code[10];
+        PaymentTermDays: Integer;
+    begin
+        Vendor2 := Vendor;
+        if Vendor.Address <> GetJsonValueAsText(VendorObj, 'street_address_1') then
+            Vendor.Validate(Address, GetJsonValueAsText(VendorObj, 'street_address_1'));
+        if Vendor."Address 2" <> GetJsonValueAsText(VendorObj, 'street_address_2') then
+            Vendor.Validate("Address 2", GetJsonValueAsText(VendorObj, 'street_address_2'));
+        if Vendor."City" <> GetJsonValueAsText(VendorObj, 'city') then
+            Vendor.Validate("City", GetJsonValueAsText(VendorObj, 'city'));
+        if Vendor."County" <> GetJsonValueAsText(VendorObj, 'state') then
+            Vendor.Validate(County, GetJsonValueAsText(VendorObj, 'state'));
+        if Vendor."Country/Region Code" <> GetJsonValueAsText(VendorObj, 'country') then
+            Vendor."Country/Region Code" := GetJsonValueAsText(VendorObj, 'country');
+        if Vendor."Post Code" <> GetJsonValueAsText(VendorObj, 'zip_code') then
+            Vendor.Validate("Post Code", GetJsonValueAsText(VendorObj, 'zip_code'));
+        if Vendor."Phone No." <> GetJsonValueAsText(VendorObj, 'phone') then
+            Vendor.Validate("Phone No.", GetJsonValueAsText(VendorObj, 'phone'));
+        if Vendor."E-Mail" <> GetJsonValueAsText(VendorObj, 'email') then
+            Vendor.Validate("E-Mail", GetJsonValueAsText(VendorObj, 'email'));
+        PaymentTermDays := Round(GetJsonValueAsDecimal(VendorObj, 'payment_term_days'), 1);
+        if PaymentTermDays = 0 then
+            PaymentTermsCode := FleetrockSetup."Payment Terms"
+        else
+            PaymentTermsCode := GetPaymentTerms(PaymentTermDays);
+        if Vendor."Payment Terms Code" <> PaymentTermsCode then
+            Vendor.Validate("Payment Terms Code", PaymentTermsCode);
+
+        exit((Vendor.Address <> Vendor2.Address)
+            or (Vendor2."Address 2" <> Vendor."Address 2")
+            or (Vendor2."City" <> Vendor."City")
+            or (Vendor2."County" <> Vendor."County")
+            or (Vendor2."Country/Region Code" <> Vendor."Country/Region Code")
+            or (Vendor2."Post Code" <> Vendor."Post Code")
+            or (Vendor2."Phone No." <> Vendor."Phone No.")
+            or (Vendor2."E-Mail" <> Vendor."E-Mail")
+            or (Vendor2."Payment Terms Code" <> Vendor."Payment Terms Code"));
+    end;
+
+    local procedure InitVendor(var PurchHeaderStaging: Record "EE Purch. Header Staging"; var Vendor: Record Vendor)
+    begin
         Vendor.Init();
         Vendor.Insert(true);
         Vendor.Validate(Name, PurchHeaderStaging.supplier_name);
@@ -323,25 +366,10 @@ codeunit 80000 "EE Fleetrock Mgt."
         Vendor.Validate("EE Source No.", PurchHeaderStaging.supplier_name);
         Vendor.Validate("Vendor Posting Group", FleetrockSetup."Vendor Posting Group");
         Vendor.Validate("Tax Liable", true);
-        // Vendor.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
-        Vendor.Validate(Address, GetJsonValueAsText(VendorObj, 'street_address_1'));
-        Vendor.Validate("Address 2", GetJsonValueAsText(VendorObj, 'street_address_2'));
-        Vendor.Validate("City", GetJsonValueAsText(VendorObj, 'city'));
-        Vendor.Validate(County, GetJsonValueAsText(VendorObj, 'state'));
-        // if Vendor.County = '' then
-        //     Vendor.Validate(County, GetJsonValueAsText(VendorObj, 'province'));
-        Vendor."Country/Region Code" := GetJsonValueAsText(VendorObj, 'country');
-        Vendor.Validate("Post Code", GetJsonValueAsText(VendorObj, 'zip_code'));
-        Vendor.Validate("Phone No.", GetJsonValueAsText(VendorObj, 'phone'));
-        Vendor.Validate("E-Mail", GetJsonValueAsText(VendorObj, 'email'));
-        PaymentTermDays := Round(GetJsonValueAsDecimal(VendorObj, 'payment_term_days'), 1);
-        if PaymentTermDays = 0 then
-            Vendor.Validate("Payment Terms Code", FleetrockSetup."Payment Terms")
-        else
-            Vendor.Validate("Payment Terms Code", GetPaymentTerms(PaymentTermDays));
-        Vendor.Modify(true);
-        exit(Vendor."No.");
     end;
+
+
+
 
     local procedure GetVendorDetails(SupplierName: Text; var VendorObj: JsonObject): Boolean
     var
@@ -1151,6 +1179,7 @@ codeunit 80000 "EE Fleetrock Mgt."
     begin
         GetAndCheckSetup();
         CheckPurchaseOrderSetup();
+        GetVendorNo(PurchaseHeaderStaging);
         PurchaseHeader.SetHideValidationDialog(true);
         ClosedDate := DT2Date(PurchaseHeaderStaging.Closed);
         if ClosedDate <> 0D then
@@ -1159,6 +1188,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             if PurchaseHeaderStaging.invoice_number <> PurchaseHeader."Vendor Invoice No." then
                 PurchaseHeader.Validate("Vendor Invoice No.", PurchaseHeaderStaging.invoice_number);
         PurchaseHeader.Modify(true);
+
 
         PurchaseHeaderStaging.Processed := true;
         if PurchaseHeaderStaging."Document No." <> PurchaseHeader."No." then
