@@ -366,6 +366,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         Vendor.Validate("EE Source No.", PurchHeaderStaging.supplier_name);
         Vendor.Validate("Vendor Posting Group", FleetrockSetup."Vendor Posting Group");
         Vendor.Validate("Tax Liable", true);
+        Vendor.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
     end;
 
 
@@ -1045,7 +1046,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             SalesLine.Validate("Tax Group Code", FleetrockSetup."Non-Taxable Tax Group Code");
         SalesLine.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
 
-        SalesLine.Validate("EE Task/Part Id", PartLineStaging.part_id);
+        SalesLine.Validate("EE Task/Part Id", PartLineStaging.task_part_id);
         SalesLine.Insert(true);
     end;
 
@@ -1169,7 +1170,7 @@ codeunit 80000 "EE Fleetrock Mgt."
                 PartLineStaging.SetRange("Task Id", TaskLineStaging.task_id);
                 if PartLineStaging.FindSet() then
                     repeat
-                        SalesLine.SetRange("EE Task/Part Id", PartLineStaging.part_id);
+                        SalesLine.SetRange("EE Task/Part Id", PartLineStaging.task_part_id);
                         if not SalesLine.FindFirst() then begin
                             LineNo += 10000;
                             AddPartSalesLine(SalesLine, PartLineStaging, SalesHeader."No.", LineNo, SalesHeaderStaging."Internal Customer");
