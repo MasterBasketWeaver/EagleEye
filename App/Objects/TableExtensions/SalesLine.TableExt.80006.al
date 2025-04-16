@@ -8,5 +8,11 @@ tableextension 80006 "EE Sales Line" extends "Sales Line"
             Editable = false;
             Caption = 'Task/Part Id';
         }
+        field(80001; "EE Updated"; Boolean)
+        {
+            DataClassification = ToBeClassified;
+            Editable = false;
+            Caption = 'Updated';
+        }
     }
 }

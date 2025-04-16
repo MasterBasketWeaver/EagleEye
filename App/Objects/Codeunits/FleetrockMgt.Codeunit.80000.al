@@ -1015,6 +1015,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             SalesLine.Validate("Tax Group Code", FleetrockSetup."Non-Taxable Tax Group Code");
         SalesLine.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
 
+        SalesLine.Validate("EE Updated", true);
         SalesLine.Validate("EE Task/Part Id", TaskLineStaging.task_id);
         SalesLine.Insert(true);
     end;
@@ -1046,6 +1047,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             SalesLine.Validate("Tax Group Code", FleetrockSetup."Non-Taxable Tax Group Code");
         SalesLine.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
 
+        SalesLine.Validate("EE Updated", true);
         SalesLine.Validate("EE Task/Part Id", PartLineStaging.task_part_id);
         SalesLine.Insert(true);
     end;
@@ -1071,6 +1073,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         SalesLine.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
 
         SalesLine.Validate("EE Task/Part Id", GetFeesLineID());
+        SalesLine.Validate("EE Updated", true);
         SalesLine.Insert(true);
     end;
 
@@ -1130,12 +1133,14 @@ codeunit 80000 "EE Fleetrock Mgt."
         end;
         SalesLine.SetRange("Document Type", SalesHeader."Document Type");
         SalesLine.SetRange("Document No.", SalesHeader."No.");
+
         if SalesLine.FindLast() then
             LineNo := SalesLine."Line No.";
         SalesLine.SetRange("EE Task/Part Id", GetFeesLineID());
         if SalesHeaderStaging.additional_charges <> 0 then
             if SalesLine.FindFirst() then begin
                 SalesLine.Validate("Unit Price", SalesHeaderStaging.additional_charges);
+                SalesLine.Validate("EE Updated", true);
                 SalesLine.Modify(true);
             end else
                 AddFeeSalesLine(SalesLine, SalesHeader."No.", LineNo, SalesHeaderStaging.additional_charges, SalesHeaderStaging.additional_charges_tax_rate)
@@ -1147,44 +1152,49 @@ codeunit 80000 "EE Fleetrock Mgt."
         TaskLineStaging.SetRange("Header Id", SalesHeaderStaging.id);
         TaskLineStaging.SetRange("Header Entry No.", SalesHeaderStaging."Entry No.");
         TaskLineStaging.SetAutoCalcFields("Part Lines");
-        if not TaskLineStaging.FindSet() then
+        SalesLine.SetRange("EE Task/Part Id");
+        if not TaskLineStaging.FindSet() then begin
+            SalesLine.DeleteAll(true);
             exit;
+        end;
         PartLineStaging.SetCurrentKey("Header Id", "Header Entry No.", "Task Entry No.", "Task Id");
         PartLineStaging.SetRange("Header Id", SalesHeaderStaging.id);
         PartLineStaging.SetRange("Header Entry No.", SalesHeaderStaging."Entry No.");
 
         DescrLength := MaxStrLen(SalesLine.Description);
+        SalesLine.SetFilter("EE Task/Part Id", '<>%1', GetFeesLineID());
+        SalesLine.ModifyAll("EE Updated", false);
         repeat
             SalesLine.SetRange("EE Task/Part Id", TaskLineStaging.task_id);
-            if not SalesLine.FindFirst() then begin
-                LineNo += 10000;
-                AddTaskSalesLine(SalesLine, TaskLineStaging, SalesHeader."No.", LineNo, SalesHeaderStaging."Internal Customer");
-            end else begin
+            if SalesLine.FindFirst() then begin
                 SalesLine.Validate(Quantity, TaskLineStaging.labor_hours);
                 SalesLine.Validate("Unit Price", TaskLineStaging.labor_hourly_rate);
                 SalesLine.Description := CopyStr(TaskLineStaging.labor_system_code, 1, DescrLength);
+                SalesLine.Validate("EE Updated", true);
                 SalesLine.Modify(true);
-            end;
+            end else
+                AddTaskSalesLine(SalesLine, TaskLineStaging, SalesHeader."No.", LineNo, SalesHeaderStaging."Internal Customer");
             if TaskLineStaging."Part Lines" > 0 then begin
                 PartLineStaging.SetRange("Task Entry No.", TaskLineStaging."Entry No.");
                 PartLineStaging.SetRange("Task Id", TaskLineStaging.task_id);
                 if PartLineStaging.FindSet() then
                     repeat
                         SalesLine.SetRange("EE Task/Part Id", PartLineStaging.task_part_id);
-                        if not SalesLine.FindFirst() then begin
-                            LineNo += 10000;
-                            AddPartSalesLine(SalesLine, PartLineStaging, SalesHeader."No.", LineNo, SalesHeaderStaging."Internal Customer");
-                        end else begin
+                        if SalesLine.FindFirst() then begin
                             SalesLine.Validate(Quantity, PartLineStaging.part_quantity);
-                            if PartLineStaging."Unit Cost" <> 0 then
-                                SalesLine.Validate("Unit Cost (LCY)", PartLineStaging."Unit Cost");
+                            SalesLine.Validate("Unit Cost (LCY)", PartLineStaging."Unit Cost");
                             SalesLine.Validate("Unit Price", PartLineStaging.part_price);
                             SalesLine.Description := CopyStr(PartLineStaging.part_description, 1, DescrLength);
+                            SalesLine.Validate("EE Updated", true);
                             SalesLine.Modify(true);
-                        end;
+                        end else
+                            AddPartSalesLine(SalesLine, PartLineStaging, SalesHeader."No.", LineNo, SalesHeaderStaging."Internal Customer");
                     until PartLineStaging.Next() = 0;
             end;
         until TaskLineStaging.Next() = 0;
+        SalesLine.SetRange("EE Task/Part Id");
+        SalesLine.SetRange("EE Updated", false);
+        SalesLine.DeleteAll(true);
     end;
 
     [TryFunction]
