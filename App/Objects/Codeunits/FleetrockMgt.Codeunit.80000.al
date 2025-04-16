@@ -412,43 +412,73 @@ codeunit 80000 "EE Fleetrock Mgt."
                 Error('customer_name or customer_company_id must be specified.');
         Customer.SetRange("EE Source Type", Customer."EE Source Type"::Fleetrock);
         Customer.SetRange("EE Source No.", SourceNo);
-        if Customer.FindFirst() then
+        if Customer.FindFirst() then begin
+            if GetCustomerDetails(SourceNo, IsSourceCompany, CustomerObj) then
+                if UpdateCustomerFromJson(Customer, CustomerObj) then
+                    Customer.Modify(true);
             exit(Customer."No.");
+        end;
 
         if not GetCustomerDetails(SourceNo, IsSourceCompany, CustomerObj) then begin
-            Customer.Init();
-            Customer.Insert(true);
-            Customer.Validate(Name, SalesHeaderStaging.customer_name);
-            Customer.Validate("EE Source Type", Customer."EE Source Type"::Fleetrock);
-            Customer.Validate("EE Source No.", SourceNo);
-            Customer.Validate("Customer Posting Group", FleetrockSetup."Customer Posting Group");
-            Customer.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
-            Customer.Validate("Tax Liable", true);
+            InitCustomer(SalesHeaderStaging, Customer, SourceNo);
             Customer.Modify(true);
             exit(Customer."No.");
         end;
 
+        InitCustomer(SalesHeaderStaging, Customer, SourceNo);
+        UpdateCustomerFromJson(Customer, CustomerObj);
+        Customer.Modify(true);
+        exit(Customer."No.");
+    end;
+
+    local procedure UpdateCustomerFromJson(var Customer: Record Customer; var CustomerObj: JsonObject): Boolean
+    var
+        Customer2: Record Customer;
+        Name: Text;
+        PaymentTermsCode: Code[10];
+        PaymentTermDays: Integer;
+    begin
+        Customer2 := Customer;
+        if Customer.Address <> GetJsonValueAsText(CustomerObj, 'street_address') then
+            Customer.Validate(Address, GetJsonValueAsText(CustomerObj, 'street_address'));
+        if Customer."City" <> GetJsonValueAsText(CustomerObj, 'city') then
+            Customer.Validate("City", GetJsonValueAsText(CustomerObj, 'city'));
+        if Customer."County" <> GetJsonValueAsText(CustomerObj, 'state') then
+            Customer.Validate(County, GetJsonValueAsText(CustomerObj, 'state'));
+        if Customer."Country/Region Code" <> GetJsonValueAsText(CustomerObj, 'country') then
+            Customer."Country/Region Code" := GetJsonValueAsText(CustomerObj, 'country');
+        if Customer."Post Code" <> GetJsonValueAsText(CustomerObj, 'zip_code') then
+            Customer.Validate("Post Code", GetJsonValueAsText(CustomerObj, 'zip_code'));
+        if Customer."Phone No." <> GetJsonValueAsText(CustomerObj, 'phone') then
+            Customer.Validate("Phone No.", GetJsonValueAsText(CustomerObj, 'phone'));
+        Name := StrSubstNo('%1 %2', GetJsonValueAsText(CustomerObj, 'first_name'), GetJsonValueAsText(CustomerObj, 'last_name')).Trim();
+        if Customer.Name <> Name then
+            Customer.Validate(Name, Name);
+        if Customer."Name 2" <> GetJsonValueAsText(CustomerObj, 'company_name') then
+            Customer.Validate("Name 2", CopyStr(GetJsonValueAsText(CustomerObj, 'company_name'), 1, MaxStrLen(Customer."Name 2")));
+
+        exit((Customer.Address <> Customer2.Address)
+            or (Customer2."City" <> Customer."City")
+            or (Customer2."County" <> Customer."County")
+            or (Customer2."Country/Region Code" <> Customer."Country/Region Code")
+            or (Customer2."Post Code" <> Customer."Post Code")
+            or (Customer2."Phone No." <> Customer."Phone No.")
+            or (Customer2.Name <> Customer.Name));
+    end;
+
+    local procedure InitCustomer(var SalesHeaderStaging: Record "EE Sales Header Staging"; var Customer: Record Customer; SourceNo: Text)
+    begin
         Customer.Init();
         Customer.Insert(true);
         Customer.Validate(Name, SalesHeaderStaging.customer_name);
         Customer.Validate("EE Source Type", Customer."EE Source Type"::Fleetrock);
         Customer.Validate("EE Source No.", SourceNo);
-        Customer.Validate("EE Source Search Name", GetJsonValueAsText(CustomerObj, 'username'));
-        Customer.Validate(Name, StrSubstNo('%1 %2', GetJsonValueAsText(CustomerObj, 'first_name'), GetJsonValueAsText(CustomerObj, 'last_name')).Trim());
-        Customer.Validate(Address, GetJsonValueAsText(CustomerObj, 'street_address'));
-        Customer.Validate("City", GetJsonValueAsText(CustomerObj, 'city'));
-        Customer.Validate(County, GetJsonValueAsText(CustomerObj, 'state'));
-        if Customer.County = '' then
-            Customer.Validate(County, GetJsonValueAsText(CustomerObj, 'province'));
-        Customer."Country/Region Code" := GetJsonValueAsText(CustomerObj, 'country');
-        Customer.Validate("Post Code", GetJsonValueAsText(CustomerObj, 'zip_code'));
+        Customer.Validate("Payment Terms Code", FleetrockSetup."Payment Terms");
         Customer.Validate("Customer Posting Group", FleetrockSetup."Customer Posting Group");
         Customer.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
-        Customer.Validate("Payment Terms Code", FleetrockSetup."Payment Terms");
         Customer.Validate("Tax Liable", true);
-        Customer.Modify(true);
-        exit(Customer."No.");
     end;
+
 
     local procedure GetCustomerDetails(SourceValue: Text; IsSourceCompany: Boolean; var CustomerObj: JsonObject): Boolean
     var
@@ -1088,6 +1118,7 @@ codeunit 80000 "EE Fleetrock Mgt."
     begin
         GetAndCheckSetup();
         CheckRepairOrderSetup();
+        GetCustomerNo(SalesHeaderStaging);
         SalesHeader.Get(SalesHeader."Document Type"::Invoice, DocNo);
         SalesHeader.SetHideValidationDialog(true);
         SalesHeader.Validate("Posting Date", DT2Date(SalesHeaderStaging."Invoiced At"));
