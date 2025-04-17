@@ -9,8 +9,9 @@ codeunit 80001 "EE Get Purchase Orders"
     var
         PurchaseHeader: Record "Purchase Header";
         PurchaseHeaderStaging: Record "EE Purch. Header Staging";
-        FleetRockMgt: Codeunit "EE Fleetrock Mgt.";
         ImportEntry: Record "EE Import/Export Entry";
+        FleetRockMgt: Codeunit "EE Fleetrock Mgt.";
+        JsonMgt: Codeunit "EE Json Mgt.";
         OrderStatus: Enum "EE Repair Order Status";
         EventType: Enum "EE Event Type";
         JsonArry: JsonArray;
@@ -54,7 +55,7 @@ codeunit 80001 "EE Get Purchase Orders"
             ClearLastError();
             Success := false;
             if IsReceived then begin
-                if FleetRockMgt.GetJsonValueAsText(OrderJsonObj, 'status') = 'Received' then begin
+                if JsonMgt.GetJsonValueAsText(OrderJsonObj, 'status') = 'Received' then begin
                     LogEntry := true;
                     if FleetRockMgt.TryToCheckIfAlreadyImported(s, PurchaseHeader) then
                         Success := FleetRockMgt.TryToInsertPOStagingRecords(OrderJsonObj, ImportEntryNo, true);

@@ -322,23 +322,23 @@ codeunit 80000 "EE Fleetrock Mgt."
         PaymentTermDays: Integer;
     begin
         Vendor2 := Vendor;
-        if Vendor.Address <> GetJsonValueAsText(VendorObj, 'street_address_1') then
-            Vendor.Validate(Address, GetJsonValueAsText(VendorObj, 'street_address_1'));
-        if Vendor."Address 2" <> GetJsonValueAsText(VendorObj, 'street_address_2') then
-            Vendor.Validate("Address 2", GetJsonValueAsText(VendorObj, 'street_address_2'));
-        if Vendor."City" <> GetJsonValueAsText(VendorObj, 'city') then
-            Vendor.Validate("City", GetJsonValueAsText(VendorObj, 'city'));
-        if Vendor."County" <> GetJsonValueAsText(VendorObj, 'state') then
-            Vendor.Validate(County, GetJsonValueAsText(VendorObj, 'state'));
-        if Vendor."Country/Region Code" <> GetJsonValueAsText(VendorObj, 'country') then
-            Vendor."Country/Region Code" := GetJsonValueAsText(VendorObj, 'country');
-        if Vendor."Post Code" <> GetJsonValueAsText(VendorObj, 'zip_code') then
-            Vendor.Validate("Post Code", GetJsonValueAsText(VendorObj, 'zip_code'));
-        if Vendor."Phone No." <> GetJsonValueAsText(VendorObj, 'phone') then
-            Vendor.Validate("Phone No.", GetJsonValueAsText(VendorObj, 'phone'));
-        if Vendor."E-Mail" <> GetJsonValueAsText(VendorObj, 'email') then
-            Vendor.Validate("E-Mail", GetJsonValueAsText(VendorObj, 'email'));
-        PaymentTermDays := Round(GetJsonValueAsDecimal(VendorObj, 'payment_term_days'), 1);
+        if Vendor.Address <> JsonMgt.GetJsonValueAsText(VendorObj, 'street_address_1') then
+            Vendor.Validate(Address, JsonMgt.GetJsonValueAsText(VendorObj, 'street_address_1'));
+        if Vendor."Address 2" <> JsonMgt.GetJsonValueAsText(VendorObj, 'street_address_2') then
+            Vendor.Validate("Address 2", JsonMgt.GetJsonValueAsText(VendorObj, 'street_address_2'));
+        if Vendor."City" <> JsonMgt.GetJsonValueAsText(VendorObj, 'city') then
+            Vendor.Validate("City", JsonMgt.GetJsonValueAsText(VendorObj, 'city'));
+        if Vendor."County" <> JsonMgt.GetJsonValueAsText(VendorObj, 'state') then
+            Vendor.Validate(County, JsonMgt.GetJsonValueAsText(VendorObj, 'state'));
+        if Vendor."Country/Region Code" <> JsonMgt.GetJsonValueAsText(VendorObj, 'country') then
+            Vendor."Country/Region Code" := JsonMgt.GetJsonValueAsText(VendorObj, 'country');
+        if Vendor."Post Code" <> JsonMgt.GetJsonValueAsText(VendorObj, 'zip_code') then
+            Vendor.Validate("Post Code", JsonMgt.GetJsonValueAsText(VendorObj, 'zip_code'));
+        if Vendor."Phone No." <> JsonMgt.GetJsonValueAsText(VendorObj, 'phone') then
+            Vendor.Validate("Phone No.", JsonMgt.GetJsonValueAsText(VendorObj, 'phone'));
+        if Vendor."E-Mail" <> JsonMgt.GetJsonValueAsText(VendorObj, 'email') then
+            Vendor.Validate("E-Mail", JsonMgt.GetJsonValueAsText(VendorObj, 'email'));
+        PaymentTermDays := Round(JsonMgt.GetJsonValueAsDecimal(VendorObj, 'payment_term_days'), 1);
         if PaymentTermDays = 0 then
             PaymentTermsCode := FleetrockSetup."Payment Terms"
         else
@@ -440,23 +440,23 @@ codeunit 80000 "EE Fleetrock Mgt."
         PaymentTermDays: Integer;
     begin
         Customer2 := Customer;
-        if Customer.Address <> GetJsonValueAsText(CustomerObj, 'street_address') then
-            Customer.Validate(Address, GetJsonValueAsText(CustomerObj, 'street_address'));
-        if Customer."City" <> GetJsonValueAsText(CustomerObj, 'city') then
-            Customer.Validate("City", GetJsonValueAsText(CustomerObj, 'city'));
-        if Customer."County" <> GetJsonValueAsText(CustomerObj, 'state') then
-            Customer.Validate(County, GetJsonValueAsText(CustomerObj, 'state'));
-        if Customer."Country/Region Code" <> GetJsonValueAsText(CustomerObj, 'country') then
-            Customer."Country/Region Code" := GetJsonValueAsText(CustomerObj, 'country');
-        if Customer."Post Code" <> GetJsonValueAsText(CustomerObj, 'zip_code') then
-            Customer.Validate("Post Code", GetJsonValueAsText(CustomerObj, 'zip_code'));
-        if Customer."Phone No." <> GetJsonValueAsText(CustomerObj, 'phone') then
-            Customer.Validate("Phone No.", GetJsonValueAsText(CustomerObj, 'phone'));
-        Name := StrSubstNo('%1 %2', GetJsonValueAsText(CustomerObj, 'first_name'), GetJsonValueAsText(CustomerObj, 'last_name')).Trim();
+        if Customer.Address <> JsonMgt.GetJsonValueAsText(CustomerObj, 'street_address') then
+            Customer.Validate(Address, JsonMgt.GetJsonValueAsText(CustomerObj, 'street_address'));
+        if Customer."City" <> JsonMgt.GetJsonValueAsText(CustomerObj, 'city') then
+            Customer.Validate("City", JsonMgt.GetJsonValueAsText(CustomerObj, 'city'));
+        if Customer."County" <> JsonMgt.GetJsonValueAsText(CustomerObj, 'state') then
+            Customer.Validate(County, JsonMgt.GetJsonValueAsText(CustomerObj, 'state'));
+        if Customer."Country/Region Code" <> JsonMgt.GetJsonValueAsText(CustomerObj, 'country') then
+            Customer."Country/Region Code" := JsonMgt.GetJsonValueAsText(CustomerObj, 'country');
+        if Customer."Post Code" <> JsonMgt.GetJsonValueAsText(CustomerObj, 'zip_code') then
+            Customer.Validate("Post Code", JsonMgt.GetJsonValueAsText(CustomerObj, 'zip_code'));
+        if Customer."Phone No." <> JsonMgt.GetJsonValueAsText(CustomerObj, 'phone') then
+            Customer.Validate("Phone No.", JsonMgt.GetJsonValueAsText(CustomerObj, 'phone'));
+        Name := StrSubstNo('%1 %2', JsonMgt.GetJsonValueAsText(CustomerObj, 'first_name'), JsonMgt.GetJsonValueAsText(CustomerObj, 'last_name')).Trim();
         if Customer.Name <> Name then
             Customer.Validate(Name, Name);
-        if Customer."Name 2" <> GetJsonValueAsText(CustomerObj, 'company_name') then
-            Customer.Validate("Name 2", CopyStr(GetJsonValueAsText(CustomerObj, 'company_name'), 1, MaxStrLen(Customer."Name 2")));
+        if Customer."Name 2" <> JsonMgt.GetJsonValueAsText(CustomerObj, 'company_name') then
+            Customer.Validate("Name 2", CopyStr(JsonMgt.GetJsonValueAsText(CustomerObj, 'company_name'), 1, MaxStrLen(Customer."Name 2")));
 
         exit((Customer.Address <> Customer2.Address)
             or (Customer2."City" <> Customer."City")
@@ -545,23 +545,23 @@ codeunit 80000 "EE Fleetrock Mgt."
         EntryNo += 1;
         PurchHeaderStaging.Init();
         PurchHeaderStaging."Entry No." := EntryNo;
-        PurchHeaderStaging.id := GetJsonValueAsText(OrderJsonObj, 'id');
-        PurchHeaderStaging.supplier_name := GetJsonValueAsText(OrderJsonObj, 'supplier_name');
-        PurchHeaderStaging.supplier_custom_id := GetJsonValueAsText(OrderJsonObj, 'supplier_custom_id');
-        PurchHeaderStaging.recipient_name := GetJsonValueAsText(OrderJsonObj, 'recipient_name');
-        PurchHeaderStaging.tag := GetJsonValueAsText(OrderJsonObj, 'tag');
-        PurchHeaderStaging.status := GetJsonValueAsText(OrderJsonObj, 'status');
-        PurchHeaderStaging.date_created := GetJsonValueAsText(OrderJsonObj, 'date_created');
-        PurchHeaderStaging.date_opened := GetJsonValueAsText(OrderJsonObj, 'date_opened');
-        PurchHeaderStaging.date_received := GetJsonValueAsText(OrderJsonObj, 'date_received');
-        PurchHeaderStaging.date_closed := GetJsonValueAsText(OrderJsonObj, 'date_closed');
-        PurchHeaderStaging.payment_term_days := GetJsonValueAsDecimal(OrderJsonObj, 'payment_term_days');
-        PurchHeaderStaging.invoice_number := GetJsonValueAsText(OrderJsonObj, 'invoice_number');
-        PurchHeaderStaging.subtotal := GetJsonValueAsDecimal(OrderJsonObj, 'subtotal');
-        PurchHeaderStaging.tax_total := GetJsonValueAsDecimal(OrderJsonObj, 'tax_total');
-        PurchHeaderStaging.shipping_total := GetJsonValueAsDecimal(OrderJsonObj, 'shipping_total');
-        PurchHeaderStaging.other_total := GetJsonValueAsDecimal(OrderJsonObj, 'other_total');
-        PurchHeaderStaging.grand_total := GetJsonValueAsDecimal(OrderJsonObj, 'grand_total');
+        PurchHeaderStaging.id := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'id');
+        PurchHeaderStaging.supplier_name := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'supplier_name');
+        PurchHeaderStaging.supplier_custom_id := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'supplier_custom_id');
+        PurchHeaderStaging.recipient_name := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'recipient_name');
+        PurchHeaderStaging.tag := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'tag');
+        PurchHeaderStaging.status := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'status');
+        PurchHeaderStaging.date_created := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'date_created');
+        PurchHeaderStaging.date_opened := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'date_opened');
+        PurchHeaderStaging.date_received := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'date_received');
+        PurchHeaderStaging.date_closed := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'date_closed');
+        PurchHeaderStaging.payment_term_days := JsonMgt.GetJsonValueAsDecimal(OrderJsonObj, 'payment_term_days');
+        PurchHeaderStaging.invoice_number := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'invoice_number');
+        PurchHeaderStaging.subtotal := JsonMgt.GetJsonValueAsDecimal(OrderJsonObj, 'subtotal');
+        PurchHeaderStaging.tax_total := JsonMgt.GetJsonValueAsDecimal(OrderJsonObj, 'tax_total');
+        PurchHeaderStaging.shipping_total := JsonMgt.GetJsonValueAsDecimal(OrderJsonObj, 'shipping_total');
+        PurchHeaderStaging.other_total := JsonMgt.GetJsonValueAsDecimal(OrderJsonObj, 'other_total');
+        PurchHeaderStaging.grand_total := JsonMgt.GetJsonValueAsDecimal(OrderJsonObj, 'grand_total');
         PurchHeaderStaging.Insert(true);
 
         PurchLineStaging.LockTable();
@@ -578,40 +578,22 @@ codeunit 80000 "EE Fleetrock Mgt."
             PurchLineStaging."Entry No." := LineEntryNo;
             PurchLineStaging."Header Entry No." := PurchHeaderStaging."Entry No.";
             PurchLineStaging."Header id" := PurchHeaderStaging.id;
-            PurchLineStaging.part_id := GetJsonValueAsText(LineJsonObj, 'part_id');
-            PurchLineStaging.part_number := GetJsonValueAsText(LineJsonObj, 'part_number');
-            PurchLineStaging.part_description := GetJsonValueAsText(LineJsonObj, 'part_description');
-            PurchLineStaging.part_system_code := GetJsonValueAsText(LineJsonObj, 'part_system_code');
-            PurchLineStaging.part_type := GetJsonValueAsText(LineJsonObj, 'part_type');
-            PurchLineStaging.tag := GetJsonValueAsText(LineJsonObj, 'tag');
-            PurchLineStaging.part_quantity := GetJsonValueAsDecimal(LineJsonObj, 'part_quantity');
-            PurchLineStaging.unit_price := GetJsonValueAsDecimal(LineJsonObj, 'unit_price');
-            PurchLineStaging.line_total := GetJsonValueAsDecimal(LineJsonObj, 'line_total');
-            PurchLineStaging.date_added := GetJsonValueAsText(LineJsonObj, 'date_added');
+            PurchLineStaging.part_id := JsonMgt.GetJsonValueAsText(LineJsonObj, 'part_id');
+            PurchLineStaging.part_number := JsonMgt.GetJsonValueAsText(LineJsonObj, 'part_number');
+            PurchLineStaging.part_description := JsonMgt.GetJsonValueAsText(LineJsonObj, 'part_description');
+            PurchLineStaging.part_system_code := JsonMgt.GetJsonValueAsText(LineJsonObj, 'part_system_code');
+            PurchLineStaging.part_type := JsonMgt.GetJsonValueAsText(LineJsonObj, 'part_type');
+            PurchLineStaging.tag := JsonMgt.GetJsonValueAsText(LineJsonObj, 'tag');
+            PurchLineStaging.part_quantity := JsonMgt.GetJsonValueAsDecimal(LineJsonObj, 'part_quantity');
+            PurchLineStaging.unit_price := JsonMgt.GetJsonValueAsDecimal(LineJsonObj, 'unit_price');
+            PurchLineStaging.line_total := JsonMgt.GetJsonValueAsDecimal(LineJsonObj, 'line_total');
+            PurchLineStaging.date_added := JsonMgt.GetJsonValueAsText(LineJsonObj, 'date_added');
             PurchLineStaging.Insert(true);
         end;
     end;
 
 
-    procedure GetJsonValueAsText(var JsonObj: JsonObject; KeyName: Text): Text
-    var
-        T: JsonToken;
-    begin
-        if not JsonObj.Get(KeyName, T) then
-            exit('');
-        exit(T.AsValue().AsText());
-    end;
 
-    local procedure GetJsonValueAsDecimal(var JsonObj: JsonObject; KeyName: Text): Decimal
-    var
-        T: JsonToken;
-    begin
-        if not JsonObj.Get(KeyName, T) then
-            exit(0);
-        if Format(T.AsValue()) = '""' then
-            exit(0);
-        exit(T.AsValue().AsDecimal());
-    end;
 
 
 
@@ -662,11 +644,6 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchOrdersJsonArray := GetPurchaseOrders(StartDateTime, URL, EventType);
     end;
 
-    // [TryFunction]
-    // procedure TryToGetReceivedPurchaseOrders(StartDateTime: DateTime; var PurchOrdersJsonArray: JsonArray; var URL: Text)
-    // begin
-    //     PurchOrdersJsonArray := GetPurchaseOrders(StartDateTime, URL, Enum::"EE Event Type"::Received);
-    // end;
 
     procedure GetPurchaseOrders(StartDateTime: DateTime; var URL: Text; EventType: Enum "EE Event Type"): JsonArray
     var
@@ -828,7 +805,7 @@ codeunit 80000 "EE Fleetrock Mgt."
                     else begin
                         ClearLastError();
                         if TryToGetPart(PartLineStaging.part_id, VendorAPIToken, PartLineStaging."Loaded Part Details", PartObj) and PartLineStaging."Loaded Part Details" then
-                            PartLineStaging."Unit Cost" := GetJsonValueAsDecimal(PartObj, 'part_cost')
+                            PartLineStaging."Unit Cost" := JsonMgt.GetJsonValueAsDecimal(PartObj, 'part_cost')
                         else
                             PartLineStaging."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(PartLineStaging."Error Message"));
                         UnitCosts.Add(PartLineStaging.part_id, PartLineStaging."Unit Cost");
@@ -1344,12 +1321,12 @@ codeunit 80000 "EE Fleetrock Mgt."
         FieldRec.SetRange(Type, FieldRec.Type::Text);
         if FieldRec.FindSet() then
             repeat
-                RecRef.Field(FieldRec."No.").Value(GetJsonValueAsText(OrderJsonObj, FieldRec.FieldName));
+                RecRef.Field(FieldRec."No.").Value(JsonMgt.GetJsonValueAsText(OrderJsonObj, FieldRec.FieldName));
             until FieldRec.Next() = 0;
         FieldRec.SetRange(Type, FieldRec.Type::Decimal);
         if FieldRec.FindSet() then
             repeat
-                RecRef.Field(FieldRec."No.").Value(GetJsonValueAsDecimal(OrderJsonObj, FieldRec.FieldName));
+                RecRef.Field(FieldRec."No.").Value(JsonMgt.GetJsonValueAsDecimal(OrderJsonObj, FieldRec.FieldName));
             until FieldRec.Next() = 0;
         RecRef.SetTable(RecVar);
     end;
@@ -1452,7 +1429,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             Error('Invalid response message:\%1', s);
         end;
         if T.AsValue().AsText() <> 'success' then
-            Error('Failed to update Repair Order %1:\%2', OrderId, GetJsonValueAsText(ResponseObj, 'message'));
+            Error('Failed to update Repair Order %1:\%2', OrderId, JsonMgt.GetJsonValueAsText(ResponseObj, 'message'));
     end;
 
     local procedure CreateUpdateRepairOrderJsonBody(UserName: Text; RepairOrderId: Text; PaidDateTime: DateTime): JsonObject
@@ -1558,4 +1535,5 @@ codeunit 80000 "EE Fleetrock Mgt."
     var
         FleetrockSetup: Record "EE Fleetrock Setup";
         RestAPIMgt: Codeunit "EE REST API Mgt.";
+        JsonMgt: Codeunit "EE Json Mgt.";
 }
