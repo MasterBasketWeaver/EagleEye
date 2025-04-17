@@ -1,0 +1,34 @@
+{
+  "id": "9ac25096-0cd1-482d-adc2-cc823016a988",
+  "name": "EagleEye Alvys Integration",
+  "description": "Provides functionality to integrate Alvys with Business Central for Eagle Eye Produce.",
+  "publisher": "BryanA BC Developments Inc.",
+  "version": "25.0.1.0",
+  "runtime": "14.0",
+  "target": "Cloud",
+  "application": "25.0.0.0",
+  "platform": "25.0.0.0",
+  "resourceExposurePolicy": {
+    "allowDebugging": true,
+    "allowDownloadingSource": true,
+    "includeSourceInSymbolFile": true,
+    "applyToDevExtension": true
+  },
+  "features": [
+    "NoImplicitWith"
+  ],
+  "dependencies": [
+      {
+        "id": "9ac25096-0cd1-482d-adc1-cc823016a988",
+        "name": "EagleEye Fleetrock Integration",
+        "publisher": "BryanA BC Developments Inc.",
+        "version": "25.0.1.28"
+      }
+    ],
+  "idRanges": [
+    {
+      "from": 80100,
+      "to": 80149
+    }
+  ]
+}

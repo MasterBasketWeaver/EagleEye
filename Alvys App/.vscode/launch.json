@@ -1,0 +1,41 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        //https://businesscentral.dynamics.com/de2a36e9-10b6-4c2b-a089-d0e7265e3f06/production
+        {
+            //https://businesscentral.dynamics.com/de2a36e9-10b6-4c2b-a089-d0e7265e3f06/Sandbox_010225
+            "name": "Sandbox_010225",
+            "request": "launch",
+            "type": "al",
+            "tenant": "de2a36e9-10b6-4c2b-a089-d0e7265e3f06",
+            "environmentType": "Sandbox",
+            "environmentName": "Sandbox_010225",
+            "startupObjectId": 80000,
+            "startupObjectType": "Page",
+            // "startupCompany": "Test - Eagle Eye Logistics",
+            // "startupCompany": "CRONUS USA, Inc.",
+            "breakOnError": "All",
+            "launchBrowser": false,
+            "enableLongRunningSqlStatements": true,
+            "enableSqlInformationDebugger": true,
+            "schemaUpdateMode": "ForceSync"
+        }
+        // ,
+        // {
+        //     //https://businesscentral.dynamics.com/18447fe7-6b66-4fc1-986b-f0f60ed8f350/Sandbox_Sept_2024
+        //     "name": "Sandbox_Sept_2024",
+        //     "request": "launch",
+        //     "type": "al",
+        //     "tenant": "18447fe7-6b66-4fc1-986b-f0f60ed8f350",
+        //     "environmentType": "Sandbox",
+        //     "environmentName": "Sandbox_Sept_2024",
+        //     "startupObjectId": 256,
+        //     "startupObjectType": "Page",
+        //     "breakOnError": "All",
+        //     "launchBrowser": false,
+        //     "enableLongRunningSqlStatements": true,
+        //     "enableSqlInformationDebugger": true,
+        //     // "schemaUpdateMode": "ForceSync"
+        // }
+    ]
+}
