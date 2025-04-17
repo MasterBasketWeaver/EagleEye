@@ -76,7 +76,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             Username := FleetrockSetup.Username;
             APIKey := FleetrockSetup."API Key";
         end;
-        JsonTkn := RestAPIMgt.GetResponseAsJsonToken(FleetrockSetup, StrSubstNo('%1/API/GetToken?username=%2&key=%3', FleetrockSetup."Integration URL", Username, APIKey), 'token');
+        JsonTkn := RestAPIMgt.GetResponseAsJsonToken('GET', StrSubstNo('%1/API/GetToken?username=%2&key=%3', FleetrockSetup."Integration URL", Username, APIKey), 'token');
         JsonTkn.WriteTo(s);
         s := s.Replace('"', '');
         FleetrockSetup.Validate("API Token", s);
@@ -378,7 +378,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         T: JsonToken;
     begin
         CheckToGetAPIToken();
-        VendorArray := RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetSuppliers?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, CheckToGetAPIToken()), 'suppliers');
+        VendorArray := RestAPIMgt.GetResponseAsJsonArray(StrSubstNo('%1/API/GetSuppliers?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, CheckToGetAPIToken()), 'suppliers');
         foreach T in VendorArray do begin
             VendorObj := T.AsObject();
             if VendorObj.Get('name', T) then
@@ -488,7 +488,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         SourceType: Text;
     begin
         CheckToGetAPIToken();
-        CustomerArray := RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetUsers?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, CheckToGetAPIToken()), 'users');
+        CustomerArray := RestAPIMgt.GetResponseAsJsonArray(StrSubstNo('%1/API/GetUsers?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, CheckToGetAPIToken()), 'users');
         if CustomerArray.Count() = 0 then
             exit(false);
 
@@ -606,7 +606,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         UnitJsonObj: JsonObject;
     begin
         APIToken := CheckToGetAPIToken();
-        JsonArry := RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetUnits?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, APIToken), 'units');
+        JsonArry := RestAPIMgt.GetResponseAsJsonArray(StrSubstNo('%1/API/GetUnits?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, APIToken), 'units');
         foreach T in JsonArry do begin
             UnitJsonObj := T.AsObject();
         end;
@@ -618,7 +618,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         APIToken: Text;
     begin
         APIToken := CheckToGetAPIToken();
-        exit(RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetSuppliers?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, APIToken), 'suppliers'));
+        exit(RestAPIMgt.GetResponseAsJsonArray(StrSubstNo('%1/API/GetSuppliers?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, APIToken), 'suppliers'));
     end;
 
 
@@ -633,7 +633,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         APIToken: Text;
     begin
         APIToken := CheckToGetAPIToken();
-        exit(RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, StrSubstNo('%1/API/GetPO?username=%2&status=%3&token=%4', FleetrockSetup."Integration URL", FleetrockSetup.Username, Status, APIToken), 'purchase_orders'));
+        exit(RestAPIMgt.GetResponseAsJsonArray(StrSubstNo('%1/API/GetPO?username=%2&status=%3&token=%4', FleetrockSetup."Integration URL", FleetrockSetup.Username, Status, APIToken), 'purchase_orders'));
     end;
 
 
@@ -653,7 +653,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         GetEventParameters(APIToken, StartDateTime, EndDateTime, false);
         URL := StrSubstNo('%1/API/GetPO?username=%2&event=%3&token=%4&start=%5&end=%6', FleetrockSetup."Integration URL",
             FleetrockSetup.Username, EventType, APIToken, Format(StartDateTime, 0, 9), Format(EndDateTime, 0, 9));
-        exit(RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, URL, 'purchase_orders'));
+        exit(RestAPIMgt.GetResponseAsJsonArray(URL, 'purchase_orders'));
     end;
 
 
@@ -677,7 +677,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         GetEventParameters(APIToken, StartDateTime, EndDateTime, true);
         URL := StrSubstNo('%1/API/GetRO?username=%2&event=%3&token=%4&start=%5&end=%6', FleetrockSetup."Integration URL",
             FleetrockSetup.Username, Status, APIToken, Format(StartDateTime, 0, 9), Format(EndDateTime, 0, 9));
-        exit(RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, URL, 'repair_orders'));
+        exit(RestAPIMgt.GetResponseAsJsonArray(URL, 'repair_orders'));
     end;
 
 
@@ -833,7 +833,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         if APIToken = '' then
             APIToken := CheckToGetAPIToken(true);
         URL := StrSubstNo('%1/API/GetParts?username=%2&token=%3&id=%4', FleetrockSetup."Integration URL", FleetrockSetup."Vendor Username", APIToken, PartId);
-        JsonArry := RestAPIMgt.GetResponseAsJsonArray(FleetrockSetup, URL, 'parts');
+        JsonArry := RestAPIMgt.GetResponseAsJsonArray(URL, 'parts');
         JsonArry.WriteTo(URL);
         if (JsonArry.Count() = 0) or not JsonArry.Get(0, JsonToken) then
             exit(false);
@@ -1394,7 +1394,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         APIToken := CheckToGetAPIToken();
         URL := StrSubstNo('%1/API/UpdateRO?token=%2', FleetrockSetup."Integration URL", APIToken);
         JsonBody := CreateUpdateRepairOrderJsonBody(FleetrockSetup.Username, OrderId, PaidDateTime);
-        if not RestAPIMgt.TryToGetResponseAsJsonArray(FleetrockSetup, URL, 'response', 'POST', JsonBody, ResponseArray) then begin
+        if not RestAPIMgt.TryToGetResponseAsJsonArray(URL, 'response', 'POST', JsonBody, ResponseArray) then begin
             InsertImportEntry(false, 0, Enum::"EE Import Type"::"Repair Order", Enum::"EE Event Type"::Paid,
                 Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', JsonBody);
             exit;

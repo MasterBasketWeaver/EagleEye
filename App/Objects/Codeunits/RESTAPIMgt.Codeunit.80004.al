@@ -1,13 +1,24 @@
 codeunit 80004 "EE REST API Mgt."
 {
-    procedure GetResponseAsJsonToken(var FleetrockSetup: Record "EE Fleetrock Setup"; URL: Text; TokenName: Text): Variant
+    procedure GetResponseAsJsonToken(Method: Text; URL: Text; TokenName: Text): Variant
+    var
+        JsonBody: JsonObject;
+    begin
+        exit(GetResponseAsJsonToken(Method, URL, TokenName, JsonBody));
+    end;
+
+    procedure GetResponseAsJsonToken(Method: Text; URL: Text; TokenName: Text; JsonBody: JsonObject): Variant
     var
         ResponseText: Text;
         JsonObj: JsonObject;
         JsonTkn: JsonToken;
+        Sent: Boolean;
     begin
-        if not SendRequest('GET', URL, ResponseText) then
-            Error(ResponseText);
+        if JsonBody.Keys.Count() > 0 then
+            Sent := SendRequestWithJsonBody(Method, URL, JsonBody, ResponseText)
+        else
+            Sent := SendRequest(Method, URL, ResponseText);
+        Error(ResponseText);
         JsonObj.ReadFrom(ResponseText);
         if not JsonObj.Get(TokenName, JsonTkn) then begin
             JsonObj.WriteTo(ResponseText);
@@ -19,20 +30,20 @@ codeunit 80004 "EE REST API Mgt."
     end;
 
 
-    procedure GetResponseAsJsonArray(var FleetrockSetup: Record "EE Fleetrock Setup"; URL: Text; TokenName: Text): Variant
+    procedure GetResponseAsJsonArray(URL: Text; TokenName: Text): Variant
     var
         JsonBody: JsonObject;
     begin
-        exit(GetResponseAsJsonArray(FleetrockSetup, URL, TokenName, 'GET', JsonBody));
+        exit(GetResponseAsJsonArray(URL, TokenName, 'GET', JsonBody));
     end;
 
     [TryFunction]
-    procedure TryToGetResponseAsJsonArray(var FleetrockSetup: Record "EE Fleetrock Setup"; URL: Text; TokenName: Text; Method: Text; var JsonBody: JsonObject; var ResponseArray: JsonArray)
+    procedure TryToGetResponseAsJsonArray(URL: Text; TokenName: Text; Method: Text; var JsonBody: JsonObject; var ResponseArray: JsonArray)
     begin
-        ResponseArray := GetResponseAsJsonArray(FleetrockSetup, URL, TokenName, Method, JsonBody);
+        ResponseArray := GetResponseAsJsonArray(URL, TokenName, Method, JsonBody);
     end;
 
-    procedure GetResponseAsJsonArray(var FleetrockSetup: Record "EE Fleetrock Setup"; URL: Text; TokenName: Text; Method: Text; var JsonBody: JsonObject): Variant
+    procedure GetResponseAsJsonArray(URL: Text; TokenName: Text; Method: Text; var JsonBody: JsonObject): Variant
     var
         ResponseText: Text;
         JsonObj: JsonObject;
