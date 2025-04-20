@@ -18,7 +18,8 @@ codeunit 80004 "EE REST API Mgt."
             Sent := SendRequestWithJsonBody(Method, URL, JsonBody, ResponseText)
         else
             Sent := SendRequest(Method, URL, ResponseText);
-        Error(ResponseText);
+        if not Sent then
+            Error(ResponseText);
         JsonObj.ReadFrom(ResponseText);
         if not JsonObj.Get(TokenName, JsonTkn) then begin
             JsonObj.WriteTo(ResponseText);
