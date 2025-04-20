@@ -49,20 +49,13 @@ page 80000 "EE Fleetrock Setup"
                     {
                         ApplicationArea = all;
                     }
-                    group("Fees")
+                    field("Additional Fee's G/L No."; Rec."Additional Fee's G/L No.")
                     {
-                        field("Additional Fee's G/L No."; Rec."Additional Fee's G/L No.")
-                        {
-                            ApplicationArea = all;
-                        }
-                        // field("Administration G/L No."; Rec."Administration G/L No.")
-                        // {
-                        //     ApplicationArea = all;
-                        // }
-                        // field("Diagnostic G/L No."; Rec."Diagnostic G/L No.")
-                        // {
-                        //     ApplicationArea = all;
-                        // }
+                        ApplicationArea = all;
+                    }
+                    field("Auto-post Repair Orders"; Rec."Auto-post Repair Orders")
+                    {
+                        ApplicationArea = all;
                     }
                 }
             }
@@ -162,14 +155,14 @@ page 80000 "EE Fleetrock Setup"
                 }
                 group(Token)
                 {
-                    field("Use API Token"; Rec."Use API Token")
-                    {
-                        ApplicationArea = all;
-                        trigger OnValidate()
-                        begin
-                            CurrPage.Update(false);
-                        end;
-                    }
+                    // field("Use API Token"; Rec."Use API Token")
+                    // {
+                    //     ApplicationArea = all;
+                    //     trigger OnValidate()
+                    //     begin
+                    //         CurrPage.Update(false);
+                    //     end;
+                    // }
                     field("API Token"; Rec."API Token")
                     {
                         ApplicationArea = All;

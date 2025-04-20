@@ -9,6 +9,7 @@ codeunit 80003 "EE Get Repair Orders"
         SalesHeader: Record "Sales Header";
         ImportEntry: Record "EE Import/Export Entry";
         SalesHeaderStaging: Record "EE Sales Header Staging";
+        FleetRockSetup: Record "EE Fleetrock Setup";
         FleetRockMgt: Codeunit "EE Fleetrock Mgt.";
         JsonMgt: Codeunit "EE Json Mgt.";
         OrderStatus: Enum "EE Repair Order Status";
@@ -21,6 +22,8 @@ codeunit 80003 "EE Get Repair Orders"
         ImportEntryNo: Integer;
         Success, LogEntry : Boolean;
     begin
+        FleetRockSetup.Get();
+
         if Rec."Parameter String" = 'invoiced' then begin
             OrderStatus := OrderStatus::invoiced;
             EventType := EventType::invoiced;
@@ -62,10 +65,11 @@ codeunit 80003 "EE Get Repair Orders"
                             Success := FleetRockMgt.TryToUpdateRepairOrder(SalesHeaderStaging, SalesHeaderStaging."Document No.");
                     end else
                         Success := FleetRockMgt.TryToUpdateRepairOrder(SalesHeaderStaging, SalesHeader."No.");
-                    if Success then begin
-                        SalesHeader.Get(SalesHeader."Document Type"::Invoice, SalesHeaderStaging."Document No.");
-                        Success := TryToPostInvoice(SalesHeader);
-                    end;
+                    if Success then
+                        if FleetRockSetup."Auto-post Repair Orders" then begin
+                            SalesHeader.Get(SalesHeader."Document Type"::Invoice, SalesHeaderStaging."Document No.");
+                            Success := TryToPostInvoice(SalesHeader);
+                        end;
                 end;
             end else
                 if JsonMgt.GetJsonValueAsText(OrderJsonObj, 'status') = 'In Progress' then begin

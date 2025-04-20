@@ -154,6 +154,10 @@ table 80000 "EE Fleetrock Setup"
             DataClassification = CustomerContent;
             TableRelation = "Tax Group".Code;
         }
+        field(60; "Auto-post Repair Orders"; Boolean)
+        {
+            DataClassification = CustomerContent;
+        }
     }
 
     keys
