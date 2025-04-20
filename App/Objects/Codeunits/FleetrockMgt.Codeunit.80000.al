@@ -300,6 +300,10 @@ codeunit 80000 "EE Fleetrock Mgt."
             if GetVendorDetails(PurchHeaderStaging.supplier_name, VendorObj) then
                 if UpdateVendorFromJson(Vendor, VendorObj) then
                     Vendor.Modify(true);
+            if Vendor."Tax Area Code" = '' then begin
+                Vendor.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
+                Vendor.Modify(true);
+            end;
             exit(Vendor."No.");
         end;
 
