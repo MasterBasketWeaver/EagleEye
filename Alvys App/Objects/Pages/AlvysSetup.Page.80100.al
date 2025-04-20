@@ -57,12 +57,9 @@ page 80100 "EE Alvys Setup"
 
                 trigger OnAction()
                 var
-                // AlvysMgt: Codeunit "EE Alvys Mgt.";
-                // TestCodeunit: Codeunit "EE Codeunit Test";
+                    AlvysMgt: Codeunit "EE Alvys Mgt.";
                 begin
-                    // Message(AlvysMgt.CheckToGetAPIToken(Rec));
-
-                    // TestCodeunit.TestAPICall();
+                    Message(AlvysMgt.CheckToGetAPIToken(Rec));
                 end;
             }
         }
