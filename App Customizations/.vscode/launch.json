@@ -19,21 +19,21 @@
             "enableSqlInformationDebugger": true,
             // "schemaUpdateMode": "ForceSync"
         },
-        {
-            // https://businesscentral.dynamics.com/07be7045-d1b7-40c6-80ec-aebf15fed175/sandbox
-            "type": "al",
-            "request": "launch",
-            "name": "Sandbox",
-            "tenant": "07be7045-d1b7-40c6-80ec-aebf15fed175",
-            "environmentType": "Sandbox",
-            "environmentName": "Sandbox",
-            "startupObjectType": "Page",
-            "startupObjectId": 7339,
-            "breakOnError": true,
-            "launchBrowser": false,
-            "enableLongRunningSqlStatements": true,
-            "enableSqlInformationDebugger": true,
-            // "schemaUpdateMode": "ForceSync"
-        }
+        // {
+        //     // https://businesscentral.dynamics.com/07be7045-d1b7-40c6-80ec-aebf15fed175/sandbox
+        //     "type": "al",
+        //     "request": "launch",
+        //     "name": "Sandbox",
+        //     "tenant": "07be7045-d1b7-40c6-80ec-aebf15fed175",
+        //     "environmentType": "Sandbox",
+        //     "environmentName": "Sandbox",
+        //     "startupObjectType": "Page",
+        //     "startupObjectId": 7339,
+        //     "breakOnError": true,
+        //     "launchBrowser": false,
+        //     "enableLongRunningSqlStatements": true,
+        //     "enableSqlInformationDebugger": true,
+        //     // "schemaUpdateMode": "ForceSync"
+        // }
     ]
 }

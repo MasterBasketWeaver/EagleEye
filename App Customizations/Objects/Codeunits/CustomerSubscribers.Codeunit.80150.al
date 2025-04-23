@@ -14,14 +14,39 @@ codeunit 80150 "EE Custom Subscribers"
             Rec."Description 2" := CopyStr(Rec.Description, 1, MaxStrLen(Rec."Description 2"));
     end;
 
+
+
+
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"Purch.-Post", OnBeforeCheckExtDocNo, '', false, false)]
     local procedure PurchPostOnBeforeCheckExtDocNo(var IsHandled: Boolean; PurchaseHeader: Record "Purchase Header")
     var
         Vendor: Record Vendor;
     begin
-        Vendor.Get(purchaseHeader."Buy-from Vendor No.");
+        Vendor.Get(PurchaseHeader."Buy-from Vendor No.");
         IsHandled := Vendor."EE Non-Mandatory Ext. Doc. No.";
     end;
+
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Purch.-Post", OnBeforeCheckExternalDocumentNumber, '', false, false)]
+    local procedure PurchPostOnBeforeCheckExternalDocumentNumber(var Handled: Boolean; PurchaseHeader: Record "Purchase Header")
+    var
+        Vendor: Record Vendor;
+    begin
+        Vendor.Get(PurchaseHeader."Buy-from Vendor No.");
+        Handled := Vendor."EE Non-Mandatory Ext. Doc. No.";
+    end;
+
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Gen. Jnl.-Post Line", OnBeforeCheckPurchExtDocNoProcedure, '', false, false)]
+    local procedure GenJnlPostLineOnBeforeCheckPurchExtDocNoProcedure(var GenJnlLine: Record "Gen. Journal Line"; var IsHandled: Boolean)
+    var
+        Vendor: Record Vendor;
+    begin
+        if GenJnlLine."Source Type" = GenJnlLine."Source Type"::Vendor then
+            if Vendor.Get(GenJnlLine."Source No.") then
+                IsHandled := Vendor."EE Non-Mandatory Ext. Doc. No.";
+    end;
+
+
+
 
     [EventSubscriber(ObjectType::Table, Database::"Vendor Bank Account", OnAfterInsertEvent, '', false, false)]
     local procedure VendorBankAccountOnAfterInsert(var Rec: Record "Vendor Bank Account")
