@@ -158,6 +158,10 @@ table 80000 "EE Fleetrock Setup"
         {
             DataClassification = CustomerContent;
         }
+        field(61; "Auto-post Purchase Orders"; Boolean)
+        {
+            DataClassification = CustomerContent;
+        }
     }
 
     keys

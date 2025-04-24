@@ -10,6 +10,7 @@ codeunit 80001 "EE Get Purchase Orders"
         PurchaseHeader: Record "Purchase Header";
         PurchaseHeaderStaging: Record "EE Purch. Header Staging";
         ImportEntry: Record "EE Import/Export Entry";
+        FleetrockSetup: Record "EE Fleetrock Setup";
         FleetRockMgt: Codeunit "EE Fleetrock Mgt.";
         JsonMgt: Codeunit "EE Json Mgt.";
         OrderStatus: Enum "EE Repair Order Status";
@@ -43,7 +44,7 @@ codeunit 80001 "EE Get Purchase Orders"
         end;
         if JsonArry.Count() = 0 then
             exit;
-
+        FleetRockSetup.Get();
         PurchaseHeader.SetCurrentKey("EE Fleetrock ID");
         LogEntry := not IsReceived;
         foreach T in JsonArry do begin
@@ -70,6 +71,11 @@ codeunit 80001 "EE Get Purchase Orders"
                     else
                         if FleetRockMgt.TryToCreatePurchaseOrder(PurchaseHeaderStaging, DocNo) then
                             Success := FleetRockMgt.TryToUpdatePurchaseOrder(PurchaseHeaderStaging, DocNo);
+                    if Success then
+                        if FleetRockSetup."Auto-post Purchase Orders" then begin
+                            PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseHeaderStaging."Document No.");
+                            Success := TryToPostOrder(PurchaseHeader);
+                        end;
                 end;
             end;
             if LogEntry then
@@ -77,5 +83,11 @@ codeunit 80001 "EE Get Purchase Orders"
                     ImportEntry."Document Type"::"Purchase Order", EventType, Enum::"EE Direction"::Import,
                     GetLastErrorText(), URL, 'GET');
         end;
+    end;
+
+    [TryFunction]
+    local procedure TryToPostOrder(var PurchaseHeader: Record "Purchase Header")
+    begin
+        Codeunit.Run(Codeunit::"Purch.-Post", PurchaseHeader);
     end;
 }

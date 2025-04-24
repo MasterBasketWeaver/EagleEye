@@ -18,6 +18,10 @@ page 80000 "EE Fleetrock Setup"
                         ApplicationArea = all;
                         ShowMandatory = true;
                     }
+                    field("Auto-post Purchase Orders"; Rec."Auto-post Purchase Orders")
+                    {
+                        ApplicationArea = all;
+                    }
                 }
                 group("Repair Orders")
                 {

@@ -22,8 +22,6 @@ codeunit 80003 "EE Get Repair Orders"
         ImportEntryNo: Integer;
         Success, LogEntry : Boolean;
     begin
-        FleetRockSetup.Get();
-
         if Rec."Parameter String" = 'invoiced' then begin
             OrderStatus := OrderStatus::invoiced;
             EventType := EventType::invoiced;
@@ -45,7 +43,7 @@ codeunit 80003 "EE Get Repair Orders"
         end;
         if JsonArry.Count() = 0 then
             exit;
-
+        FleetRockSetup.Get();
         SalesHeader.SetCurrentKey("EE Fleetrock ID");
         foreach T in JsonArry do begin
             OrderJsonObj := T.AsObject();
