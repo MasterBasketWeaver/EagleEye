@@ -1,4 +1,4 @@
-tableextension 80150 "EE Vendor" extends Vendor
+tableextension 80150 "EE Vendor2" extends Vendor
 {
     fields
     {

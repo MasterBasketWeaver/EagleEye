@@ -66,7 +66,6 @@ codeunit 80150 "EE Custom Subscribers"
             UpdateVendorDefaultPaymentMethod(Vendor);
     end;
 
-
     local procedure UpdateVendorDefaultPaymentMethod(var Vendor: Record Vendor)
     var
         PurchPayableSetup: Record "Purchases & Payables Setup";
@@ -75,5 +74,35 @@ codeunit 80150 "EE Custom Subscribers"
             Vendor.Validate("Payment Method Code", PurchPayableSetup."EE ACH Payment Method");
             Vendor.Modify(true);
         end;
+    end;
+
+
+
+    [EventSubscriber(ObjectType::Table, Database::"Sales Invoice Header", OnAfterInsertEvent, '', false, false)]
+    local procedure SalesInvoiceHeaderOnAfterInsertEvent(var Rec: Record "Sales Invoice Header")
+    var
+        SalesRecSetup: Record "Sales & Receivables Setup";
+    begin
+        if Rec."EE Fleetrock ID" = '' then
+            SetDefaultPaymentTerms(Rec);
+    end;
+
+    [EventSubscriber(ObjectType::Table, Database::"Sales Invoice Header", OnAfterModifyEvent, '', false, false)]
+    local procedure SalesInvoiceHeaderOnAfterModifyEvent(var Rec: Record "Sales Invoice Header")
+    var
+        SalesRecSetup: Record "Sales & Receivables Setup";
+    begin
+        if Rec."EE Fleetrock ID" = '' then
+            SetDefaultPaymentTerms(Rec);
+    end;
+
+    local procedure SetDefaultPaymentTerms(var SalesInvHeader: Record "Sales Invoice Header")
+    var
+        SalesRecSetup: Record "Sales & Receivables Setup";
+    begin
+        if not SalesRecSetup.Get() or (SalesRecSetup."EE Default Payment Terms" = '') then
+            exit;
+        if SalesInvHeader."Payment Terms Code" <> SalesRecSetup."EE Default Payment Terms" then
+            SalesInvHeader.Validate("Payment Terms Code", SalesRecSetup."EE Default Payment Terms");
     end;
 }
