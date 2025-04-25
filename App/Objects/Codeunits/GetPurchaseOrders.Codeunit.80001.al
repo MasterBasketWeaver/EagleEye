@@ -74,6 +74,8 @@ codeunit 80001 "EE Get Purchase Orders"
                     if Success then
                         if FleetRockSetup."Auto-post Purchase Orders" then begin
                             PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseHeaderStaging."Document No.");
+                            PurchaseHeader.Receive := true;
+                            PurchaseHeader.Invoice := true;
                             Success := TryToPostOrder(PurchaseHeader);
                         end;
                 end;
