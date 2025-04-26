@@ -1,4 +1,4 @@
-pageextension 80150 "EE Posted Purch. Invoices." extends "Posted Purchase Invoices"
+pageextension 80150 "EEC Posted Purch. Invoices." extends "Posted Purchase Invoices"
 {
     layout
     {

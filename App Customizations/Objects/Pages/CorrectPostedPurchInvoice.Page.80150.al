@@ -1,4 +1,4 @@
-page 80150 "EE Correct P. Purch. Invoice"
+page 80150 "EEC Correct P. Purch. Invoice"
 {
     PageType = API;
     APIPublisher = 'BryanABCDev';

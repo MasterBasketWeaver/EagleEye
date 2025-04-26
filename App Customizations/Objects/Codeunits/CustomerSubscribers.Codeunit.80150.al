@@ -1,4 +1,4 @@
-codeunit 80150 "EE Custom Subscribers"
+codeunit 80150 "EEC Custom Subscribers"
 {
     [EventSubscriber(ObjectType::Table, Database::"Purchase Line", OnAfterValidateEvent, "No.", false, false)]
     local procedure PurchaseLineOnAfterValidateNo(var Rec: Record "Purchase Line")
@@ -23,7 +23,7 @@ codeunit 80150 "EE Custom Subscribers"
         Vendor: Record Vendor;
     begin
         Vendor.Get(PurchaseHeader."Buy-from Vendor No.");
-        IsHandled := Vendor."EE Non-Mandatory Ext. Doc. No.";
+        IsHandled := Vendor."EEC NonMandatory Ext. Doc. No.";
     end;
 
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"Purch.-Post", OnBeforeCheckExternalDocumentNumber, '', false, false)]
@@ -32,7 +32,7 @@ codeunit 80150 "EE Custom Subscribers"
         Vendor: Record Vendor;
     begin
         Vendor.Get(PurchaseHeader."Buy-from Vendor No.");
-        Handled := Vendor."EE Non-Mandatory Ext. Doc. No.";
+        Handled := Vendor."EEC NonMandatory Ext. Doc. No.";
     end;
 
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"Gen. Jnl.-Post Line", OnBeforeCheckPurchExtDocNoProcedure, '', false, false)]
@@ -42,7 +42,7 @@ codeunit 80150 "EE Custom Subscribers"
     begin
         if GenJnlLine."Source Type" = GenJnlLine."Source Type"::Vendor then
             if Vendor.Get(GenJnlLine."Source No.") then
-                IsHandled := Vendor."EE Non-Mandatory Ext. Doc. No.";
+                IsHandled := Vendor."EEC NonMandatory Ext. Doc. No.";
     end;
 
 
@@ -70,39 +70,37 @@ codeunit 80150 "EE Custom Subscribers"
     var
         PurchPayableSetup: Record "Purchases & Payables Setup";
     begin
-        if PurchPayableSetup.Get() and (PurchPayableSetup."EE ACH Payment Method" <> '') then begin
-            Vendor.Validate("Payment Method Code", PurchPayableSetup."EE ACH Payment Method");
+        if PurchPayableSetup.Get() and (PurchPayableSetup."EEC ACH Payment Method" <> '') then begin
+            Vendor.Validate("Payment Method Code", PurchPayableSetup."EEC ACH Payment Method");
             Vendor.Modify(true);
         end;
     end;
 
 
 
-    [EventSubscriber(ObjectType::Table, Database::"Sales Invoice Header", OnAfterInsertEvent, '', false, false)]
-    local procedure SalesInvoiceHeaderOnAfterInsertEvent(var Rec: Record "Sales Invoice Header")
-    var
-        SalesRecSetup: Record "Sales & Receivables Setup";
+    [EventSubscriber(ObjectType::Table, Database::"Sales Header", OnAfterInsertEvent, '', false, false)]
+    local procedure SalesInvoiceHeaderOnAfterInsertEvent(var Rec: Record "Sales Header")
     begin
-        if Rec."EE Fleetrock ID" = '' then
-            SetDefaultPaymentTerms(Rec);
+        CheckToSetDefaultPaymentTerms(Rec);
     end;
 
-    [EventSubscriber(ObjectType::Table, Database::"Sales Invoice Header", OnAfterModifyEvent, '', false, false)]
-    local procedure SalesInvoiceHeaderOnAfterModifyEvent(var Rec: Record "Sales Invoice Header")
-    var
-        SalesRecSetup: Record "Sales & Receivables Setup";
+    [EventSubscriber(ObjectType::Table, Database::"Sales Header", OnAfterModifyEvent, '', false, false)]
+    local procedure SalesInvoiceHeaderOnAfterModifyEvent(var Rec: Record "Sales Header")
     begin
-        if Rec."EE Fleetrock ID" = '' then
-            SetDefaultPaymentTerms(Rec);
+        CheckToSetDefaultPaymentTerms(Rec);
     end;
 
-    local procedure SetDefaultPaymentTerms(var SalesInvHeader: Record "Sales Invoice Header")
+    local procedure CheckToSetDefaultPaymentTerms(var SalesHeader: Record "Sales Header")
     var
         SalesRecSetup: Record "Sales & Receivables Setup";
     begin
-        if not SalesRecSetup.Get() or (SalesRecSetup."EE Default Payment Terms" = '') then
+        if (SalesHeader."Document Type" <> SalesHeader."Document Type"::Invoice) or (SalesHeader."EE Fleetrock ID" <> '') or SalesHeader."EEC Updated Payment Terms" then
             exit;
-        if SalesInvHeader."Payment Terms Code" <> SalesRecSetup."EE Default Payment Terms" then
-            SalesInvHeader.Validate("Payment Terms Code", SalesRecSetup."EE Default Payment Terms");
+        if not SalesRecSetup.Get() or (SalesRecSetup."EEC Default Payment Terms" = '') then
+            exit;
+        if SalesHeader."Payment Terms Code" <> SalesRecSetup."EEC Default Payment Terms" then begin
+            SalesHeader.Validate("Payment Terms Code", SalesRecSetup."EEC Default Payment Terms");
+            SalesHeader.Modify(false);
+        end;
     end;
 }

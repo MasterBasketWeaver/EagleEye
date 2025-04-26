@@ -1,4 +1,4 @@
-pageextension 80153 "EE Purchase Order2" extends "Purchase Order"
+pageextension 80153 "EEC Purchase Order2" extends "Purchase Order"
 {
     layout
     {
@@ -16,7 +16,7 @@ pageextension 80153 "EE Purchase Order2" extends "Purchase Order"
             PurchPaySetup.GetRecordOnce();
             VendorInvoiceNoMandatory := PurchPaySetup."Ext. Doc. No. Mandatory";
         end else
-            VendorInvoiceNoMandatory := not Vendor."EE Non-Mandatory Ext. Doc. No.";
+            VendorInvoiceNoMandatory := not Vendor."EEC NonMandatory Ext. Doc. No.";
     end;
 
     var
