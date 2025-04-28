@@ -1,0 +1,52 @@
+table 80300 "EEMCP MyCarrierPackets Setup"
+{
+    Caption = 'MyCarrierPackets Setup';
+    DataClassification = CustomerContent;
+    // DrillDownPageId = "EEMCP Fleetrock Setup";
+    // LookupPageId = "EEMCP Fleetrock Setup";
+
+    fields
+    {
+        field(1; "Primary Key"; Code[1])
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
+        field(2; "Integration URL"; Text[128])
+        {
+            DataClassification = CustomerContent;
+        }
+        field(3; "Username"; Text[110])
+        {
+            DataClassification = CustomerContent;
+        }
+        field(4; "Password"; Text[100])
+        {
+            DataClassification = CustomerContent;
+        }
+        field(5; "API Token"; Text[256])
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
+        field(6; "API Token Expiry DateTime"; DateTime)
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
+        field(7; "API Refresh Token"; Text[50])
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
+
+    }
+
+    keys
+    {
+        key(PK; "Primary Key")
+        {
+            Clustered = true;
+        }
+    }
+}
