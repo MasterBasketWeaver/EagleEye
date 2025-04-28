@@ -55,6 +55,7 @@ page 80300 "EEMCP My Carrier Packets Setup"
                     MyCarrierPacketsMgt: Codeunit "EEMCP My Carrier Packets Mgt.";
                 begin
                     Message(MyCarrierPacketsMgt.CheckToGetAPIToken(Rec));
+                    Rec.Modify(true);
                 end;
             }
         }

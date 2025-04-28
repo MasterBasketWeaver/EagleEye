@@ -16,15 +16,15 @@ table 80300 "EEMCP MyCarrierPackets Setup"
         {
             DataClassification = CustomerContent;
         }
-        field(3; "Username"; Text[110])
+        field(3; "Username"; Text[64])
         {
             DataClassification = CustomerContent;
         }
-        field(4; "Password"; Text[100])
+        field(4; "Password"; Text[64])
         {
             DataClassification = CustomerContent;
         }
-        field(5; "API Token"; Text[256])
+        field(5; "API Token"; Text[1024])
         {
             DataClassification = CustomerContent;
             Editable = false;
@@ -34,7 +34,7 @@ table 80300 "EEMCP MyCarrierPackets Setup"
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(7; "API Refresh Token"; Text[50])
+        field(7; "API Refresh Token"; Text[64])
         {
             DataClassification = CustomerContent;
             Editable = false;
