@@ -60,6 +60,28 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
 
 
 
+
+
+
+    local procedure GetMyCarrierPackets(FromDate: Date; ToDate: Date): JsonArray
+    var
+        URL, Token : Text;
+    begin
+        //https://api.mycarrierpackets.com
+        //https://api.mycarrierpackets.com/api/v1/Carrier/completedpackets?fromDate=2024-04-28&toDate=2024-05-28
+
+        Token := CheckToGetAPIToken();
+
+        URL := StrSubstNo('%1/api/v1/Carrier/completedpackets?fromDate=%2&toDate=%3', MyCarrierPacketsSetup."Integration URL", Format(FromDate), Format(ToDate));
+        //add token as Authorization header: bearer <token>
+
+    end;
+
+
+
+
+
+
     procedure GetResponseWithEncodedFormDataBodyAsJsonObject(Method: Text; URL: Text; var FormData: Dictionary of [Text, Text]): Variant
     var
         ResponseText: Text;
@@ -73,18 +95,13 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
 
     local procedure SendEncodedFormDataRequest(Method: Text; URL: Text; var FormData: Dictionary of [Text, Text]; var ResponseText: Text): Boolean
     var
-
         HttpClient: HttpClient;
         Headers: HttpHeaders;
         HttpRequestMessage: HttpRequestMessage;
         HttpResponseMessage: HttpResponseMessage;
         Content: HttpContent;
         ContentText: TextBuilder;
-        Boundary: Integer;
-        FormKey: Text;
-        FormValue: Text;
-        i, ContentCount : Integer;
-
+        i: Integer;
     begin
         HttpRequestMessage.SetRequestUri(URL);
         HttpRequestMessage.Method(Method);
