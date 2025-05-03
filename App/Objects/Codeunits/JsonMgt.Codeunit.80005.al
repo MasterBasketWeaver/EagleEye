@@ -5,20 +5,59 @@ codeunit 80005 "EE Json Mgt."
     procedure GetJsonValueAsText(var JsonObj: JsonObject; KeyName: Text): Text
     var
         T: JsonToken;
+        V: JsonValue;
     begin
         if not JsonObj.Get(KeyName, T) then
             exit('');
-        exit(T.AsValue().AsText());
+        V := T.AsValue();
+        if V.IsNull() or V.IsUndefined() then
+            exit('');
+        exit(V.AsText());
     end;
 
     procedure GetJsonValueAsDecimal(var JsonObj: JsonObject; KeyName: Text): Decimal
     var
         T: JsonToken;
+        V: JsonValue;
     begin
         if not JsonObj.Get(KeyName, T) then
             exit(0);
-        if Format(T.AsValue()) = '""' then
+        V := T.AsValue();
+        if V.IsNull() or V.IsUndefined() then
             exit(0);
-        exit(T.AsValue().AsDecimal());
+        if Format(V) = '""' then
+            exit(0);
+        exit(V.AsDecimal());
+    end;
+
+    procedure GetJsonValueAsInteger(var JsonObj: JsonObject; KeyName: Text): Integer
+    var
+        T: JsonToken;
+        V: JsonValue;
+    begin
+        if not JsonObj.Get(KeyName, T) then
+            exit(0);
+        V := T.AsValue();
+        if V.IsNull() or V.IsUndefined() then
+            exit(0);
+        if Format(V) = '""' then
+            exit(0);
+        exit(V.AsInteger());
+    end;
+
+
+    procedure GetJsonValueAsDateTime(var JsonObj: JsonObject; KeyName: Text): DateTime
+    var
+        T: JsonToken;
+        V: JsonValue;
+    begin
+        if not JsonObj.Get(KeyName, T) then
+            exit(0DT);
+        V := T.AsValue();
+        if V.IsNull() or V.IsUndefined() then
+            exit(0DT);
+        if Format(V) = '""' then
+            exit(0DT);
+        exit(V.AsDateTime());
     end;
 }

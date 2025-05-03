@@ -1334,7 +1334,7 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
 
-    local procedure PopulateStagingTable(var RecVar: Variant; var OrderJsonObj: JsonObject; TableNo: Integer; StartFieldNo: Integer)
+    procedure PopulateStagingTable(var RecVar: Variant; var OrderJsonObj: JsonObject; TableNo: Integer; StartFieldNo: Integer)
     var
         FieldRec: Record Field;
         RecRef: RecordRef;

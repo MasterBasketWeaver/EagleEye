@@ -3,23 +3,32 @@ codeunit 80004 "EE REST API Mgt."
     procedure GetResponseAsJsonToken(Method: Text; URL: Text; TokenName: Text): Variant
     var
         JsonBody: JsonObject;
+        Headers: HttpHeaders;
     begin
-        exit(GetResponseAsJsonToken(Method, URL, TokenName, JsonBody));
+        exit(GetResponseAsJsonToken(Method, URL, TokenName, JsonBody, Headers));
     end;
 
-    procedure GetResponseAsJsonToken(Method: Text; URL: Text; TokenName: Text; JsonBody: JsonObject): Variant
+    procedure GetResponseAsJsonToken(Method: Text; URL: Text; TokenName: Text; var JsonBody: JsonObject): Variant
     var
-        ResponseText: Text;
+        Headers: HttpHeaders;
+    begin
+        exit(GetResponseAsJsonToken(Method, URL, TokenName, JsonBody, Headers));
+    end;
+
+    procedure GetResponseAsJsonToken(Method: Text; URL: Text; TokenName: Text; var PassedHeaders: HttpHeaders): Variant
+    var
+        JsonBody: JsonObject;
+    begin
+        exit(GetResponseAsJsonToken(Method, URL, TokenName, JsonBody, PassedHeaders));
+    end;
+
+    procedure GetResponseAsJsonToken(Method: Text; URL: Text; TokenName: Text; var JsonBody: JsonObject; var PassedHeaders: HttpHeaders): Variant
+    var
+        ResponseText, ReasonPhrase : Text;
         JsonObj: JsonObject;
         JsonTkn: JsonToken;
-        Sent: Boolean;
     begin
-        if JsonBody.Keys.Count() > 0 then
-            Sent := SendRequestWithJsonBody(Method, URL, JsonBody, ResponseText)
-        else
-            Sent := SendRequest(Method, URL, ResponseText);
-        if not Sent then
-            Error(ResponseText);
+        ChooseRequestToSend(Method, URL, JsonBody, PassedHeaders, ResponseText, ReasonPhrase);
         JsonObj.ReadFrom(ResponseText);
         if not JsonObj.Get(TokenName, JsonTkn) then begin
             JsonObj.WriteTo(ResponseText);
@@ -46,68 +55,153 @@ codeunit 80004 "EE REST API Mgt."
 
     procedure GetResponseAsJsonArray(URL: Text; TokenName: Text; Method: Text; var JsonBody: JsonObject): Variant
     var
-        ResponseText: Text;
+        Headers: HttpHeaders;
+    begin
+        exit(GetResponseAsJsonArray(URL, TokenName, Method, JsonBody, Headers));
+    end;
+
+    //used by MCP app
+    procedure GetResponseAsJsonArray(URL: Text; Method: Text; var PassedHeaders: HttpHeaders): Variant
+    var
+        JsonBody: JsonObject;
+        TokenName: Text;
+    begin
+        exit(GetResponseAsJsonArray(URL, TokenName, Method, JsonBody, PassedHeaders));
+    end;
+
+    procedure GetResponseAsJsonArray(URL: Text; TokenName: Text; Method: Text; var JsonBody: JsonObject; var PassedHeaders: HttpHeaders): Variant
+    var
+        ResponseText, ReasonPhrase : Text;
         JsonObj: JsonObject;
         JsonArry: JsonArray;
         JsonTkn: JsonToken;
-        Result, Sent : Boolean;
     begin
-        if JsonBody.Keys.Count() > 0 then
-            Sent := SendRequestWithJsonBody(Method, URL, JsonBody, ResponseText)
-        else
-            Sent := SendRequest(Method, URL, ResponseText);
-        if not Sent then
-            Error(ResponseText);
+        ChooseRequestToSend(Method, URL, JsonBody, PassedHeaders, ResponseText, ReasonPhrase);
 
-        JsonObj.ReadFrom(ResponseText);
-        if not JsonObj.Get(TokenName, JsonTkn) then begin
-            JsonObj.WriteTo(ResponseText);
-            if ResponseText.Contains('"result":"error"') then
-                Error(ResponseText);
-            Error('Token %1 not found in response:\%2', TokenName, ResponseText);
-        end;
-        JsonArry := JsonTkn.AsArray();
+        if JsonArry.ReadFrom(ResponseText) then
+            exit(JsonArry);
+
+        if not JsonObj.ReadFrom(ResponseText) then
+            if ResponseText <> '' then
+                Error(ResponseText)
+            else
+                Error(ReasonPhrase);
+        if TokenName <> '' then begin
+            if not JsonObj.Get(TokenName, JsonTkn) then begin
+                JsonObj.WriteTo(ResponseText);
+                if ResponseText <> '' then begin
+                    if ResponseText.Contains('"result":"error"') then
+                        Error(ResponseText);
+                    Error('Token %1 not found in response:\%2', TokenName, ResponseText);
+                end else
+                    Error(ReasonPhrase);
+            end;
+            JsonArry := JsonTkn.AsArray();
+        end else
+            JsonArry := JsonObj.AsToken().AsArray();
         exit(JsonArry);
     end;
 
-    local procedure SendRequestWithJsonBody(Method: Text; URL: Text; var JsonObj: JsonObject; var ResponseText: Text): Boolean
+
+    local procedure ChooseRequestToSend(Method: Text; URL: Text; var JsonBody: JsonObject; var PassedHeaders: HttpHeaders; var ResponseText: Text; var ReasonPhrase: Text): Boolean
+    var
+        HaveHeaders, HasBody, Sent : Boolean;
+    begin
+        HaveHeaders := PassedHeaders.Keys().Count() > 0;
+        HasBody := JsonBody.Keys.Count() > 0;
+
+        if HasBody then
+            if HaveHeaders then
+                Sent := SendRequestWithJsonBody(Method, URL, JsonBody, PassedHeaders, ResponseText, ReasonPhrase)
+            else
+                Sent := SendRequestWithJsonBody(Method, URL, JsonBody, ResponseText, ReasonPhrase)
+        else
+            if HaveHeaders then
+                Sent := SendRequest(Method, URL, ResponseText, ReasonPhrase, PassedHeaders)
+            else
+                Sent := SendRequest(Method, URL, ResponseText, ReasonPhrase);
+        if not Sent then
+            if ResponseText <> '' then
+                Error(ResponseText)
+            else
+                Error(ReasonPhrase);
+    end;
+
+
+
+    local procedure SendRequestWithJsonBody(Method: Text; URL: Text; var JsonBody: JsonObject; var ResponseText: Text; var ReasonPhrase: Text): Boolean
+    var
+        Headers: HttpHeaders;
+    begin
+        exit(SendRequestWithJsonBody(Method, URL, JsonBody, Headers, ResponseText, ReasonPhrase));
+    end;
+
+    local procedure SendRequestWithJsonBody(Method: Text; URL: Text; var JsonBody: JsonObject; var PassedHeaders: HttpHeaders; var ResponseText: Text; var ReasonPhrase: Text): Boolean
     var
         Content: HttpContent;
         s: Text;
     begin
-        JsonObj.WriteTo(s);
+        JsonBody.WriteTo(s);
         Content.WriteFrom(s);
-        exit(SendRequest(Method, URL, ResponseText, Content, StrLen(s)));
+        exit(SendRequest(Method, URL, ResponseText, ReasonPhrase, Content, PassedHeaders, StrLen(s)));
     end;
+
+
+
+
 
     local procedure SendRequest(Method: Text; URL: Text; var ResponseText: Text): Boolean
     var
         Content: HttpContent;
+        Headers: HttpHeaders;
+        ReasonPhrase: Text;
     begin
-        exit(SendRequest(Method, URL, ResponseText, Content, 0));
+        exit(SendRequest(Method, URL, ResponseText, ReasonPhrase, Content, Headers, 0));
     end;
 
-    local procedure SendRequest(Method: Text; URL: Text; var ResponseText: Text; var Content: HttpContent; ContentLength: Integer): Boolean
+    local procedure SendRequest(Method: Text; URL: Text; var ResponseText: Text; var ReasonPhrase: Text): Boolean
+    var
+        Content: HttpContent;
+        Headers: HttpHeaders;
+    begin
+        exit(SendRequest(Method, URL, ResponseText, ReasonPhrase, Content, Headers, 0));
+    end;
+
+    local procedure SendRequest(Method: Text; URL: Text; var ResponseText: Text; var ReasonPhrase: Text; var PassedHeaders: HttpHeaders): Boolean
+    var
+        Content: HttpContent;
+    begin
+        exit(SendRequest(Method, URL, ResponseText, ReasonPhrase, Content, PassedHeaders, 0));
+    end;
+
+    local procedure SendRequest(Method: Text; URL: Text; var ResponseText: Text; var ReasonPhrase: Text; var Content: HttpContent; var PassedHeaders: HttpHeaders; ContentLength: Integer): Boolean
     var
         HttpClient: HttpClient;
-        Headers: HttpHeaders;
+        RequestHeaders, ContentHeaders : HttpHeaders;
         HttpRequestMessage: HttpRequestMessage;
         HttpResponseMessage: HttpResponseMessage;
+        HeaderKeys, HeaderValues : List of [Text];
+        HeaderKey: Text;
+        PassedHeaderCount, i : Integer;
     begin
         HttpRequestMessage.SetRequestUri(URL);
         HttpRequestMessage.Method(Method);
 
-        if (Method <> 'GET') and (ContentLength > 0) then begin
-            HttpRequestMessage.Content(Content);
-            Content.GetHeaders(Headers);
-            if Headers.Contains('Content-Type') then
-                Headers.Remove('Content-Type');
-            Headers.Add('Content-Type', 'application/json');
-            if Headers.Contains('Content-Length') then
-                Headers.Remove('Content-Length');
-            Headers.Add('Content-Length', Format(ContentLength));
+        PassedHeaderCount := PassedHeaders.Keys().Count();
+        if PassedHeaderCount > 0 then begin
+            HttpRequestMessage.GetHeaders(RequestHeaders);
+            if PassedHeaderCount > 0 then
+                foreach HeaderKey in PassedHeaders.Keys() do
+                    if PassedHeaders.GetValues(HeaderKey, HeaderValues) then
+                        AddHeader(RequestHeaders, HeaderKey, HeaderValues.Get(1));
         end;
 
+        if (Method <> 'GET') and (ContentLength > 0) then begin
+            HttpRequestMessage.Content(Content);
+            Content.GetHeaders(ContentHeaders);
+            AddHeader(ContentHeaders, 'Content-Type', 'application/json');
+            AddHeader(ContentHeaders, 'Content-Length', Format(ContentLength));
+        end;
 
         if not HttpClient.Send(HttpRequestMessage, HttpResponseMessage) then begin
             ResponseText := StrSubstNo('Unable to send request:\%1', GetLastErrorText());
@@ -115,6 +209,14 @@ codeunit 80004 "EE REST API Mgt."
         end;
 
         HttpResponseMessage.Content().ReadAs(ResponseText);
+        ReasonPhrase := HttpResponseMessage.ReasonPhrase();
         exit(HttpResponseMessage.IsSuccessStatusCode());
+    end;
+
+    procedure AddHeader(var Headers: HttpHeaders; KeyName: Text; ValueName: Text)
+    begin
+        if Headers.Contains(KeyName) then
+            Headers.Remove(KeyName);
+        Headers.Add(KeyName, ValueName);
     end;
 }

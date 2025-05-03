@@ -39,6 +39,10 @@ table 80300 "EEMCP MyCarrierPackets Setup"
             DataClassification = CustomerContent;
             Editable = false;
         }
+        field(10; "Last Packet DateTime"; DateTime)
+        {
+            DataClassification = CustomerContent;
+        }
 
     }
 
