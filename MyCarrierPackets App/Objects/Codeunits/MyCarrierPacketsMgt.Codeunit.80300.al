@@ -2,10 +2,11 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
 {
     var
         MyCarrierPacketsSetup: Record "EEMCP MyCarrierPackets Setup";
-        RestAPIMgt: Codeunit "EE REST API Mgt.";
+        FleetrockSetup: Record "EE Fleetrock Setup";
+        RestAPIMgt: Codeunit "EEMCP REST API Mgt.";
         JsonMgt: Codeunit "EE Json Mgt.";
         FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
-        LoadedSetup: Boolean;
+        LoadedSetup, LoadedFleetrock : Boolean;
 
 
     local procedure GetAndCheckSetup()
@@ -43,7 +44,7 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         FormData.Add('username', MyCarrierPacketsSetup.Username);
         FormData.Add('password', MyCarrierPacketsSetup.Password);
 
-        ResponseBody := GetResponseWithEncodedFormDataBodyAsJsonObject('POST', URL, FormData);
+        ResponseBody := RestAPIMgt.GetResponseWithEncodedFormDataBodyAsJsonObject('POST', URL, FormData);
         if ResponseBody.Get('access_token', JsonTkn) then begin
             JsonTkn.WriteTo(s);
             MyCarrierPacketsSetup.Validate("API Token", s.Replace('"', ''));
@@ -148,6 +149,7 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         if Carrier.FindSet(true) then
             repeat
                 GetCarrierData(Carrier, Headers);
+                CreateAndUpdateVendorFromCarrier(Carrier, false);
             until Carrier.Next() = 0;
     end;
 
@@ -269,18 +271,28 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
 
 
 
-
+    local procedure GetAndCheckFleetrockSetup()
+    begin
+        if LoadedFleetrock then
+            exit;
+        FleetrockSetup.Get();
+        FleetrockSetup.TestField("Vendor Posting Group");
+        FleetrockSetup.TestField("Tax Area Code");
+        LoadedFleetrock := true;
+    end;
 
     procedure CreateAndUpdateVendorFromCarrier(var Carrier: Record "EEMCP Carrier"; ForceUpdate: Boolean)
     var
         Vendor: Record Vendor;
         VendorBankAccount: Record "Vendor Bank Account";
         CarrierData: Record "EEMCP Carrier Data";
+
         CountryRegion: Record "Country/Region";
         Currency: Record Currency;
         s: Text;
     begin
-        Carrier.TestField("Docket No.");
+        GetAndCheckFleetrockSetup();
+
         if ForceUpdate then
             Carrier."Requires Update" := true;
         if not CarrierData.Get(Carrier."DOT No.") or Carrier."Requires Update" then
@@ -295,6 +307,11 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
             Vendor.Validate("Dot No.", Carrier."DOT No.");
             Vendor.Insert(true);
         end;
+        Vendor.Validate("Vendor Posting Group", FleetrockSetup."Vendor Posting Group");
+        Vendor.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
+        Vendor.Validate("Tax Liable", true);
+        if CarrierData.PaymentTermsDays > 0 then
+            Vendor.Validate("Payment Terms Code", FleetrockMgt.GetPaymentTerms(CarrierData.PaymentTermsDays));
         Vendor."Name" := CopyStr(CarrierData.LegalName, 1, MaxStrLen(Vendor."Name"));
         Vendor."Name 2" := CopyStr(CarrierData.DBAName, 1, MaxStrLen(Vendor."Name 2"));
         Vendor.Address := CopyStr(CarrierData.Address1, 1, MaxStrLen(Vendor.Address));
@@ -318,8 +335,10 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         end;
         Vendor.Modify(true);
 
-        if CarrierData.BankName <> '' then begin
+        if (CarrierData.BankName <> '') or (CarrierData.CarrierPaymentType = 'ACH') then begin
             s := CopyStr(CarrierData.BankName, 1, MaxStrLen(VendorBankAccount.Code));
+            if s = '' then
+                s := Vendor."No.";
             if not VendorBankAccount.Get(Vendor."No.", s) then begin
                 VendorBankAccount.Init();
                 VendorBankAccount.Validate("Vendor No.", Vendor."No.");
@@ -350,75 +369,15 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         end;
 
         //place at end and reloads Vendor so as to not interfere with code in base app to set Vendor Payment Method
-        if CarrierData.PayAdvanceOptionType = 'ACH' then begin
+        if CarrierData.CarrierPaymentType = 'ACH' then begin
             VendorBankAccount."Use for Electronic Payments" := true;
             VendorBankAccount.Modify(true);
             Vendor.Get(VendorBankAccount."Vendor No.");
             Vendor.Validate("Preferred Bank Account Code", VendorBankAccount.Code);
             Vendor.Modify(true);
         end;
+
+        Commit();
     end;
 
-
-
-
-
-    procedure GetResponseWithEncodedFormDataBodyAsJsonObject(Method: Text; URL: Text; var FormData: Dictionary of [Text, Text]): Variant
-    var
-        ResponseText: Text;
-        JsonObj: JsonObject;
-    begin
-        if not SendEncodedFormDataRequest(Method, URL, FormData, ResponseText) then
-            Error(ResponseText);
-        JsonObj.ReadFrom(ResponseText);
-        exit(JsonObj);
-    end;
-
-    local procedure SendEncodedFormDataRequest(Method: Text; URL: Text; var FormData: Dictionary of [Text, Text]; var ResponseText: Text): Boolean
-    var
-        HttpClient: HttpClient;
-        Headers: HttpHeaders;
-        HttpRequestMessage: HttpRequestMessage;
-        HttpResponseMessage: HttpResponseMessage;
-        Content: HttpContent;
-        ContentText: TextBuilder;
-        i: Integer;
-    begin
-        HttpRequestMessage.SetRequestUri(URL);
-        HttpRequestMessage.Method(Method);
-
-        ContentText.Append(StrSubstNo('%1=%2', FormData.Keys.Get(1), Encode(FormData.Values.Get(1))));
-        if FormData.Count() > 1 then
-            for i := 2 to FormData.Count() do
-                ContentText.Append(StrSubstNo('&%1=%2', FormData.Keys.Get(i), Encode(FormData.Values.Get(i))));
-
-        Content.WriteFrom(ContentText.ToText());
-        HttpRequestMessage.Content(Content);
-
-        Content.GetHeaders(Headers);
-        RestAPIMgt.AddHeader(Headers, 'charset', 'UTF-8');
-        RestAPIMgt.AddHeader(Headers, 'Content-Type', 'application/x-www-form-urlencoded');
-
-        if not HttpClient.Send(HttpRequestMessage, HttpResponseMessage) then begin
-            ResponseText := StrSubstNo('Unable to send request:\%1', GetLastErrorText());
-            exit(false);
-        end;
-
-        HttpResponseMessage.Content().ReadAs(ResponseText);
-        exit(HttpResponseMessage.IsSuccessStatusCode());
-    end;
-
-    local procedure Encode(Input: Text): Text
-    begin
-        exit(TypeHelper.UrlEncode(Input));
-    end;
-
-
-
-
-
-
-
-    var
-        TypeHelper: Codeunit "Type Helper";
 }

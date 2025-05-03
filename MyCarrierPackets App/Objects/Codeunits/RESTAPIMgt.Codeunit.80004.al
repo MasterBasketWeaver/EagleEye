@@ -1,7 +1,9 @@
 codeunit 80303 "EEMCP REST API Mgt."
 {
     var
+        TypeHelper: Codeunit "Type Helper";
         JsonTypeGlobal: Option "Token","Object";
+
 
     procedure GetResponseAsJsonToken(Method: Text; URL: Text; TokenName: Text): Variant
     var
@@ -245,5 +247,57 @@ codeunit 80303 "EEMCP REST API Mgt."
         if Headers.Contains(KeyName) then
             Headers.Remove(KeyName);
         Headers.Add(KeyName, ValueName);
+    end;
+
+
+
+    procedure GetResponseWithEncodedFormDataBodyAsJsonObject(Method: Text; URL: Text; var FormData: Dictionary of [Text, Text]): Variant
+    var
+        ResponseText: Text;
+        JsonObj: JsonObject;
+    begin
+        if not SendEncodedFormDataRequest(Method, URL, FormData, ResponseText) then
+            Error(ResponseText);
+        JsonObj.ReadFrom(ResponseText);
+        exit(JsonObj);
+    end;
+
+    local procedure SendEncodedFormDataRequest(Method: Text; URL: Text; var FormData: Dictionary of [Text, Text]; var ResponseText: Text): Boolean
+    var
+        HttpClient: HttpClient;
+        Headers: HttpHeaders;
+        HttpRequestMessage: HttpRequestMessage;
+        HttpResponseMessage: HttpResponseMessage;
+        Content: HttpContent;
+        ContentText: TextBuilder;
+        i: Integer;
+    begin
+        HttpRequestMessage.SetRequestUri(URL);
+        HttpRequestMessage.Method(Method);
+
+        ContentText.Append(StrSubstNo('%1=%2', FormData.Keys.Get(1), Encode(FormData.Values.Get(1))));
+        if FormData.Count() > 1 then
+            for i := 2 to FormData.Count() do
+                ContentText.Append(StrSubstNo('&%1=%2', FormData.Keys.Get(i), Encode(FormData.Values.Get(i))));
+
+        Content.WriteFrom(ContentText.ToText());
+        HttpRequestMessage.Content(Content);
+
+        Content.GetHeaders(Headers);
+        AddHeader(Headers, 'charset', 'UTF-8');
+        AddHeader(Headers, 'Content-Type', 'application/x-www-form-urlencoded');
+
+        if not HttpClient.Send(HttpRequestMessage, HttpResponseMessage) then begin
+            ResponseText := StrSubstNo('Unable to send request:\%1', GetLastErrorText());
+            exit(false);
+        end;
+
+        HttpResponseMessage.Content().ReadAs(ResponseText);
+        exit(HttpResponseMessage.IsSuccessStatusCode());
+    end;
+
+    local procedure Encode(Input: Text): Text
+    begin
+        exit(TypeHelper.UrlEncode(Input));
     end;
 }
