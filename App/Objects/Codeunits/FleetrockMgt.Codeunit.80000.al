@@ -985,6 +985,8 @@ codeunit 80000 "EE Fleetrock Mgt."
             SalesLine.Validate("No.", FleetRockSetup."Internal Labor Item No.")
         else
             SalesLine.Validate("No.", FleetRockSetup."External Labor Item No.");
+        SalesLine.Validate("Qty. Rounding Precision", 0);
+        SalesLine.Validate("Qty. Rounding Precision (Base)", 0);
         SalesLine.Validate(Quantity, TaskLineStaging.labor_hours);
         SalesLine.Validate("Unit Price", TaskLineStaging.labor_hourly_rate);
         if FleetrockSetup."Labor Cost" <> 0 then
@@ -1015,6 +1017,8 @@ codeunit 80000 "EE Fleetrock Mgt."
             SalesLine.Validate("No.", FleetRockSetup."Internal Parts Item No.")
         else
             SalesLine.Validate("No.", FleetRockSetup."External Parts Item No.");
+        SalesLine.Validate("Qty. Rounding Precision", 0);
+        SalesLine.Validate("Qty. Rounding Precision (Base)", 0);
         SalesLine.Validate(Quantity, PartLineStaging.part_quantity);
         if PartLineStaging."Unit Cost" <> 0 then
             SalesLine.Validate("Unit Cost (LCY)", PartLineStaging."Unit Cost");
@@ -1040,6 +1044,8 @@ codeunit 80000 "EE Fleetrock Mgt."
         SalesLine.Validate("Line No.", LineNo);
         SalesLine.Validate(Type, SalesLine.Type::"G/L Account");
         SalesLine.Validate("No.", FleetRockSetup."Additional Fee's G/L No.");
+        SalesLine.Validate("Qty. Rounding Precision", 0);
+        SalesLine.Validate("Qty. Rounding Precision (Base)", 0);
         SalesLine.Validate(Quantity, 1);
         SalesLine.Validate("Unit Price", FeeAmount);
         SalesLine.Description := 'Additional Fees';
@@ -1169,6 +1175,8 @@ codeunit 80000 "EE Fleetrock Mgt."
         repeat
             SalesLine.SetRange("EE Task/Part Id", TaskLineStaging.task_id);
             if SalesLine.FindFirst() then begin
+                SalesLine.Validate("Qty. Rounding Precision", 0);
+                SalesLine.Validate("Qty. Rounding Precision (Base)", 0);
                 SalesLine.Validate(Quantity, TaskLineStaging.labor_hours);
                 SalesLine.Validate("Unit Price", TaskLineStaging.labor_hourly_rate);
                 SalesLine.Description := CopyStr(TaskLineStaging.labor_system_code, 1, DescrLength);
@@ -1184,6 +1192,8 @@ codeunit 80000 "EE Fleetrock Mgt."
                     repeat
                         SalesLine.SetRange("EE Task/Part Id", PartLineStaging.task_part_id);
                         if SalesLine.FindFirst() then begin
+                            SalesLine.Validate("Qty. Rounding Precision", 0);
+                            SalesLine.Validate("Qty. Rounding Precision (Base)", 0);
                             SalesLine.Validate(Quantity, PartLineStaging.part_quantity);
                             SalesLine.Validate("Unit Cost (LCY)", PartLineStaging."Unit Cost");
                             SalesLine.Validate("Unit Price", PartLineStaging.part_price);
@@ -1261,6 +1271,8 @@ codeunit 80000 "EE Fleetrock Mgt."
                 LineNo += 10000;
                 AddPurchaseLine(PurchaseLine, PurchLineStaging, PurchaseHeader."No.", LineNo);
             end else begin
+                PurchaseLine."Qty. Rounding Precision" := 0;
+                PurchaseLine."Qty. Rounding Precision (Base)" := 0;
                 PurchaseLine.Validate(Quantity, PurchLineStaging.part_quantity);
                 PurchaseLine.Validate("Unit Cost", PurchLineStaging.unit_price);
                 PurchaseLine.Validate("Direct Unit Cost", PurchLineStaging.unit_price);
@@ -1322,6 +1334,8 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchaseLine.Validate("Line No.", LineNo);
         PurchaseLine.Validate(Type, PurchaseLine.Type::Item);
         PurchaseLine.Validate("No.", FleetRockSetup."Purchase Item No.");
+        PurchaseLine.Validate("Qty. Rounding Precision", 0);
+        PurchaseLine.Validate("Qty. Rounding Precision (Base)", 0);
         PurchaseLine.Validate(Quantity, PurchLineStaging.part_quantity);
         PurchaseLine.Validate("Unit Cost", PurchLineStaging.unit_price);
         PurchaseLine.Validate("Direct Unit Cost", PurchLineStaging.unit_price);
