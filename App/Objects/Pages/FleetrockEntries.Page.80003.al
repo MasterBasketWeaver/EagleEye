@@ -106,8 +106,25 @@ page 80003 "EE Fleetrock Entries"
                 Enabled = Rec."Error Message" <> '';
 
                 trigger OnAction()
+                var
+                    Lines: List of [Text];
+                    Line: Text;
+                    ErrorStack: TextBuilder;
                 begin
-                    Message('%1\\Call Stack:\%2', Rec."Error Message", Rec."Error Stack");
+                    if Rec."Error Stack" <> '' then begin
+                        ErrorStack.AppendLine(Rec."Error Message");
+                        ErrorStack.AppendLine('');
+                        ErrorStack.AppendLine('Error Stack:');
+                        if Rec."Error Stack".Contains('\') then begin
+                            Lines := Rec."Error Stack".Split('\');
+                            foreach Line in Lines do
+                                if Line <> '' then
+                                    ErrorStack.AppendLine(Line);
+                        end else
+                            ErrorStack.AppendLine(Rec."Error Stack");
+                        Message(ErrorStack.ToText());
+                    end else
+                        Message(Rec."Error Message");
                 end;
             }
             action("Show URL")
