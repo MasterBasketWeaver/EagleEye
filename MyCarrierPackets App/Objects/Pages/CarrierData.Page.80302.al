@@ -219,6 +219,10 @@ page 80302 "EEMCP Carrier Data"
                 // {
                 //     ApplicationArea = all;
                 // }
+                field(PaymentTermsDays; Rec.PaymentTermsDays)
+                {
+                    ApplicationArea = all;
+                }
                 field("CarrierPaymentType"; Rec."CarrierPaymentType")
                 {
                     ApplicationArea = all;

@@ -237,12 +237,22 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
                     end;
                 end;
             end;
+        if CarrierJsonObj.Contains('CarrierPaymentTerms') then
+            if CarrierJsonObj.Get('CarrierPaymentTerms', JsonTkn) and not IsJsonTokenNull(JsonTkn) then begin
+                JsonArry := JsonTkn.AsArray();
+                if JsonArry.Get(0, JsonTkn) then begin
+                    JsonBody := JsonTkn.AsObject();
+                    if JsonBody.Get('PaymentTerm', JsonTkn) then begin
+                        JsonBody := JsonTkn.AsObject();
+                        CarrierData.PaymentTermsDays := JsonMgt.GetJsonValueAsInteger(JsonBody, 'Days');
+                    end;
+                end;
+            end;
         CarrierData.Modify(false);
         Carrier."Requires Update" := false;
         Carrier.Modify(false);
         Commit();
     end;
-
 
     [TryFunction]
     local procedure TryToGetTokenAsInteger(var JsonTkn: JsonToken; var Result: Integer)
@@ -260,31 +270,96 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
 
 
 
-    procedure InsertCompletedPackets(var CompletedPackets: JsonArray): Boolean
+
+    procedure CreateAndUpdateVendorFromCarrier(var Carrier: Record "EEMCP Carrier"; ForceUpdate: Boolean)
     var
-        JsonTkn: JsonToken;
-        PacketJsonObj: JsonObject;
+        Vendor: Record Vendor;
+        VendorBankAccount: Record "Vendor Bank Account";
+        CarrierData: Record "EEMCP Carrier Data";
+        CountryRegion: Record "Country/Region";
+        Currency: Record Currency;
+        s: Text;
     begin
-        foreach JsonTkn in CompletedPackets do begin
-            // LineEntryNo += 1;
-            PacketJsonObj := JsonTkn.AsObject();
-            // PurchLineStaging.Init();
-            // PurchLineStaging."Entry No." := LineEntryNo;
-            // PurchLineStaging."Header Entry No." := PurchHeaderStaging."Entry No.";
-            // PurchLineStaging."Header id" := PurchHeaderStaging.id;
-            // PurchLineStaging.part_id := JsonMgt.GetJsonValueAsText(LineJsonObj, 'part_id');
-            // PurchLineStaging.part_number := JsonMgt.GetJsonValueAsText(LineJsonObj, 'part_number');
-            // PurchLineStaging.part_description := JsonMgt.GetJsonValueAsText(LineJsonObj, 'part_description');
-            // PurchLineStaging.part_system_code := JsonMgt.GetJsonValueAsText(LineJsonObj, 'part_system_code');
-            // PurchLineStaging.part_type := JsonMgt.GetJsonValueAsText(LineJsonObj, 'part_type');
-            // PurchLineStaging.tag := JsonMgt.GetJsonValueAsText(LineJsonObj, 'tag');
-            // PurchLineStaging.part_quantity := JsonMgt.GetJsonValueAsDecimal(LineJsonObj, 'part_quantity');
-            // PurchLineStaging.unit_price := JsonMgt.GetJsonValueAsDecimal(LineJsonObj, 'unit_price');
-            // PurchLineStaging.line_total := JsonMgt.GetJsonValueAsDecimal(LineJsonObj, 'line_total');
-            // PurchLineStaging.date_added := JsonMgt.GetJsonValueAsText(LineJsonObj, 'date_added');
-            // PurchLineStaging.Insert(true);
+        Carrier.TestField("Docket No.");
+        if ForceUpdate then
+            Carrier."Requires Update" := true;
+        if not CarrierData.Get(Carrier."DOT No.") or Carrier."Requires Update" then
+            GetCarrierData(Carrier);
+        if not CarrierData.Get(Carrier."DOT No.") then
+            Error('Carrier data not found for DOT No. %1', Carrier."DOT No.");
+
+        if not Vendor.Get(Carrier."Docket No.") then begin
+            Vendor.Init();
+            Vendor."No." := Carrier."Docket No.";
+            Vendor.Validate("No.");
+            Vendor.Validate("Dot No.", Carrier."DOT No.");
+            Vendor.Insert(true);
+        end;
+        Vendor."Name" := CopyStr(CarrierData.LegalName, 1, MaxStrLen(Vendor."Name"));
+        Vendor."Name 2" := CopyStr(CarrierData.DBAName, 1, MaxStrLen(Vendor."Name 2"));
+        Vendor.Address := CopyStr(CarrierData.Address1, 1, MaxStrLen(Vendor.Address));
+        Vendor."Address 2" := CopyStr(CarrierData.Address2, 1, MaxStrLen(Vendor."Address 2"));
+        Vendor.City := CopyStr(CarrierData.City, 1, MaxStrLen(Vendor.City));
+        Vendor."Post Code" := CopyStr(CarrierData.Zipcode, 1, MaxStrLen(Vendor."Post Code"));
+        s := CopyStr(CarrierData.Country, 1, MaxStrLen(Vendor."Country/Region Code"));
+        if not CountryRegion.Get(CopyStr(CarrierData.Country, 1, MaxStrLen(Vendor."Country/Region Code"))) then begin
+            CountryRegion.SetRange(Name, CopyStr(CarrierData.Country, 1, MaxStrLen(CountryRegion.Name)));
+            if CountryRegion.FindFirst() then
+                Vendor.Validate("Country/Region Code", CountryRegion.Code);
+        end else
+            Vendor.Validate("Country/Region Code", CountryRegion.Code);
+        Vendor."Phone No." := CopyStr(CarrierData.Phone, 1, MaxStrLen(Vendor."Phone No."));
+        Vendor."Mobile Phone No." := CopyStr(CarrierData.CellPhone, 1, MaxStrLen(Vendor."Mobile Phone No."));
+        Vendor."E-Mail" := CopyStr(CarrierData.Email, 1, MaxStrLen(Vendor."E-Mail"));
+        if CarrierData.RemitCurrency <> '' then begin
+            s := CopyStr(CarrierData.RemitCurrency, 1, MaxStrLen(Vendor."Currency Code"));
+            if Currency.Get(s) then
+                Vendor.Validate("Currency Code", Currency.Code);
+        end;
+        Vendor.Modify(true);
+
+        if CarrierData.BankName <> '' then begin
+            s := CopyStr(CarrierData.BankName, 1, MaxStrLen(VendorBankAccount.Code));
+            if not VendorBankAccount.Get(Vendor."No.", s) then begin
+                VendorBankAccount.Init();
+                VendorBankAccount.Validate("Vendor No.", Vendor."No.");
+                VendorBankAccount.Validate(Code, s);
+                VendorBankAccount.Insert(true);
+            end;
+            VendorBankAccount.Name := CopyStr(CarrierData.BankAccountName, 1, MaxStrLen(VendorBankAccount.Name));
+            VendorBankAccount.Address := CopyStr(CarrierData.RemitAddress1, 1, MaxStrLen(VendorBankAccount.Address));
+            VendorBankAccount."Address 2" := CopyStr(CarrierData.RemitAddress2, 1, MaxStrLen(VendorBankAccount."Address 2"));
+            VendorBankAccount.City := CopyStr(CarrierData.RemitCity, 1, MaxStrLen(VendorBankAccount.City));
+            VendorBankAccount."Post Code" := CopyStr(CarrierData.RemitZipcode, 1, MaxStrLen(VendorBankAccount."Post Code"));
+            VendorBankAccount.County := CopyStr(CarrierData.RemitState, 1, MaxStrLen(VendorBankAccount.County));
+            s := CopyStr(CarrierData.RemitCountry, 1, MaxStrLen(VendorBankAccount."Country/Region Code"));
+            if not CountryRegion.Get(s) then begin
+                CountryRegion.SetRange(Name, s);
+                if CountryRegion.FindFirst() then
+                    VendorBankAccount.Validate("Country/Region Code", CountryRegion.Code);
+            end else
+                VendorBankAccount.Validate("Country/Region Code", CountryRegion.Code);
+
+            VendorBankAccount."Phone No." := CopyStr(CarrierData.BankPhone, 1, MaxStrLen(VendorBankAccount."Phone No."));
+            VendorBankAccount."E-Mail" := CopyStr(CarrierData.RemitEmail, 1, MaxStrLen(VendorBankAccount."E-Mail"));
+            VendorBankAccount."Bank Account No." := CopyStr(CarrierData.BankAccountNumber, 1, MaxStrLen(VendorBankAccount."Bank Account No."));
+            VendorBankAccount."Bank Branch No." := CopyStr(CarrierData.BankRoutingNumber, 1, MaxStrLen(VendorBankAccount."Bank Branch No."));
+            if Vendor."Currency Code" <> '' then
+                VendorBankAccount.Validate("Currency Code", Vendor."Currency Code");
+            VendorBankAccount.Modify(true);
+        end;
+
+        //place at end and reloads Vendor so as to not interfere with code in base app to set Vendor Payment Method
+        if CarrierData.PayAdvanceOptionType = 'ACH' then begin
+            VendorBankAccount."Use for Electronic Payments" := true;
+            VendorBankAccount.Modify(true);
+            Vendor.Get(VendorBankAccount."Vendor No.");
+            Vendor.Validate("Preferred Bank Account Code", VendorBankAccount.Code);
+            Vendor.Modify(true);
         end;
     end;
+
+
 
 
 
@@ -332,10 +407,6 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         HttpResponseMessage.Content().ReadAs(ResponseText);
         exit(HttpResponseMessage.IsSuccessStatusCode());
     end;
-
-
-
-
 
     local procedure Encode(Input: Text): Text
     begin

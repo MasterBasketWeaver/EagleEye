@@ -229,6 +229,11 @@ table 80302 "EEMCP Carrier Data"
             DataClassification = CustomerContent;
             Editable = false;
         }
+        field(55; "PaymentTermsDays"; Integer)
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
         field(56; "CarrierPaymentType"; Text[50])
         {
             DataClassification = CustomerContent;
