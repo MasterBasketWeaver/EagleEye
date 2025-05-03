@@ -107,7 +107,7 @@ page 80003 "EE Fleetrock Entries"
 
                 trigger OnAction()
                 begin
-                    Message(Rec."Error Message");
+                    Message('%1\\Call Stack:\%2', Rec."Error Message", Rec."Error Stack");
                 end;
             }
             action("Show URL")

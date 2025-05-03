@@ -509,7 +509,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         exit(false);
     end;
 
-    local procedure GetPaymentTerms(PaymentTermsDays: Integer): Code[10]
+    procedure GetPaymentTerms(PaymentTermsDays: Integer): Code[10]
     var
         PaymentTerms: Record "Payment Terms";
         DateForm: DateFormula;
@@ -1572,6 +1572,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         ImportEntry."Document Type" := Type;
         ImportEntry.Success := Success;
         ImportEntry."Error Message" := ErrorMsg;
+        ImportEntry."Error Stack" := CopyStr(GetLastErrorCallStack(), 1, MaxStrLen(ImportEntry."Error Stack"));
         ImportEntry."Import Entry No." := ImportEntryNo;
         if DocNo <> '' then
             ImportEntry."Document No." := DocNo;

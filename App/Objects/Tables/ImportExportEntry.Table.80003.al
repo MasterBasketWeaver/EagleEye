@@ -70,6 +70,11 @@ table 80003 "EE Import/Export Entry"
             DataClassification = CustomerContent;
             Editable = false;
         }
+        field(15; "Error Stack"; Text[2048])
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
     }
 
     keys
