@@ -49,8 +49,6 @@ page 80301 "EEMCP Carriers"
                 Image = Refresh;
 
                 trigger OnAction()
-                var
-                    MCPMgt: Codeunit "EEMCP My Carrier Packets Mgt.";
                 begin
                     MCPMgt.GetCarrierData(Rec);
                 end;
@@ -67,6 +65,61 @@ page 80301 "EEMCP Carriers"
                 RunPageLink = "DOT No." = field("DOT No.");
                 RunPageMode = View;
             }
+            action("Create/Update Vendor")
+            {
+                ApplicationArea = All;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                Image = Vendor;
+
+                trigger OnAction()
+                var
+                    Vendor: Record Vendor;
+                begin
+                    MCPMgt.CreateAndUpdateVendorFromCarrier(Rec, true);
+                    if Vendor.Get(Rec."Docket No.") then
+                        Page.Run(Page::"Vendor Card", Vendor);
+                end;
+            }
+            action("Update All Vendors")
+            {
+                ApplicationArea = All;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                Image = VendorCode;
+
+                trigger OnAction()
+                var
+                    Carrier: Record "EEMCP Carrier";
+                    Window: Dialog;
+                    i, RecCount : Integer;
+                begin
+                    if not Confirm('Are you sure you want to update all vendors?') then
+                        exit;
+
+                    // Carrier.SetFilter("Docket No.", '<>%1', '');
+                    if not Carrier.FindSet(true) then
+                        exit;
+                    RecCount := Carrier.Count();
+                    Window.Open('Updating\#1###');
+                    repeat
+                        i += 1;
+                        Window.Update(1, StrSubstNo('%1 of %2', i, RecCount));
+                        MCPMgt.GetCarrierData(Carrier);
+                        MCPMgt.CreateAndUpdateVendorFromCarrier(Carrier, false);
+                    until Carrier.Next() = 0;
+                    Window.Close();
+                end;
+            }
+
+
         }
     }
+
+    var
+        MCPMgt: Codeunit "EEMCP My Carrier Packets Mgt.";
 }
