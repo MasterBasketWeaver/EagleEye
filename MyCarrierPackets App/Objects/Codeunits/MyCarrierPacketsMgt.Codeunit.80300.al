@@ -304,7 +304,7 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
             Vendor.Init();
             Vendor."No." := Carrier."Docket No.";
             Vendor.Validate("No.");
-            Vendor.Validate("Dot No.", Carrier."DOT No.");
+            Vendor.Validate("EEMCP Dot No.", Carrier."DOT No.");
             Vendor.Insert(true);
         end;
         Vendor.Validate("Vendor Posting Group", FleetrockSetup."Vendor Posting Group");
