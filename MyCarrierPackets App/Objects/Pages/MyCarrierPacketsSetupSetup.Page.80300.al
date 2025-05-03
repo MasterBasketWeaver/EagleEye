@@ -37,6 +37,10 @@ page 80300 "EEMCP My Carrier Packets Setup"
             {
                 ApplicationArea = all;
             }
+            field("Monitored Carrier Cutoff"; Rec."Monitored Carrier Cutoff")
+            {
+                ApplicationArea = All;
+            }
         }
     }
 

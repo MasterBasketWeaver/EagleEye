@@ -4,6 +4,7 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         MyCarrierPacketsSetup: Record "EEMCP MyCarrierPackets Setup";
         RestAPIMgt: Codeunit "EE REST API Mgt.";
         JsonMgt: Codeunit "EE Json Mgt.";
+        FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
         LoadedSetup: Boolean;
 
 
@@ -124,12 +125,9 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         URL, s : Text;
         TotalPages, PageSize, i, SessionId : Integer;
 
-
         start: DateTime;
         Window: Dialog;
     begin
-        //https://api.mycarrierpackets.com/api/v1/Carrier/MonitoredCarrierData?pageNumber=29&pageSize=500
-
         GetAndCheckSetup();
 
         //initial call to get page record count
@@ -147,23 +145,23 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         //https://api.mycarrierpackets.com/api/v1/Carrier/MonitoredCarriers?pageNumber=3&pagesize=5000
 
         if GuiAllowed then begin
-            start := CurrentDateTime();
-            Window.Open('Getting Data\#1##\#2##');
-            Carrier.Reset();
-            Carrier.DeleteAll(false);
-            for i := 1 to TotalPages do begin
-                Window.Update(1, StrSubstNo('%1 of %2', i, TotalPages));
-                Window.Update(2, CurrentDateTime - start);
-                // URL := StrSubstNo('%1/api/v1/Carrier/MonitoredCarrierData?pageNumber=%2&pageSize=%3', MyCarrierPacketsSetup."Integration URL", i, PageSize);
-                // JsonArry := RestAPIMgt.GetResponseAsJsonArray(URL, 'data', 'POST', JsonBody, Headers);
-                URL := StrSubstNo('%1/api/v1/Carrier/MonitoredCarriers?pageNumber=%2&pagesize=%3', MyCarrierPacketsSetup."Integration URL", i, PageSize);
-                JsonArry := RestAPIMgt.GetResponseAsJsonArray(URL, '', 'POST', JsonBody, Headers);
-                InsertCarrierData(JsonArry);
-                Window.Update(2, CurrentDateTime - start);
+            if Confirm('Refresh?') then begin
+                start := CurrentDateTime();
+                Window.Open('Getting Data\#1##\#2##');
+                Carrier.Reset();
+                Carrier.DeleteAll(true);
+                for i := 1 to TotalPages do begin
+                    Window.Update(1, StrSubstNo('%1 of %2', i, TotalPages));
+                    Window.Update(2, CurrentDateTime - start);
+                    // URL := StrSubstNo('%1/api/v1/Carrier/MonitoredCarrierData?pageNumber=%2&pageSize=%3', MyCarrierPacketsSetup."Integration URL", i, PageSize);
+                    // JsonArry := RestAPIMgt.GetResponseAsJsonArray(URL, 'data', 'POST', JsonBody, Headers);
+                    URL := StrSubstNo('%1/api/v1/Carrier/MonitoredCarriers?pageNumber=%2&pagesize=%3', MyCarrierPacketsSetup."Integration URL", i, PageSize);
+                    JsonArry := RestAPIMgt.GetResponseAsJsonArray(URL, '', 'POST', JsonBody, Headers);
+                    InsertCarrierData(JsonArry);
+                    Window.Update(2, CurrentDateTime - start);
+                end;
+                Window.Close();
             end;
-            Window.Close();
-            if not Confirm('%1, %2', false, Carrier.Count, CurrentDateTime - start) then
-                exit;
         end else
             for i := 1 to TotalPages do begin
                 // URL := StrSubstNo('%1/api/v1/Carrier/MonitoredCarrierData?pageNumber=%2&pageSize=%3', MyCarrierPacketsSetup."Integration URL", i, PageSize);
@@ -173,12 +171,24 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
                 InsertCarrierData(JsonArry);
             end;
 
+        start := CurrentDateTime();
+
         Carrier.SetCurrentKey("Requires Update");
         Carrier.SetRange("Requires Update", true);
+        if MyCarrierPacketsSetup."Monitored Carrier Cutoff" <> 0DT then
+            Carrier.SetFilter("Last Modifued At", '>=%1', MyCarrierPacketsSetup."Monitored Carrier Cutoff");
+        Window.Open('Getting Details\#1##\#2##');
+        TotalPages := Carrier.Count();
+
+        i := 0;
         if Carrier.FindSet(true) then
             repeat
+                i += 1;
+                Window.Update(1, StrSubstNo('%1 of %2', i, TotalPages));
+                Window.Update(2, CurrentDateTime - start);
                 GetCarrierData(Carrier, Headers);
             until Carrier.Next() = 0;
+        Window.Close();
     end;
 
 
@@ -215,20 +225,59 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
     end;
 
 
+
+    procedure GetCarrierData(var Carrier: Record "EEMCP Carrier")
+    var
+        Headers: HttpHeaders;
+    begin
+        RestAPIMgt.AddHeader(Headers, 'Authorization', StrSubstNo('Bearer %1', CheckToGetAPIToken()));
+        GetCarrierData(Carrier, Headers);
+    end;
+
+
     local procedure GetCarrierData(var Carrier: Record "EEMCP Carrier"; var Headers: HttpHeaders)
     var
         CarrierData: Record "EEMCP Carrier Data";
-        JsonBody: JsonObject;
+        JsonBody, CarrierJsonObj : JsonObject;
         JsonArry: JsonArray;
+        JsonTkn: JsonToken;
+        RecVar: Variant;
         URL: Text;
     begin
-
-        //https://api.mycarrierpackets.com/api/v1/carrier/getcustomerpacketwithsw?DOTNumber=4295343
         URL := StrSubstNo('%1/api/v1/carrier/getcustomerpacketwithsw?DOTNumber=%2', MyCarrierPacketsSetup."Integration URL", Carrier."DOT No.");
+        CarrierJsonObj := RestAPIMgt.GetResponseAsJsonObject('POST', URL, '', JsonBody, Headers);
 
-        JsonArry := RestAPIMgt.GetResponseAsJsonArray(URL, '', 'POST', JsonBody, Headers);
-
-
+        if not CarrierData.Get(Carrier."DOT No.") then begin
+            CarrierData.Init();
+            CarrierData."DOT No." := Carrier."DOT No.";
+            CarrierData."Docket No." := Carrier."Docket No.";
+            CarrierData.Insert(false);
+        end;
+        RecVar := CarrierData;
+        FleetrockMgt.PopulateStagingTable(RecVar, CarrierJsonObj, Database::"EEMCP Carrier Data", CarrierData.FieldNo(LegalName), true);
+        if CarrierJsonObj.Contains('CarrierPaymentInfo') then
+            if CarrierJsonObj.Get('CarrierPaymentInfo', JsonTkn) and not IsJsonTokenNull(JsonTkn) then begin
+                JsonBody := JsonTkn.AsObject();
+                FleetrockMgt.PopulateStagingTable(RecVar, JsonBody, Database::"EEMCP Carrier Data", CarrierData.FieldNo(BankRoutingNumber), true);
+            end;
+        if CarrierJsonObj.Contains('FactoringRemit') then
+            if CarrierJsonObj.Get('FactoringRemit', JsonTkn) and not IsJsonTokenNull(JsonTkn) then begin
+                JsonBody := JsonTkn.AsObject();
+                FleetrockMgt.PopulateStagingTable(RecVar, JsonBody, Database::"EEMCP Carrier Data", CarrierData.FieldNo(FactoringCompanyID), true);
+            end;
+        CarrierData := RecVar;
+        if CarrierJsonObj.Contains('CarrierPaymentTypes') then
+            if CarrierJsonObj.Get('CarrierPaymentTypes', JsonTkn) and not IsJsonTokenNull(JsonTkn) then begin
+                JsonArry := JsonTkn.AsArray();
+                if JsonArry.Get(0, JsonTkn) then begin
+                    JsonBody := JsonTkn.AsObject();
+                    if JsonBody.Get('PaymentType', JsonTkn) then begin
+                        JsonBody := JsonTkn.AsObject();
+                        CarrierData.CarrierPaymentType := JsonMgt.GetJsonValueAsText(JsonBody, 'Type');
+                    end;
+                end;
+            end;
+        CarrierData.Modify(false);
         Carrier."Requires Update" := false;
         Carrier.Modify(false);
         Commit();
@@ -241,6 +290,12 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         Result := JsonTkn.AsValue().AsInteger();
     end;
 
+    local procedure IsJsonTokenNull(var JsonTkn: JsonToken): Boolean
+    begin
+        if not JsonTkn.IsValue() then
+            exit(false);
+        exit(JsonTkn.AsValue().IsNull());
+    end;
 
 
 

@@ -2,6 +2,8 @@ table 80301 "EEMCP Carrier"
 {
     Caption = 'Carrier';
     DataClassification = CustomerContent;
+    DrillDownPageId = "EEMCP Carriers";
+    LookupPageId = "EEMCP Carriers";
 
     fields
     {
@@ -36,4 +38,12 @@ table 80301 "EEMCP Carrier"
         key(K2; "Docket No.") { }
         key(K3; "Requires Update") { }
     }
+
+    trigger OnDelete()
+    var
+        CarrierData: Record "EEMCP Carrier Data";
+    begin
+        if CarrierData.Get("DOT No.") then
+            CarrierData.Delete(true);
+    end;
 }

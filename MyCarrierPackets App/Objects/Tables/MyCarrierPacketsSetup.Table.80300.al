@@ -43,6 +43,10 @@ table 80300 "EEMCP MyCarrierPackets Setup"
         {
             DataClassification = CustomerContent;
         }
+        field(11; "Monitored Carrier Cutoff"; DateTime)
+        {
+            DataClassification = CustomerContent;
+        }
 
     }
 

@@ -1,5 +1,8 @@
 codeunit 80004 "EE REST API Mgt."
 {
+    var
+        JsonTypeGlobal: Option "Token","Object";
+
     procedure GetResponseAsJsonToken(Method: Text; URL: Text; TokenName: Text): Variant
     var
         JsonBody: JsonObject;
@@ -23,21 +26,45 @@ codeunit 80004 "EE REST API Mgt."
     end;
 
     procedure GetResponseAsJsonToken(Method: Text; URL: Text; TokenName: Text; var JsonBody: JsonObject; var PassedHeaders: HttpHeaders): Variant
+    begin
+        exit(GetResponseAsJson(Method, URL, TokenName, JsonBody, PassedHeaders, JsonTypeGlobal::Token));
+    end;
+
+    procedure GetResponseAsJsonObject(Method: Text; URL: Text; TokenName: Text; var JsonBody: JsonObject; var PassedHeaders: HttpHeaders): Variant
+    begin
+        exit(GetResponseAsJson(Method, URL, TokenName, JsonBody, PassedHeaders, JsonTypeGlobal::Object));
+    end;
+
+    procedure GetResponseAsJson(Method: Text; URL: Text; TokenName: Text; var JsonBody: JsonObject; var PassedHeaders: HttpHeaders; JsonType: Option "Token","Object"): Variant
     var
         ResponseText, ReasonPhrase : Text;
         JsonObj: JsonObject;
         JsonTkn: JsonToken;
     begin
         ChooseRequestToSend(Method, URL, JsonBody, PassedHeaders, ResponseText, ReasonPhrase);
-        JsonObj.ReadFrom(ResponseText);
-        if not JsonObj.Get(TokenName, JsonTkn) then begin
-            JsonObj.WriteTo(ResponseText);
-            if ResponseText.Contains('"result":"error"') then
-                Error(ResponseText);
-            Error('Token %1 not found in response:\%2', TokenName, ResponseText);
+        if not JsonObj.ReadFrom(ResponseText) then
+            if ResponseText <> '' then
+                Error(ResponseText)
+            else
+                Error(ReasonPhrase);
+        case JsonType of
+            JsonType::Token:
+                begin
+                    if TokenName = '' then
+                        exit(JsonObj.AsToken());
+                    if not JsonObj.Get(TokenName, JsonTkn) then begin
+                        JsonObj.WriteTo(ResponseText);
+                        if ResponseText.Contains('"result":"error"') then
+                            Error(ResponseText);
+                        Error('Token %1 not found in response:\%2', TokenName, ResponseText);
+                    end;
+                    exit(JsonTkn);
+                end;
+            JsonType::Object:
+                exit(JsonObj);
         end;
-        exit(JsonTkn);
     end;
+
 
 
     procedure GetResponseAsJsonArray(URL: Text; TokenName: Text): Variant

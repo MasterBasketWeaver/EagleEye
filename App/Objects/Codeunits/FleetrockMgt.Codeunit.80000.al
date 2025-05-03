@@ -1335,6 +1335,11 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
     procedure PopulateStagingTable(var RecVar: Variant; var OrderJsonObj: JsonObject; TableNo: Integer; StartFieldNo: Integer)
+    begin
+        PopulateStagingTable(RecVar, OrderJsonObj, TableNo, StartFieldNo, false);
+    end;
+
+    procedure PopulateStagingTable(var RecVar: Variant; var OrderJsonObj: JsonObject; TableNo: Integer; StartFieldNo: Integer; ProcessIntegers: Boolean)
     var
         FieldRec: Record Field;
         RecRef: RecordRef;
@@ -1355,6 +1360,13 @@ codeunit 80000 "EE Fleetrock Mgt."
             repeat
                 RecRef.Field(FieldRec."No.").Value(JsonMgt.GetJsonValueAsDecimal(OrderJsonObj, FieldRec.FieldName));
             until FieldRec.Next() = 0;
+        if ProcessIntegers then begin
+            FieldRec.SetRange(Type, FieldRec.Type::Integer);
+            if FieldRec.FindSet() then
+                repeat
+                    RecRef.Field(FieldRec."No.").Value(JsonMgt.GetJsonValueAsInteger(OrderJsonObj, FieldRec.FieldName));
+                until FieldRec.Next() = 0;
+        end;
         RecRef.SetTable(RecVar);
     end;
 
