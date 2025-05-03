@@ -164,6 +164,23 @@ page 80003 "EE Fleetrock Entries"
                     Rec.Reset();
                 end;
             }
+            action("Clear All Entries")
+            {
+                ApplicationArea = all;
+                Image = Delete;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+
+                trigger OnAction()
+                begin
+                    if not Confirm('Delete all entries?') then
+                        exit;
+                    Rec.Reset();
+                    Rec.DeleteAll(true);
+                end;
+            }
         }
     }
 }
