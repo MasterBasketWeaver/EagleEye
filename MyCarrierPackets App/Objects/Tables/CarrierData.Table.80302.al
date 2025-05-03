@@ -1,4 +1,4 @@
-table 80301 "EEMCP Carrier Data"
+table 80302 "EEMCP Carrier Data"
 {
     Caption = 'Carrier Data';
     DataClassification = CustomerContent;

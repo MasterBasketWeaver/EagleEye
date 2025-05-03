@@ -4,7 +4,7 @@ codeunit 80301 "EEMCP Get Monitored Data"
 
     trigger OnRun()
     var
-        CarrierData: Record "EEMCP Carrier Data";
+        Carrier: Record "EEMCP Carrier";
         MCPMgt: Codeunit "EEMCP My Carrier Packets Mgt.";
         RestAPIMgt: Codeunit "EE REST API Mgt.";
         JsonMgt: Codeunit "EE JSON Mgt.";
@@ -22,12 +22,12 @@ codeunit 80301 "EEMCP Get Monitored Data"
         foreach JsonTkn in JsonArry do begin
             CarrierJsonObj := JsonTkn.AsObject();
 
-            DocketNumber := CopyStr(JsonMgt.GetJsonValueAsText(CarrierJsonObj, 'docketNumber'), 1, MaxStrLen(CarrierData."Docket No."));
+            DocketNumber := CopyStr(JsonMgt.GetJsonValueAsText(CarrierJsonObj, 'docketNumber'), 1, MaxStrLen(Carrier."Docket No."));
             if DocketNumber <> '' then
-                if not CarrierData.Get(DocketNumber) then begin
-                    CarrierData.Init();
-                    CarrierData."Docket No." := DocketNumber;
-                    CarrierData.Insert(false);
+                if not Carrier.Get(DocketNumber) then begin
+                    Carrier.Init();
+                    Carrier."Docket No." := DocketNumber;
+                    Carrier.Insert(false);
                 end;
         end;
     end;

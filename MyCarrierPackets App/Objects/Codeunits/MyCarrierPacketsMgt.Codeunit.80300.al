@@ -115,7 +115,7 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
 
     procedure GetMonitoredCarrierData()
     var
-        CarrierData: Record "EEMCP Carrier Data";
+        Carrier: Record "EEMCP Carrier";
 
         Headers: HttpHeaders;
         JsonArry: JsonArray;
@@ -149,8 +149,8 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         if GuiAllowed then begin
             start := CurrentDateTime();
             Window.Open('Getting Data\#1##\#2##');
-            CarrierData.Reset();
-            CarrierData.DeleteAll(false);
+            Carrier.Reset();
+            Carrier.DeleteAll(false);
             for i := 1 to TotalPages do begin
                 Window.Update(1, StrSubstNo('%1 of %2', i, TotalPages));
                 Window.Update(2, CurrentDateTime - start);
@@ -162,7 +162,7 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
                 Window.Update(2, CurrentDateTime - start);
             end;
             Window.Close();
-            if not Confirm('%1, %2', false, CarrierData.Count, CurrentDateTime - start) then
+            if not Confirm('%1, %2', false, Carrier.Count, CurrentDateTime - start) then
                 exit;
         end else
             for i := 1 to TotalPages do begin
@@ -172,31 +172,65 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
                 JsonArry := RestAPIMgt.GetResponseAsJsonArray(URL, '', 'POST', JsonBody, Headers);
                 InsertCarrierData(JsonArry);
             end;
+
+        Carrier.SetCurrentKey("Requires Update");
+        Carrier.SetRange("Requires Update", true);
+        if Carrier.FindSet(true) then
+            repeat
+                GetCarrierData(Carrier, Headers);
+            until Carrier.Next() = 0;
     end;
 
 
     local procedure InsertCarrierData(var CarrierJsonArray: JsonArray): Boolean
     var
-        CarrierData: Record "EEMCP Carrier Data";
+        Carrier: Record "EEMCP Carrier";
         CarrierJsonObj: JsonObject;
         JsonTkn: JsonToken;
         DocketNumber: Text;
         DOTNumber: Integer;
+        LastModified: DateTime;
     begin
         foreach JsonTkn in CarrierJsonArray do begin
             CarrierJsonObj := JsonTkn.AsObject();
             DOTNumber := JsonMgt.GetJsonValueAsInteger(CarrierJsonObj, 'DOTNumber');
-            if DOTNumber <> 0 then begin
-                if not CarrierData.Get(DOTNumber) then begin
-                    CarrierData.Init();
-                    CarrierData."DOT No." := DOTNumber;
-                    CarrierData."Docket No." := CopyStr(JsonMgt.GetJsonValueAsText(CarrierJsonObj, 'DocketNumber'), 1, MaxStrLen(CarrierData."Docket No."));
-                    CarrierData."Last Modifued At" := JsonMgt.GetJsonValueAsDateTime(CarrierJsonObj, 'LastModifiedDate');
-                    CarrierData.Insert(false);
-                    CarrierData.SystemModifiedAt := currentDateTime();
-                end;
-            end;
+            LastModified := JsonMgt.GetJsonValueAsDateTime(CarrierJsonObj, 'LastModifiedDate');
+            if (DOTNumber <> 0) and (LastModified <> 0DT) then
+                if not Carrier.Get(DOTNumber) then begin
+                    Carrier.Init();
+                    Carrier."DOT No." := DOTNumber;
+                    Carrier."Docket No." := CopyStr(JsonMgt.GetJsonValueAsText(CarrierJsonObj, 'DocketNumber'), 1, MaxStrLen(Carrier."Docket No."));
+                    Carrier."Last Modifued At" := JsonMgt.GetJsonValueAsDateTime(CarrierJsonObj, 'LastModifiedDate');
+                    Carrier."Requires Update" := true;
+                    Carrier.Insert(false);
+                    Carrier.SystemModifiedAt := currentDateTime();
+                end else
+                    if LastModified > Carrier."Last Modifued At" then begin
+                        Carrier."Last Modifued At" := LastModified;
+                        Carrier."Requires Update" := true;
+                        Carrier.Modify(false);
+                    end;
         end;
+        Commit();
+    end;
+
+
+    local procedure GetCarrierData(var Carrier: Record "EEMCP Carrier"; var Headers: HttpHeaders)
+    var
+        CarrierData: Record "EEMCP Carrier Data";
+        JsonBody: JsonObject;
+        JsonArry: JsonArray;
+        URL: Text;
+    begin
+
+        //https://api.mycarrierpackets.com/api/v1/carrier/getcustomerpacketwithsw?DOTNumber=4295343
+        URL := StrSubstNo('%1/api/v1/carrier/getcustomerpacketwithsw?DOTNumber=%2', MyCarrierPacketsSetup."Integration URL", Carrier."DOT No.");
+
+        JsonArry := RestAPIMgt.GetResponseAsJsonArray(URL, '', 'POST', JsonBody, Headers);
+
+
+        Carrier."Requires Update" := false;
+        Carrier.Modify(false);
         Commit();
     end;
 
