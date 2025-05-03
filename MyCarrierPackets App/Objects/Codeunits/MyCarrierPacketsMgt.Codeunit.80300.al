@@ -117,20 +117,14 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
     procedure GetMonitoredCarrierData()
     var
         Carrier: Record "EEMCP Carrier";
-
         Headers: HttpHeaders;
         JsonArry: JsonArray;
         JsonBody: JsonObject;
         JsonTkn: JsonToken;
         URL, s : Text;
-        TotalPages, PageSize, i, SessionId : Integer;
-
-        start: DateTime;
-        Window: Dialog;
+        TotalPages, PageSize, i : Integer;
     begin
         GetAndCheckSetup();
-
-        //initial call to get page record count
         URL := StrSubstNo('%1/api/v1/Carrier/MonitoredCarrierData?pageNumber=%2&pageSize=%3', MyCarrierPacketsSetup."Integration URL", 1, 1);
         RestAPIMgt.AddHeader(Headers, 'Authorization', StrSubstNo('Bearer %1', CheckToGetAPIToken()));
 
@@ -141,58 +135,24 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         end;
         PageSize := 5000;
         TotalPages := Round(TotalPages / PageSize, 1, '>');
-
-        //https://api.mycarrierpackets.com/api/v1/Carrier/MonitoredCarriers?pageNumber=3&pagesize=5000
-
-        if GuiAllowed then begin
-            if Confirm('Refresh?') then begin
-                start := CurrentDateTime();
-                Window.Open('Getting Data\#1##\#2##');
-                Carrier.Reset();
-                Carrier.DeleteAll(true);
-                for i := 1 to TotalPages do begin
-                    Window.Update(1, StrSubstNo('%1 of %2', i, TotalPages));
-                    Window.Update(2, CurrentDateTime - start);
-                    // URL := StrSubstNo('%1/api/v1/Carrier/MonitoredCarrierData?pageNumber=%2&pageSize=%3', MyCarrierPacketsSetup."Integration URL", i, PageSize);
-                    // JsonArry := RestAPIMgt.GetResponseAsJsonArray(URL, 'data', 'POST', JsonBody, Headers);
-                    URL := StrSubstNo('%1/api/v1/Carrier/MonitoredCarriers?pageNumber=%2&pagesize=%3', MyCarrierPacketsSetup."Integration URL", i, PageSize);
-                    JsonArry := RestAPIMgt.GetResponseAsJsonArray(URL, '', 'POST', JsonBody, Headers);
-                    InsertCarrierData(JsonArry);
-                    Window.Update(2, CurrentDateTime - start);
-                end;
-                Window.Close();
-            end;
-        end else
-            for i := 1 to TotalPages do begin
-                // URL := StrSubstNo('%1/api/v1/Carrier/MonitoredCarrierData?pageNumber=%2&pageSize=%3', MyCarrierPacketsSetup."Integration URL", i, PageSize);
-                // JsonArry := RestAPIMgt.GetResponseAsJsonArray(URL, 'data', 'POST', JsonBody, Headers);
-                URL := StrSubstNo('%1/api/v1/Carrier/MonitoredCarriers?pageNumber=%2&pagesize=%3', MyCarrierPacketsSetup."Integration URL", i, PageSize);
-                JsonArry := RestAPIMgt.GetResponseAsJsonArray(URL, '', 'POST', JsonBody, Headers);
-                InsertCarrierData(JsonArry);
-            end;
-
-        start := CurrentDateTime();
+        for i := 1 to TotalPages do begin
+            URL := StrSubstNo('%1/api/v1/Carrier/MonitoredCarriers?pageNumber=%2&pagesize=%3', MyCarrierPacketsSetup."Integration URL", i, PageSize);
+            JsonArry := RestAPIMgt.GetResponseAsJsonArray(URL, '', 'POST', JsonBody, Headers);
+            InsertCarriers(JsonArry);
+        end;
 
         Carrier.SetCurrentKey("Requires Update");
         Carrier.SetRange("Requires Update", true);
         if MyCarrierPacketsSetup."Monitored Carrier Cutoff" <> 0DT then
             Carrier.SetFilter("Last Modifued At", '>=%1', MyCarrierPacketsSetup."Monitored Carrier Cutoff");
-        Window.Open('Getting Details\#1##\#2##');
-        TotalPages := Carrier.Count();
-
-        i := 0;
         if Carrier.FindSet(true) then
             repeat
-                i += 1;
-                Window.Update(1, StrSubstNo('%1 of %2', i, TotalPages));
-                Window.Update(2, CurrentDateTime - start);
                 GetCarrierData(Carrier, Headers);
             until Carrier.Next() = 0;
-        Window.Close();
     end;
 
 
-    local procedure InsertCarrierData(var CarrierJsonArray: JsonArray): Boolean
+    local procedure InsertCarriers(var CarrierJsonArray: JsonArray): Boolean
     var
         Carrier: Record "EEMCP Carrier";
         CarrierJsonObj: JsonObject;
