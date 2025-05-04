@@ -172,10 +172,9 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
                     Carrier.Init();
                     Carrier."DOT No." := DOTNumber;
                     Carrier."Docket No." := CopyStr(JsonMgt.GetJsonValueAsText(CarrierJsonObj, 'DocketNumber'), 1, MaxStrLen(Carrier."Docket No."));
-                    Carrier."Last Modifued At" := JsonMgt.GetJsonValueAsDateTime(CarrierJsonObj, 'LastModifiedDate');
+                    Carrier."Last Modifued At" := LastModified;
                     Carrier."Requires Update" := true;
                     Carrier.Insert(false);
-                    Carrier.SystemModifiedAt := currentDateTime();
                 end else
                     if LastModified > Carrier."Last Modifued At" then begin
                         Carrier."Last Modifued At" := LastModified;
