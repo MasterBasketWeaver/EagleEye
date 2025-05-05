@@ -231,6 +231,11 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
                 JsonBody := JsonTkn.AsObject();
                 FleetrockMgt.PopulateStagingTable(RecVar, JsonBody, Database::"EEMCP Carrier Data", CarrierData.FieldNo(CarrierRemitEmail), true);
             end;
+        if CarrierJsonObj.Contains('CarrierTINMatchings') then
+            if CarrierJsonObj.Get('CarrierRemit', JsonTkn) and not IsJsonTokenNull(JsonTkn) then begin
+                JsonBody := JsonTkn.AsObject();
+                FleetrockMgt.PopulateStagingTable(RecVar, JsonBody, Database::"EEMCP Carrier Data", CarrierData.FieldNo(CarrierRemitEmail), true);
+            end;
         CarrierData := RecVar;
         if CarrierJsonObj.Contains('CarrierPaymentTypes') then
             if CarrierJsonObj.Get('CarrierPaymentTypes', JsonTkn) and not IsJsonTokenNull(JsonTkn) then begin
@@ -252,6 +257,14 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
                         JsonBody := JsonTkn.AsObject();
                         CarrierData.PaymentTermsDays := JsonMgt.GetJsonValueAsInteger(JsonBody, 'Days');
                     end;
+                end;
+            end;
+        if CarrierJsonObj.Contains('CarrierTINMatchings') then
+            if CarrierJsonObj.Get('CarrierTINMatchings', JsonTkn) and not IsJsonTokenNull(JsonTkn) then begin
+                JsonArry := JsonTkn.AsArray();
+                if JsonArry.Get(0, JsonTkn) then begin
+                    JsonBody := JsonTkn.AsObject();
+                    CarrierData.TIN := JsonMgt.GetJsonValueAsText(JsonBody, 'TIN');
                 end;
             end;
         CarrierData.Modify(false);
@@ -282,6 +295,7 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         FleetrockSetup.Get();
         FleetrockSetup.TestField("Vendor Posting Group");
         // FleetrockSetup.TestField("Tax Area Code");
+        FleetrockSetup.TestField("Payment Terms");
         LoadedFleetrock := true;
     end;
 
@@ -289,6 +303,7 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
     var
         Vendor: Record Vendor;
         VendorBankAccount: Record "Vendor Bank Account";
+        PaymentMethod: Record "Payment Method";
         Contact: Record Contact;
         CarrierData: Record "EEMCP Carrier Data";
         Currency: Record Currency;
@@ -317,8 +332,9 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         Vendor.Validate("Vendor Posting Group", FleetrockSetup."Vendor Posting Group");
         // Vendor.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
         Vendor.Validate("Tax Liable", true);
-        if CarrierData.PaymentTermsDays > 0 then
-            Vendor.Validate("Payment Terms Code", FleetrockMgt.GetPaymentTerms(CarrierData.PaymentTermsDays));
+        // if CarrierData.PaymentTermsDays > 0 then
+        //     Vendor.Validate("Payment Terms Code", FleetrockMgt.GetPaymentTerms(CarrierData.PaymentTermsDays));
+        Vendor.Validate("Payment Terms Code", FleetrockSetup."Payment Terms");
         Vendor."Name" := CopyStr(CarrierData.LegalName, 1, MaxStrLen(Vendor."Name"));
         Vendor."Name 2" := CopyStr(CarrierData.DBAName, 1, MaxStrLen(Vendor."Name 2"));
 
@@ -342,6 +358,7 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
             if Currency.Get(s) then
                 Vendor.Validate("Currency Code", Currency.Code);
         end;
+        Vendor."Federal ID No." := CopyStr(CarrierData.TIN, 1, MaxStrLen(Vendor."Federal ID No."));
         Vendor.Modify(true);
 
         if (CarrierData.CarrierRemitEmail <> '') or (CarrierData.CarrierPaymentType = 'ACH') then begin
@@ -350,6 +367,12 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
             Vendor.Validate("Preferred Bank Account Code", VendorBankAccount.Code);
             Vendor.Modify(true);
         end;
+        VendorBankAccount.SetRange("Vendor No.", Vendor."No.");
+        if VendorBankAccount.IsEmpty() then
+            if PaymentMethod.Get('check') then begin
+                Vendor.Validate("Payment Method Code", PaymentMethod.Code);
+                Vendor.Modify(true);
+            end;
 
         Commit();
     end;
@@ -392,7 +415,60 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
             VendorBankAccount."Use for Electronic Payments" := true;
 
         VendorBankAccount.Modify(true);
+
+        if VendorBankAccount."E-Mail" <> '' then
+            AddVendorDocumentLayouts(Vendor, VendorBankAccount."E-Mail");
     end;
+
+
+    local procedure AddVendorDocumentLayouts(var Vendor: Record Vendor; EmailAddr: Text)
+    begin
+        AddVendorDocumentLayout(Vendor, EmailAddr, 'CTS Email Body 10083', 'EEL Remite', Enum::"Report Selection Usage"::"V.Remittance", Report::"Export Electronic Payments");
+        AddVendorDocumentLayout(Vendor, EmailAddr, 'CTS Email Body', '', Enum::"Report Selection Usage"::"P.V.Remit.", Report::"Remittance Advice - Entries");
+    end;
+
+    local procedure AddVendorDocumentLayout(var Vendor: Record Vendor; EmailAddr: Text; BodyLayout: Text; AttachmentLayout: Text; Usage: Enum "Report Selection Usage"; ReportID: Integer)
+    var
+        CustomReportSelection: Record "Custom Report Selection";
+    begin
+        CustomReportSelection.SetRange("Source Type", Database::Vendor);
+        CustomReportSelection.SetRange("Source No.", Vendor."No.");
+        CustomReportSelection.SetRange(Usage, Usage);
+        if CustomReportSelection.FindFirst() then
+            exit;
+        CustomReportSelection.Init();
+        CustomReportSelection.Validate("Source Type", Database::Vendor);
+        CustomReportSelection.Validate("Source No.", Vendor."No.");
+        CustomReportSelection.Validate(Usage, Usage);
+        CustomReportSelection.Validate("Report ID", ReportID);
+        CustomReportSelection.Insert(true);
+        CustomReportSelection.Validate("Report ID", ReportID);
+        CustomReportSelection.Validate("Send To Email", EmailAddr);
+        CustomReportSelection.Validate("Use for Email Body", true);
+        CustomReportSelection.Validate("Use for Email Attachment", true);
+        GetLayoutDetails(CustomReportSelection, 'CTS Email Body 10083', true);
+        GetLayoutDetails(CustomReportSelection, 'EEL Remite', false);
+        CustomReportSelection.Modify(true);
+    end;
+
+    local procedure GetLayoutDetails(var CustomReportSelection: Record "Custom Report Selection"; LayoutName: Text; Body: Boolean)
+    var
+        ReportLayoutList: Record "Report Layout List";
+    begin
+        if LayoutName = '' then
+            exit;
+        ReportLayoutList.SetRange("Report ID", CustomReportSelection."Report ID");
+        ReportLayoutList.SetRange(Name, LayoutName);
+        if ReportLayoutList.FindFirst() then
+            if Body then begin
+                CustomReportSelection.Validate("Email Body Layout Name", ReportLayoutList.Name);
+                CustomReportSelection.Validate("Email Body Layout AppID", ReportLayoutList."Application ID");
+            end else begin
+                CustomReportSelection.Validate("Email Attachment Layout Name", ReportLayoutList.Name);
+                CustomReportSelection.Validate("Email Body Layout AppID", ReportLayoutList."Application ID");
+            end;
+    end;
+
 
     local procedure GetCountryCode(Input: Text): Code[10]
     var

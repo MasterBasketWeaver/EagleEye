@@ -325,6 +325,11 @@ table 80302 "EEMCP Carrier Data"
             DataClassification = CustomerContent;
             Editable = false;
         }
+        field(67; "TIN"; Text[30])
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
     }
 
     keys
