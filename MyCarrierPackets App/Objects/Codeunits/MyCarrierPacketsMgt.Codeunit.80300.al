@@ -226,6 +226,11 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
                 JsonBody := JsonTkn.AsObject();
                 FleetrockMgt.PopulateStagingTable(RecVar, JsonBody, Database::"EEMCP Carrier Data", CarrierData.FieldNo(FactoringCompanyID), true);
             end;
+        if CarrierJsonObj.Contains('CarrierRemit') then
+            if CarrierJsonObj.Get('CarrierRemit', JsonTkn) and not IsJsonTokenNull(JsonTkn) then begin
+                JsonBody := JsonTkn.AsObject();
+                FleetrockMgt.PopulateStagingTable(RecVar, JsonBody, Database::"EEMCP Carrier Data", CarrierData.FieldNo(CarrierRemitEmail), true);
+            end;
         CarrierData := RecVar;
         if CarrierJsonObj.Contains('CarrierPaymentTypes') then
             if CarrierJsonObj.Get('CarrierPaymentTypes', JsonTkn) and not IsJsonTokenNull(JsonTkn) then begin
@@ -276,7 +281,7 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
             exit;
         FleetrockSetup.Get();
         FleetrockSetup.TestField("Vendor Posting Group");
-        FleetrockSetup.TestField("Tax Area Code");
+        // FleetrockSetup.TestField("Tax Area Code");
         LoadedFleetrock := true;
     end;
 
@@ -284,10 +289,10 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
     var
         Vendor: Record Vendor;
         VendorBankAccount: Record "Vendor Bank Account";
+        Contact: Record Contact;
         CarrierData: Record "EEMCP Carrier Data";
-
-        CountryRegion: Record "Country/Region";
         Currency: Record Currency;
+        CountryCode: Code[10];
         s: Text;
     begin
         GetAndCheckFleetrockSetup();
@@ -306,24 +311,29 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
             Vendor.Validate("EEMCP Dot No.", Carrier."DOT No.");
             Vendor.Insert(true);
         end;
+
+
+
         Vendor.Validate("Vendor Posting Group", FleetrockSetup."Vendor Posting Group");
-        Vendor.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
+        // Vendor.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
         Vendor.Validate("Tax Liable", true);
         if CarrierData.PaymentTermsDays > 0 then
             Vendor.Validate("Payment Terms Code", FleetrockMgt.GetPaymentTerms(CarrierData.PaymentTermsDays));
         Vendor."Name" := CopyStr(CarrierData.LegalName, 1, MaxStrLen(Vendor."Name"));
         Vendor."Name 2" := CopyStr(CarrierData.DBAName, 1, MaxStrLen(Vendor."Name 2"));
+
+        Contact.SetRange(Name, Vendor.Name);
+        Contact.SetRange("Company Name", Vendor.Name);
+        Contact.DeleteAll(true);
+
+        CountryCode := GetCountryCode(CarrierData.Country);
+        if CountryCode <> '' then
+            Vendor.Validate("Country/Region Code", CountryCode);
         Vendor.Address := CopyStr(CarrierData.Address1, 1, MaxStrLen(Vendor.Address));
         Vendor."Address 2" := CopyStr(CarrierData.Address2, 1, MaxStrLen(Vendor."Address 2"));
         Vendor.City := CopyStr(CarrierData.City, 1, MaxStrLen(Vendor.City));
+        Vendor.County := CopyStr(CarrierData.State, 1, MaxStrLen(Vendor.County));
         Vendor."Post Code" := CopyStr(CarrierData.Zipcode, 1, MaxStrLen(Vendor."Post Code"));
-        s := CopyStr(CarrierData.Country, 1, MaxStrLen(Vendor."Country/Region Code"));
-        if not CountryRegion.Get(CopyStr(CarrierData.Country, 1, MaxStrLen(Vendor."Country/Region Code"))) then begin
-            CountryRegion.SetRange(Name, CopyStr(CarrierData.Country, 1, MaxStrLen(CountryRegion.Name)));
-            if CountryRegion.FindFirst() then
-                Vendor.Validate("Country/Region Code", CountryRegion.Code);
-        end else
-            Vendor.Validate("Country/Region Code", CountryRegion.Code);
         Vendor."Phone No." := CopyStr(CarrierData.Phone, 1, MaxStrLen(Vendor."Phone No."));
         Vendor."Mobile Phone No." := CopyStr(CarrierData.CellPhone, 1, MaxStrLen(Vendor."Mobile Phone No."));
         Vendor."E-Mail" := CopyStr(CarrierData.Email, 1, MaxStrLen(Vendor."E-Mail"));
@@ -334,44 +344,9 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         end;
         Vendor.Modify(true);
 
-        if (CarrierData.BankName <> '') or (CarrierData.CarrierPaymentType = 'ACH') then begin
-            s := CopyStr(CarrierData.BankName, 1, MaxStrLen(VendorBankAccount.Code));
-            if s = '' then
-                s := Vendor."No.";
-            if not VendorBankAccount.Get(Vendor."No.", s) then begin
-                VendorBankAccount.Init();
-                VendorBankAccount.Validate("Vendor No.", Vendor."No.");
-                VendorBankAccount.Validate(Code, s);
-                VendorBankAccount.Insert(true);
-            end;
-            VendorBankAccount.Name := CopyStr(CarrierData.BankAccountName, 1, MaxStrLen(VendorBankAccount.Name));
-            VendorBankAccount.Address := CopyStr(CarrierData.RemitAddress1, 1, MaxStrLen(VendorBankAccount.Address));
-            VendorBankAccount."Address 2" := CopyStr(CarrierData.RemitAddress2, 1, MaxStrLen(VendorBankAccount."Address 2"));
-            VendorBankAccount.City := CopyStr(CarrierData.RemitCity, 1, MaxStrLen(VendorBankAccount.City));
-            VendorBankAccount."Post Code" := CopyStr(CarrierData.RemitZipcode, 1, MaxStrLen(VendorBankAccount."Post Code"));
-            VendorBankAccount.County := CopyStr(CarrierData.RemitState, 1, MaxStrLen(VendorBankAccount.County));
-            s := CopyStr(CarrierData.RemitCountry, 1, MaxStrLen(VendorBankAccount."Country/Region Code"));
-            if not CountryRegion.Get(s) then begin
-                CountryRegion.SetRange(Name, s);
-                if CountryRegion.FindFirst() then
-                    VendorBankAccount.Validate("Country/Region Code", CountryRegion.Code);
-            end else
-                VendorBankAccount.Validate("Country/Region Code", CountryRegion.Code);
-
-            VendorBankAccount."Phone No." := CopyStr(CarrierData.BankPhone, 1, MaxStrLen(VendorBankAccount."Phone No."));
-            VendorBankAccount."E-Mail" := CopyStr(CarrierData.RemitEmail, 1, MaxStrLen(VendorBankAccount."E-Mail"));
-            VendorBankAccount."Bank Account No." := CopyStr(CarrierData.BankAccountNumber, 1, MaxStrLen(VendorBankAccount."Bank Account No."));
-            VendorBankAccount."Bank Branch No." := CopyStr(CarrierData.BankRoutingNumber, 1, MaxStrLen(VendorBankAccount."Bank Branch No."));
-            if Vendor."Currency Code" <> '' then
-                VendorBankAccount.Validate("Currency Code", Vendor."Currency Code");
-            VendorBankAccount.Modify(true);
-        end;
-
-        //place at end and reloads Vendor so as to not interfere with code in base app to set Vendor Payment Method
-        if CarrierData.CarrierPaymentType = 'ACH' then begin
-            VendorBankAccount."Use for Electronic Payments" := true;
-            VendorBankAccount.Modify(true);
-            Vendor.Get(VendorBankAccount."Vendor No.");
+        if (CarrierData.CarrierRemitEmail <> '') or (CarrierData.CarrierPaymentType = 'ACH') then begin
+            AddVendorBankAccount(Vendor, VendorBankAccount, CarrierData);
+            Vendor.Get(Vendor."No.");
             Vendor.Validate("Preferred Bank Account Code", VendorBankAccount.Code);
             Vendor.Modify(true);
         end;
@@ -379,4 +354,62 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         Commit();
     end;
 
+
+    local procedure AddVendorBankAccount(var Vendor: Record Vendor; var VendorBankAccount: Record "Vendor Bank Account"; var CarrierData: Record "EEMCP Carrier Data")
+    var
+        CountryCode: Code[10];
+        s: Text;
+    begin
+        s := CopyStr(CarrierData.BankName, 1, MaxStrLen(VendorBankAccount.Code));
+        if s = '' then
+            s := Vendor."No.";
+        if not VendorBankAccount.Get(Vendor."No.", s) then begin
+            VendorBankAccount.Init();
+            VendorBankAccount.Validate("Vendor No.", Vendor."No.");
+            VendorBankAccount.Validate(Code, s);
+            VendorBankAccount.Insert(true);
+        end;
+
+        if CarrierData.BankAccountName <> '' then
+            VendorBankAccount.Name := CopyStr(CarrierData.BankAccountName, 1, MaxStrLen(VendorBankAccount.Name));
+        CountryCode := GetCountryCode(CarrierData.Country);
+        if CountryCode <> '' then
+            VendorBankAccount.Validate("Country/Region Code", CountryCode);
+        VendorBankAccount.Address := CopyStr(CarrierData.CarrierRemitAddress1, 1, MaxStrLen(VendorBankAccount.Address));
+        VendorBankAccount."Address 2" := CopyStr(CarrierData.CarrierRemitAddress2, 1, MaxStrLen(VendorBankAccount."Address 2"));
+        VendorBankAccount.City := CopyStr(CarrierData.CarrierRemitCity, 1, MaxStrLen(VendorBankAccount.City));
+        VendorBankAccount."Post Code" := CopyStr(CarrierData.CarrierRemitZipCode, 1, MaxStrLen(Vendor."Post Code"));
+        VendorBankAccount.County := CopyStr(CarrierData.CarrierRemitStateProvince, 1, MaxStrLen(VendorBankAccount.County));
+
+        VendorBankAccount."Phone No." := CopyStr(CarrierData.BankPhone, 1, MaxStrLen(VendorBankAccount."Phone No."));
+        VendorBankAccount."E-Mail" := CopyStr(CarrierData.RemitEmail, 1, MaxStrLen(VendorBankAccount."E-Mail"));
+        VendorBankAccount."Bank Account No." := CopyStr(CarrierData.BankAccountNumber, 1, MaxStrLen(VendorBankAccount."Bank Account No."));
+        VendorBankAccount."Bank Branch No." := CopyStr(CarrierData.BankRoutingNumber, 1, MaxStrLen(VendorBankAccount."Bank Branch No."));
+        if Vendor."Currency Code" <> '' then
+            VendorBankAccount.Validate("Currency Code", Vendor."Currency Code");
+
+        if CarrierData.CarrierPaymentType = 'ACH' then
+            VendorBankAccount."Use for Electronic Payments" := true;
+
+        VendorBankAccount.Modify(true);
+    end;
+
+    local procedure GetCountryCode(Input: Text): Code[10]
+    var
+        CountryRegion: Record "Country/Region";
+        s: Text;
+    begin
+        if Input.ToLower() = UnitedStatesLower then
+            exit('US');
+        s := CopyStr(Input, 1, MaxStrLen(CountryRegion.Code));
+        if not CountryRegion.Get(s) then begin
+            CountryRegion.SetRange(Name, CopyStr(Input, 1, MaxStrLen(CountryRegion.Name)));
+            if CountryRegion.FindFirst() then
+                exit(CountryRegion.Code);
+        end else
+            exit(CountryRegion.Code);
+    end;
+
+    var
+        UnitedStatesLower: Label 'united states';
 }

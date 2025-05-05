@@ -191,34 +191,34 @@ page 80302 "EEMCP Carrier Data"
                 {
                     ApplicationArea = all;
                 }
-                // field("CarrierRemitEmail"; Rec."CarrierRemitEmail")
-                // {
-                //     ApplicationArea = all;
-                // }
-                // field("CarrierRemitAddress1"; Rec."CarrierRemitAddress1")
-                // {
-                //     ApplicationArea = all;
-                // }
-                // field("CarrierRemitAddress2"; Rec."CarrierRemitAddress2")
-                // {
-                //     ApplicationArea = all;
-                // }
-                // field("CarrierRemitCity"; Rec."CarrierRemitCity")
-                // {
-                //     ApplicationArea = all;
-                // }
-                // field("CarrierRemitCountry"; Rec."CarrierRemitCountry")
-                // {
-                //     ApplicationArea = all;
-                // }
-                // field("CarrierRemitStateProvince"; Rec."CarrierRemitStateProvince")
-                // {
-                //     ApplicationArea = all;
-                // }
-                // field("CarrierRemitZipCode"; Rec."CarrierRemitZipCode")
-                // {
-                //     ApplicationArea = all;
-                // }
+                field("CarrierRemitEmail"; Rec."CarrierRemitEmail")
+                {
+                    ApplicationArea = all;
+                }
+                field("CarrierRemitAddress1"; Rec."CarrierRemitAddress1")
+                {
+                    ApplicationArea = all;
+                }
+                field("CarrierRemitAddress2"; Rec."CarrierRemitAddress2")
+                {
+                    ApplicationArea = all;
+                }
+                field("CarrierRemitCity"; Rec."CarrierRemitCity")
+                {
+                    ApplicationArea = all;
+                }
+                field("CarrierRemitCountry"; Rec."CarrierRemitCountry")
+                {
+                    ApplicationArea = all;
+                }
+                field("CarrierRemitStateProvince"; Rec."CarrierRemitStateProvince")
+                {
+                    ApplicationArea = all;
+                }
+                field("CarrierRemitZipCode"; Rec."CarrierRemitZipCode")
+                {
+                    ApplicationArea = all;
+                }
                 field(PaymentTermsDays; Rec.PaymentTermsDays)
                 {
                     ApplicationArea = all;

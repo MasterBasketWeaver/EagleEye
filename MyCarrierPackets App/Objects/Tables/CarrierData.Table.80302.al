@@ -229,6 +229,42 @@ table 80302 "EEMCP Carrier Data"
             DataClassification = CustomerContent;
             Editable = false;
         }
+        field(48; "CarrierRemitEmail"; Text[100])
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
+        field(49; "CarrierRemitAddress1"; Text[100])
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
+        field(50; "CarrierRemitAddress2"; Text[100])
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
+        field(51; "CarrierRemitCity"; Text[50])
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
+        field(52; "CarrierRemitCountry"; Text[50])
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
+        field(53; "CarrierRemitStateProvince"; Text[10])
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
+        field(54; "CarrierRemitZipCode"; Text[20])
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
+
         field(55; "PaymentTermsDays"; Integer)
         {
             DataClassification = CustomerContent;
