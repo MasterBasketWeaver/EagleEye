@@ -103,4 +103,21 @@ codeunit 80150 "EEC Custom Subscribers"
             SalesHeader.Modify(false);
         end;
     end;
+
+
+    [EventSubscriber(ObjectType::Table, Database::Customer, OnAfterInsertEvent, '', false, false)]
+    local procedure CustomerOnAfterInsert(var Rec: Record Customer)
+    var
+        SalesRecSetup: Record "Sales & Receivables Setup";
+    begin
+        SalesRecSetup.Get();
+        if Rec."Customer Posting Group" = '' then
+            if SalesRecSetup."EEC Default Cust. Post. Group" <> '' then
+                Rec.Validate("Customer Posting Group", SalesRecSetup."EEC Default Cust. Post. Group");
+        if Rec."Tax Area Code" = '' then
+            if SalesRecSetup."EEC Default Tax Area Code" <> '' then begin
+                Rec.Validate("Tax Area Code", SalesRecSetup."EEC Default Tax Area Code");
+                Rec.Validate("Tax Liable", true);
+            end;
+    end;
 }
