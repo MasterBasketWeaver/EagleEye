@@ -9,6 +9,12 @@ pageextension 80152 "EEC Purchase Payables Setup" extends "Purchases & Payables 
                 ApplicationArea = all;
                 ToolTip = 'Specifies the ACH payment method code for vendors with at least one bank account assigned.';
             }
+            field("EE Default Payment Terms"; Rec."EEC Default Payment Terms")
+            {
+                ApplicationArea = all;
+                ShowMandatory = true;
+                ToolTip = 'Specifies the default payment terms code for Purchase Invoices.';
+            }
         }
     }
 }

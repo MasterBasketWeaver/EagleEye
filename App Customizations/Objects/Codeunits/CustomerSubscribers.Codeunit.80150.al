@@ -107,6 +107,36 @@ codeunit 80150 "EEC Custom Subscribers"
     end;
 
 
+
+    [EventSubscriber(ObjectType::Table, Database::"Purchase Header", OnAfterInsertEvent, '', false, false)]
+    local procedure PurchaseHeaderOnAfterInsertEvent(var Rec: Record "Purchase Header")
+    begin
+        CheckToSetDefaultPaymentTerms(Rec);
+    end;
+
+    [EventSubscriber(ObjectType::Table, Database::"Purchase Header", OnAfterModifyEvent, '', false, false)]
+    local procedure PurchaseHeaderOnAfterModifyEvent(var Rec: Record "Purchase Header")
+    begin
+        CheckToSetDefaultPaymentTerms(Rec);
+    end;
+
+    local procedure CheckToSetDefaultPaymentTerms(var PurchaseHeader: Record "Purchase Header")
+    var
+        PurchaseRecSetup: Record "Purchases & Payables Setup";
+    begin
+        if PurchaseHeader.IsTemporary then
+            exit;
+        if (PurchaseHeader."Document Type" <> PurchaseHeader."Document Type"::Invoice) or (PurchaseHeader."EE Fleetrock ID" <> '') or PurchaseHeader."EEC Updated Payment Terms" then
+            exit;
+        if not PurchaseRecSetup.Get() or (PurchaseRecSetup."EEC Default Payment Terms" = '') then
+            exit;
+        if PurchaseHeader."Payment Terms Code" <> PurchaseRecSetup."EEC Default Payment Terms" then begin
+            PurchaseHeader.Validate("Payment Terms Code", PurchaseRecSetup."EEC Default Payment Terms");
+            PurchaseHeader.Modify(false);
+        end;
+    end;
+
+
     [EventSubscriber(ObjectType::Table, Database::Customer, OnAfterInsertEvent, '', false, false)]
     local procedure CustomerOnAfterInsert(var Rec: Record Customer)
     var

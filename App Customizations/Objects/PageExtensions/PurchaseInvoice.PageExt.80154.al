@@ -6,6 +6,13 @@ pageextension 80154 "EEC Purchase Invoice" extends "Purchase Invoice"
         {
             ShowMandatory = VendorInvoiceNoMandatory;
         }
+        modify("Payment Terms Code")
+        {
+            trigger OnBeforeValidate()
+            begin
+                Rec."EEC Updated Payment Terms" := true;
+            end;
+        }
     }
 
     trigger OnAfterGetRecord()

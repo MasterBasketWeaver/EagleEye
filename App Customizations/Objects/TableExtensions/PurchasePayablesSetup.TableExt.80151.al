@@ -8,5 +8,11 @@ tableextension 80151 "EEC Purchase Payables Setup" extends "Purchases & Payables
             Caption = 'ACH Payment Method';
             TableRelation = "Payment Method".Code;
         }
+        field(50151; "EEC Default Payment Terms"; Code[10])
+        {
+            DataClassification = CustomerContent;
+            Caption = 'Default Payment Terms';
+            TableRelation = "Payment Terms".Code;
+        }
     }
 }
