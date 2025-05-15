@@ -79,13 +79,13 @@ codeunit 80150 "EEC Custom Subscribers"
 
 
     [EventSubscriber(ObjectType::Table, Database::"Sales Header", OnAfterInsertEvent, '', false, false)]
-    local procedure SalesInvoiceHeaderOnAfterInsertEvent(var Rec: Record "Sales Header")
+    local procedure SalesHeaderOnAfterInsertEvent(var Rec: Record "Sales Header")
     begin
         CheckToSetDefaultPaymentTerms(Rec);
     end;
 
     [EventSubscriber(ObjectType::Table, Database::"Sales Header", OnAfterModifyEvent, '', false, false)]
-    local procedure SalesInvoiceHeaderOnAfterModifyEvent(var Rec: Record "Sales Header")
+    local procedure SalesHeaderOnAfterModifyEvent(var Rec: Record "Sales Header")
     begin
         CheckToSetDefaultPaymentTerms(Rec);
     end;
@@ -94,6 +94,8 @@ codeunit 80150 "EEC Custom Subscribers"
     var
         SalesRecSetup: Record "Sales & Receivables Setup";
     begin
+        if SalesHeader.IsTemporary then
+            exit;
         if (SalesHeader."Document Type" <> SalesHeader."Document Type"::Invoice) or (SalesHeader."EE Fleetrock ID" <> '') or SalesHeader."EEC Updated Payment Terms" then
             exit;
         if not SalesRecSetup.Get() or (SalesRecSetup."EEC Default Payment Terms" = '') then
@@ -109,15 +111,23 @@ codeunit 80150 "EEC Custom Subscribers"
     local procedure CustomerOnAfterInsert(var Rec: Record Customer)
     var
         SalesRecSetup: Record "Sales & Receivables Setup";
+        Updated: Boolean;
     begin
+        if Rec.IsTemporary then
+            exit;
         SalesRecSetup.Get();
         if Rec."Customer Posting Group" = '' then
-            if SalesRecSetup."EEC Default Cust. Post. Group" <> '' then
+            if SalesRecSetup."EEC Default Cust. Post. Group" <> '' then begin
                 Rec.Validate("Customer Posting Group", SalesRecSetup."EEC Default Cust. Post. Group");
+                Updated := true;
+            end;
         if Rec."Tax Area Code" = '' then
             if SalesRecSetup."EEC Default Tax Area Code" <> '' then begin
                 Rec.Validate("Tax Area Code", SalesRecSetup."EEC Default Tax Area Code");
                 Rec.Validate("Tax Liable", true);
+                Updated := true;
             end;
+        if Updated then
+            Rec.Modify(true);
     end;
 }

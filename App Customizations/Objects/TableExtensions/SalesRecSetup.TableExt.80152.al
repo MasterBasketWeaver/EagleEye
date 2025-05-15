@@ -17,7 +17,7 @@ tableextension 80152 "EEC Sales & Rec. Setup" extends "Sales & Receivables Setup
         field(50102; "EEC Default Tax Area Code"; Code[20])
         {
             DataClassification = CustomerContent;
-            Caption = 'Default Customer Posting Group';
+            Caption = 'Default Tax Area Code';
             TableRelation = "Tax Area".Code;
         }
     }
