@@ -9,5 +9,12 @@ tableextension 80300 "EEMCP Vendor" extends Vendor
             Editable = false;
             Caption = 'DOT No.';
         }
+        field(80301; "EEMCP Docket No."; Text[20])
+        {
+            DataClassification = CustomerContent;
+            TableRelation = "EEMCP Carrier"."Docket No.";
+            Editable = false;
+            Caption = 'Docket No.';
+        }
     }
 }

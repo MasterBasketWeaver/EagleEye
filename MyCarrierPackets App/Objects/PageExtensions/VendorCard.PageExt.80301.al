@@ -8,6 +8,10 @@ pageextension 80301 "EEMCP Vendor Card" extends "Vendor Card"
             {
                 ApplicationArea = all;
             }
+            field("EEMCP Docket No."; Rec."EEMCP Docket No.")
+            {
+                ApplicationArea = all;
+            }
         }
     }
 }

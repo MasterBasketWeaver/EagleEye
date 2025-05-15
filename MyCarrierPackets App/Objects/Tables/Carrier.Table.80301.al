@@ -27,6 +27,12 @@ table 80301 "EEMCP Carrier"
             DataClassification = CustomerContent;
             Editable = false;
         }
+        field(5; "Vendor No."; Code[20])
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+            TableRelation = Vendor."No.";
+        }
     }
 
     keys

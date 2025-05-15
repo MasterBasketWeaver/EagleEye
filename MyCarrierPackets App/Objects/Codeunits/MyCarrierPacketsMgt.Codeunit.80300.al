@@ -215,26 +215,24 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
             CarrierData.Insert(false);
         end;
         RecVar := CarrierData;
-        FleetrockMgt.PopulateStagingTable(RecVar, CarrierJsonObj, Database::"EEMCP Carrier Data", CarrierData.FieldNo(LegalName), true);
+        FleetrockMgt.PopulateStagingTable(RecVar, CarrierJsonObj, Database::"EEMCP Carrier Data", CarrierData.FieldNo(LegalName), 99, true);
         if CarrierJsonObj.Contains('CarrierPaymentInfo') then
             if CarrierJsonObj.Get('CarrierPaymentInfo', JsonTkn) and not IsJsonTokenNull(JsonTkn) then begin
                 JsonBody := JsonTkn.AsObject();
-                FleetrockMgt.PopulateStagingTable(RecVar, JsonBody, Database::"EEMCP Carrier Data", CarrierData.FieldNo(BankRoutingNumber), true);
+                FleetrockMgt.PopulateStagingTable(RecVar, JsonBody, Database::"EEMCP Carrier Data",
+                    CarrierData.FieldNo(BankRoutingNumber), CarrierData.FieldNo(RemitCurrency), true);
             end;
         if CarrierJsonObj.Contains('FactoringRemit') then
             if CarrierJsonObj.Get('FactoringRemit', JsonTkn) and not IsJsonTokenNull(JsonTkn) then begin
                 JsonBody := JsonTkn.AsObject();
-                FleetrockMgt.PopulateStagingTable(RecVar, JsonBody, Database::"EEMCP Carrier Data", CarrierData.FieldNo(FactoringCompanyID), true);
+                FleetrockMgt.PopulateStagingTable(RecVar, JsonBody, Database::"EEMCP Carrier Data",
+                    CarrierData.FieldNo(FactoringCompanyID), CarrierData.FieldNo(FactoringPhone), true);
             end;
         if CarrierJsonObj.Contains('CarrierRemit') then
             if CarrierJsonObj.Get('CarrierRemit', JsonTkn) and not IsJsonTokenNull(JsonTkn) then begin
                 JsonBody := JsonTkn.AsObject();
-                FleetrockMgt.PopulateStagingTable(RecVar, JsonBody, Database::"EEMCP Carrier Data", CarrierData.FieldNo(CarrierRemitEmail), true);
-            end;
-        if CarrierJsonObj.Contains('CarrierTINMatchings') then
-            if CarrierJsonObj.Get('CarrierRemit', JsonTkn) and not IsJsonTokenNull(JsonTkn) then begin
-                JsonBody := JsonTkn.AsObject();
-                FleetrockMgt.PopulateStagingTable(RecVar, JsonBody, Database::"EEMCP Carrier Data", CarrierData.FieldNo(CarrierRemitEmail), true);
+                FleetrockMgt.PopulateStagingTable(RecVar, JsonBody, Database::"EEMCP Carrier Data",
+                CarrierData.FieldNo(CarrierRemitEmail), CarrierData.FieldNo(CarrierRemitZipCode), true);
             end;
         CarrierData := RecVar;
         if CarrierJsonObj.Contains('CarrierPaymentTypes') then
@@ -294,7 +292,6 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
             exit;
         FleetrockSetup.Get();
         FleetrockSetup.TestField("Vendor Posting Group");
-        // FleetrockSetup.TestField("Tax Area Code");
         FleetrockSetup.TestField("Payment Terms");
         LoadedFleetrock := true;
     end;
@@ -302,10 +299,12 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
     procedure CreateAndUpdateVendorFromCarrier(var Carrier: Record "EEMCP Carrier"; ForceUpdate: Boolean)
     var
         Vendor: Record Vendor;
+        Vendor2: Record Vendor;
         VendorBankAccount: Record "Vendor Bank Account";
         PaymentMethod: Record "Payment Method";
         Contact: Record Contact;
         CarrierData: Record "EEMCP Carrier Data";
+        CarrierData2: Record "EEMCP Carrier Data";
         Currency: Record Currency;
         CountryCode: Code[10];
         s: Text;
@@ -319,21 +318,23 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         if not CarrierData.Get(Carrier."DOT No.") then
             Error('Carrier data not found for DOT No. %1', Carrier."DOT No.");
 
-        if not Vendor.Get(Carrier."Docket No.") then begin
+        if Carrier."Vendor No." = '' then begin
+            Carrier."Vendor No." := Carrier."Docket No.".Replace('MC', '');
+            Carrier.Modify(true);
+        end;
+
+        if not Vendor.Get(Carrier."Vendor No.") then begin
             Vendor.Init();
-            Vendor."No." := Carrier."Docket No.";
+            Vendor."No." := Carrier."Vendor No.";
             Vendor.Validate("No.");
             Vendor.Validate("EEMCP Dot No.", Carrier."DOT No.");
+            Vendor.Validate("EEMCP Docket No.", Carrier."Docket No.");
             Vendor.Insert(true);
         end;
 
-
-
         Vendor.Validate("Vendor Posting Group", FleetrockSetup."Vendor Posting Group");
-        // Vendor.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
+        Vendor.Validate("Tax Area Code", '');
         Vendor.Validate("Tax Liable", true);
-        // if CarrierData.PaymentTermsDays > 0 then
-        //     Vendor.Validate("Payment Terms Code", FleetrockMgt.GetPaymentTerms(CarrierData.PaymentTermsDays));
         Vendor.Validate("Payment Terms Code", FleetrockSetup."Payment Terms");
         Vendor."Name" := CopyStr(CarrierData.LegalName, 1, MaxStrLen(Vendor."Name"));
         Vendor."Name 2" := CopyStr(CarrierData.DBAName, 1, MaxStrLen(Vendor."Name 2"));
@@ -361,18 +362,45 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         Vendor."Federal ID No." := CopyStr(CarrierData.TIN, 1, MaxStrLen(Vendor."Federal ID No."));
         Vendor.Modify(true);
 
-        if (CarrierData.CarrierRemitEmail <> '') or (CarrierData.CarrierPaymentType = 'ACH') then begin
+        if ((CarrierData.CarrierRemitEmail <> '') or (CarrierData.CarrierPaymentType = 'ACH')) and (CarrierData.FactoringCompanyName = '') then begin
             AddVendorBankAccount(Vendor, VendorBankAccount, CarrierData);
             Vendor.Get(Vendor."No.");
             Vendor.Validate("Preferred Bank Account Code", VendorBankAccount.Code);
-            Vendor.Modify(true);
-        end;
+        end else
+            Vendor.Validate("Preferred Bank Account Code", '');
         VendorBankAccount.SetRange("Vendor No.", Vendor."No.");
         if VendorBankAccount.IsEmpty() then
-            if PaymentMethod.Get('check') then begin
-                Vendor.Validate("Payment Method Code", PaymentMethod.Code);
-                Vendor.Modify(true);
-            end;
+            if PaymentMethod.Get('check') then
+                Vendor.Validate("Payment Method Code", PaymentMethod.Code)
+            else
+                Vendor.Validate("Payment Method Code", '');
+
+        if CarrierData.FactoringCompanyName <> '' then begin
+            // Vendor.Validate("Pay-to Vendor No.", '');
+            Vendor2.SetFilter("No.", '<>%1', Vendor."No.");
+            Vendor2.SetRange(Name, CarrierData.FactoringCompanyName);
+            if Vendor2.FindFirst() then
+                Vendor.Validate("Pay-to Vendor No.", Vendor2."No.")
+            // else if CarrierData.FactoringRemitEmail <> '' then begin
+            //     CarrierData2.SetFilter("DOT No.", '<>%1', CarrierData."DOT No.");
+            //     CarrierData2.SetRange(FactoringCompanyName, '');
+            //     CarrierData2.SetRange(CarrierRemitEmail, CarrierData.FactoringRemitEmail);
+            //     if CarrierData2.IsEmpty then begin
+            //         CarrierData2.SetRange(CarrierRemitEmail);
+            //         CarrierData2.SetRange(RemitEmail, CarrierData.FactoringRemitEmail);
+            //     end;
+            //     if CarrierData2.FindFirst() then begin
+            //         Vendor2.Reset();
+            //         Vendor2.SetFilter("No.", '<>%1', Vendor."No.");
+            //         Vendor2.SetRange("EEMCP DOT No.", CarrierData2."DOT No.");
+            //         if Vendor2.FindFirst() then
+            //             if Vendor2."No." <> Vendor."No." then
+            //                 Vendor.Validate("Pay-to Vendor No.", Vendor2."No.")
+            //     end;
+            // end;
+        end;
+
+        Vendor.Modify(true);
 
         Commit();
     end;

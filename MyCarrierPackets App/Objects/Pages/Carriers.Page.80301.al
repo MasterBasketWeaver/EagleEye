@@ -23,6 +23,10 @@ page 80301 "EEMCP Carriers"
                 {
                     ApplicationArea = all;
                 }
+                field("Vendor No."; Rec."Vendor No.")
+                {
+                    ApplicationArea = all;
+                }
                 field("Last Modifued At"; Rec."Last Modifued At")
                 {
                     ApplicationArea = all;
@@ -77,9 +81,11 @@ page 80301 "EEMCP Carriers"
                 trigger OnAction()
                 var
                     Vendor: Record Vendor;
+
+                    ContBusRel: Record "Contact Business Relation";
                 begin
                     MCPMgt.CreateAndUpdateVendorFromCarrier(Rec, true);
-                    if Vendor.Get(Rec."Docket No.") then
+                    if Vendor.Get(Rec."Vendor No.") then
                         Page.Run(Page::"Vendor Card", Vendor);
                 end;
             }
@@ -97,21 +103,31 @@ page 80301 "EEMCP Carriers"
                     Carrier: Record "EEMCP Carrier";
                     Window: Dialog;
                     i, RecCount : Integer;
+                    PopulateVendors: Boolean;
                 begin
                     if not Confirm('Are you sure you want to update all vendors?') then
                         exit;
+
+                    PopulateVendors := Confirm('Update vendor records?', false);
 
                     // Carrier.SetFilter("Docket No.", '<>%1', '');
                     if not Carrier.FindSet(true) then
                         exit;
                     RecCount := Carrier.Count();
                     Window.Open('Updating\#1###');
-                    repeat
-                        i += 1;
-                        Window.Update(1, StrSubstNo('%1 of %2', i, RecCount));
-                        MCPMgt.GetCarrierData(Carrier);
-                        MCPMgt.CreateAndUpdateVendorFromCarrier(Carrier, false);
-                    until Carrier.Next() = 0;
+                    if PopulateVendors then
+                        repeat
+                            i += 1;
+                            Window.Update(1, StrSubstNo('%1 of %2', i, RecCount));
+                            // MCPMgt.GetCarrierData(Carrier);
+                            MCPMgt.CreateAndUpdateVendorFromCarrier(Carrier, false);
+                        until Carrier.Next() = 0
+                    else
+                        repeat
+                            i += 1;
+                            Window.Update(1, StrSubstNo('%1 of %2', i, RecCount));
+                            MCPMgt.GetCarrierData(Carrier);
+                        until Carrier.Next() = 0;
                     Window.Close();
                 end;
             }

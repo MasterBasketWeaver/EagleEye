@@ -1350,17 +1350,17 @@ codeunit 80000 "EE Fleetrock Mgt."
 
     procedure PopulateStagingTable(var RecVar: Variant; var OrderJsonObj: JsonObject; TableNo: Integer; StartFieldNo: Integer)
     begin
-        PopulateStagingTable(RecVar, OrderJsonObj, TableNo, StartFieldNo, false);
+        PopulateStagingTable(RecVar, OrderJsonObj, TableNo, StartFieldNo, 99, false);
     end;
 
-    procedure PopulateStagingTable(var RecVar: Variant; var OrderJsonObj: JsonObject; TableNo: Integer; StartFieldNo: Integer; ProcessIntegers: Boolean)
+    procedure PopulateStagingTable(var RecVar: Variant; var OrderJsonObj: JsonObject; TableNo: Integer; StartFieldNo: Integer; EndFieldNo: Integer; ProcessIntegers: Boolean)
     var
         FieldRec: Record Field;
         RecRef: RecordRef;
     begin
         RecRef.GetTable(RecVar);
         FieldRec.SetRange(TableNo, TableNo);
-        FieldRec.SetRange("No.", StartFieldNo, 99);
+        FieldRec.SetRange("No.", StartFieldNo, EndFieldNo);
         FieldRec.SetRange(Enabled, true);
         FieldRec.SetFilter(ObsoleteState, '<>%1', FieldRec.ObsoleteState::Removed);
         FieldRec.SetRange(Class, FieldRec.Class::Normal);
