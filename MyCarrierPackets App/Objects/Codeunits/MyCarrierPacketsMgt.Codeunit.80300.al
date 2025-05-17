@@ -362,12 +362,14 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         Vendor."Federal ID No." := CopyStr(CarrierData.TIN, 1, MaxStrLen(Vendor."Federal ID No."));
         Vendor.Modify(true);
 
-        if ((CarrierData.CarrierRemitEmail <> '') or (CarrierData.CarrierPaymentType = 'ACH')) and (CarrierData.FactoringCompanyName = '') then begin
-            AddVendorBankAccount(Vendor, VendorBankAccount, CarrierData);
-            Vendor.Get(Vendor."No.");
-            Vendor.Validate("Preferred Bank Account Code", VendorBankAccount.Code);
-        end else
-            Vendor.Validate("Preferred Bank Account Code", '');
+        if CarrierData.FactoringCompanyName = '' then
+            if (CarrierData.BankAccountNumber <> '') or (CarrierData.CarrierPaymentType = 'ACH') then begin
+                AddVendorBankAccount(Vendor, VendorBankAccount, CarrierData);
+                Vendor.Get(Vendor."No.");
+                Vendor.Validate("Preferred Bank Account Code", VendorBankAccount.Code);
+            end else
+                Vendor.Validate("Preferred Bank Account Code", '');
+
         VendorBankAccount.SetRange("Vendor No.", Vendor."No.");
         if VendorBankAccount.IsEmpty() then
             if PaymentMethod.Get('check') then
@@ -375,33 +377,7 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
             else
                 Vendor.Validate("Payment Method Code", '');
 
-        if CarrierData.FactoringCompanyName <> '' then begin
-            // Vendor.Validate("Pay-to Vendor No.", '');
-            Vendor2.SetFilter("No.", '<>%1', Vendor."No.");
-            Vendor2.SetRange(Name, CarrierData.FactoringCompanyName);
-            if Vendor2.FindFirst() then
-                Vendor.Validate("Pay-to Vendor No.", Vendor2."No.")
-            // else if CarrierData.FactoringRemitEmail <> '' then begin
-            //     CarrierData2.SetFilter("DOT No.", '<>%1', CarrierData."DOT No.");
-            //     CarrierData2.SetRange(FactoringCompanyName, '');
-            //     CarrierData2.SetRange(CarrierRemitEmail, CarrierData.FactoringRemitEmail);
-            //     if CarrierData2.IsEmpty then begin
-            //         CarrierData2.SetRange(CarrierRemitEmail);
-            //         CarrierData2.SetRange(RemitEmail, CarrierData.FactoringRemitEmail);
-            //     end;
-            //     if CarrierData2.FindFirst() then begin
-            //         Vendor2.Reset();
-            //         Vendor2.SetFilter("No.", '<>%1', Vendor."No.");
-            //         Vendor2.SetRange("EEMCP DOT No.", CarrierData2."DOT No.");
-            //         if Vendor2.FindFirst() then
-            //             if Vendor2."No." <> Vendor."No." then
-            //                 Vendor.Validate("Pay-to Vendor No.", Vendor2."No.")
-            //     end;
-            // end;
-        end;
-
         Vendor.Modify(true);
-
         Commit();
     end;
 
