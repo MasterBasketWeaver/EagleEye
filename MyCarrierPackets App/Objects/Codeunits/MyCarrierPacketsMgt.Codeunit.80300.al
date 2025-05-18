@@ -318,8 +318,14 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         if not CarrierData.Get(Carrier."DOT No.") then
             Error('Carrier data not found for DOT No. %1', Carrier."DOT No.");
 
+        if (Carrier."DOT No." = 0) and (Carrier."Docket No." = '') then
+            Error('Carrier %1 missing both DOT No. and Docket No.', Carrier.SystemId);
+
         if Carrier."Vendor No." = '' then begin
-            Carrier."Vendor No." := Carrier."Docket No.".Replace('MC', '');
+            if Carrier."Docket No." <> '' then
+                Carrier."Vendor No." := Carrier."Docket No.".Replace('MC', '')
+            else if Carrier."DOT No." <> 0 then
+                Carrier."Vendor No." := Format(Carrier."DOT No.");
             Carrier.Modify(true);
         end;
 
@@ -327,11 +333,13 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
             Vendor.Init();
             Vendor."No." := Carrier."Vendor No.";
             Vendor.Validate("No.");
-            Vendor.Validate("EEMCP Dot No.", Carrier."DOT No.");
-            Vendor.Validate("EEMCP Docket No.", Carrier."Docket No.");
             Vendor.Insert(true);
         end;
 
+        if (Vendor."EEMCP Docket No." = '') and (Carrier."Docket No." <> '') then
+            Vendor.Validate("EEMCP Docket No.", Carrier."Docket No.");
+        if (Vendor."EEMCP Dot No." = 0) and (Carrier."DOT No." <> 0) then
+            Vendor.Validate("EEMCP Dot No.", Carrier."DOT No.");
         Vendor.Validate("Vendor Posting Group", FleetrockSetup."Vendor Posting Group");
         Vendor.Validate("Tax Area Code", '');
         Vendor.Validate("Tax Liable", true);
@@ -376,8 +384,14 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
                 Vendor.Validate("Payment Method Code", PaymentMethod.Code)
             else
                 Vendor.Validate("Payment Method Code", '');
-
         Vendor.Modify(true);
+
+        if CarrierData.RemitEmail <> '' then
+            AddVendorDocumentLayouts(Vendor, CarrierData.RemitEmail)
+        else
+            if Vendor."E-Mail" <> '' then
+                AddVendorDocumentLayouts(Vendor, Vendor."E-Mail");
+
         Commit();
     end;
 
@@ -387,9 +401,10 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         CountryCode: Code[10];
         s: Text;
     begin
-        s := CopyStr(CarrierData.BankName, 1, MaxStrLen(VendorBankAccount.Code));
-        if s = '' then
-            s := Vendor."No.";
+        s := 'ACH';
+        // s := CopyStr(CarrierData.BankName, 1, MaxStrLen(VendorBankAccount.Code));
+        // if s = '' then
+        //     s := Vendor."No.";
         if not VendorBankAccount.Get(Vendor."No.", s) then begin
             VendorBankAccount.Init();
             VendorBankAccount.Validate("Vendor No.", Vendor."No.");
@@ -411,7 +426,7 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         VendorBankAccount."Phone No." := CopyStr(CarrierData.BankPhone, 1, MaxStrLen(VendorBankAccount."Phone No."));
         VendorBankAccount."E-Mail" := CopyStr(CarrierData.RemitEmail, 1, MaxStrLen(VendorBankAccount."E-Mail"));
         VendorBankAccount."Bank Account No." := CopyStr(CarrierData.BankAccountNumber, 1, MaxStrLen(VendorBankAccount."Bank Account No."));
-        VendorBankAccount."Bank Branch No." := CopyStr(CarrierData.BankRoutingNumber, 1, MaxStrLen(VendorBankAccount."Bank Branch No."));
+        VendorBankAccount."Transit No." := CopyStr(CarrierData.BankRoutingNumber, 1, MaxStrLen(VendorBankAccount."Bank Branch No."));
         if Vendor."Currency Code" <> '' then
             VendorBankAccount.Validate("Currency Code", Vendor."Currency Code");
 
@@ -419,9 +434,6 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
             VendorBankAccount."Use for Electronic Payments" := true;
 
         VendorBankAccount.Modify(true);
-
-        if VendorBankAccount."E-Mail" <> '' then
-            AddVendorDocumentLayouts(Vendor, VendorBankAccount."E-Mail");
     end;
 
 
@@ -451,7 +463,10 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         CustomReportSelection.Validate("Use for Email Body", true);
         CustomReportSelection.Validate("Use for Email Attachment", true);
         GetLayoutDetails(CustomReportSelection, 'CTS Email Body 10083', true);
-        GetLayoutDetails(CustomReportSelection, 'EEL Remite', false);
+        if CompanyName.Contains('CTS') then
+            GetLayoutDetails(CustomReportSelection, 'CTS Email Body', true)
+        else
+            GetLayoutDetails(CustomReportSelection, 'EEL Remite', false);
         CustomReportSelection.Modify(true);
     end;
 
