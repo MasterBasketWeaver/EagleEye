@@ -450,14 +450,14 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         CustomReportSelection.SetRange("Source Type", Database::Vendor);
         CustomReportSelection.SetRange("Source No.", Vendor."No.");
         CustomReportSelection.SetRange(Usage, Usage);
-        if CustomReportSelection.FindFirst() then
-            exit;
-        CustomReportSelection.Init();
-        CustomReportSelection.Validate("Source Type", Database::Vendor);
-        CustomReportSelection.Validate("Source No.", Vendor."No.");
-        CustomReportSelection.Validate(Usage, Usage);
-        CustomReportSelection.Validate("Report ID", ReportID);
-        CustomReportSelection.Insert(true);
+        if not CustomReportSelection.FindFirst() then begin
+            CustomReportSelection.Init();
+            CustomReportSelection.Validate("Source Type", Database::Vendor);
+            CustomReportSelection.Validate("Source No.", Vendor."No.");
+            CustomReportSelection.Validate(Usage, Usage);
+            CustomReportSelection.Validate("Report ID", ReportID);
+            CustomReportSelection.Insert(true);
+        end;
         CustomReportSelection.Validate("Report ID", ReportID);
         CustomReportSelection.Validate("Send To Email", EmailAddr);
         CustomReportSelection.Validate("Use for Email Body", true);
