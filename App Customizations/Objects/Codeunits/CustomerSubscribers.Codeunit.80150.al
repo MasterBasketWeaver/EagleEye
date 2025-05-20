@@ -137,6 +137,8 @@ codeunit 80150 "EEC Custom Subscribers"
     end;
 
 
+
+
     [EventSubscriber(ObjectType::Table, Database::Customer, OnAfterInsertEvent, '', false, false)]
     local procedure CustomerOnAfterInsert(var Rec: Record Customer)
     var
@@ -159,5 +161,22 @@ codeunit 80150 "EEC Custom Subscribers"
             end;
         if Updated then
             Rec.Modify(true);
+    end;
+
+
+
+    [EventSubscriber(ObjectType::Table, Database::Vendor, OnAfterInsertEvent, '', false, false)]
+    local procedure VendorOnAfterInsert(var Rec: Record Vendor)
+    var
+        PurchPaySetup: Record "Purchases & Payables Setup";
+    begin
+        if Rec.IsTemporary then
+            exit;
+        PurchPaySetup.Get();
+        if Rec."Vendor Posting Group" = '' then
+            if PurchPaySetup."EEC Default Vend. Post. Group" <> '' then begin
+                Rec.Validate("Vendor Posting Group", PurchPaySetup."EEC Default Vend. Post. Group");
+                Rec.Modify(true);
+            end;
     end;
 }
