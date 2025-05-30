@@ -78,16 +78,22 @@ codeunit 80150 "EEC Custom Subscribers"
 
 
 
+
+
+
+
     [EventSubscriber(ObjectType::Table, Database::"Sales Header", OnAfterInsertEvent, '', false, false)]
     local procedure SalesHeaderOnAfterInsertEvent(var Rec: Record "Sales Header")
     begin
         CheckToSetDefaultPaymentTerms(Rec);
+        CheckToSetDefaultPaymentMethod(Rec);
     end;
 
     [EventSubscriber(ObjectType::Table, Database::"Sales Header", OnAfterModifyEvent, '', false, false)]
     local procedure SalesHeaderOnAfterModifyEvent(var Rec: Record "Sales Header")
     begin
         CheckToSetDefaultPaymentTerms(Rec);
+        CheckToSetDefaultPaymentMethod(Rec);
     end;
 
     local procedure CheckToSetDefaultPaymentTerms(var SalesHeader: Record "Sales Header")
@@ -102,6 +108,22 @@ codeunit 80150 "EEC Custom Subscribers"
             exit;
         if SalesHeader."Payment Terms Code" <> SalesRecSetup."EEC Default Payment Terms" then begin
             SalesHeader.Validate("Payment Terms Code", SalesRecSetup."EEC Default Payment Terms");
+            SalesHeader.Modify(false);
+        end;
+    end;
+
+    local procedure CheckToSetDefaultPaymentMethod(var SalesHeader: Record "Sales Header")
+    var
+        SalesRecSetup: Record "Sales & Receivables Setup";
+    begin
+        if SalesHeader.IsTemporary then
+            exit;
+        if (SalesHeader."Document Type" <> SalesHeader."Document Type"::Invoice) or (SalesHeader."EE Fleetrock ID" <> '') or SalesHeader."EEC Updated Payment Method" then
+            exit;
+        if not SalesRecSetup.Get() or (SalesRecSetup."EEC Default Payment Method" = '') then
+            exit;
+        if SalesHeader."Payment Method Code" <> SalesRecSetup."EEC Default Payment Method" then begin
+            SalesHeader.Validate("Payment Method Code", SalesRecSetup."EEC Default Payment Method");
             SalesHeader.Modify(false);
         end;
     end;
@@ -157,6 +179,16 @@ codeunit 80150 "EEC Custom Subscribers"
             if SalesRecSetup."EEC Default Tax Area Code" <> '' then begin
                 Rec.Validate("Tax Area Code", SalesRecSetup."EEC Default Tax Area Code");
                 Rec.Validate("Tax Liable", true);
+                Updated := true;
+            end;
+        if Rec."Payment Terms Code" = '' then
+            if SalesRecSetup."EEC Default Payment Terms" <> '' then begin
+                Rec.Validate("Payment Terms Code", SalesRecSetup."EEC Default Payment Terms");
+                Updated := true;
+            end;
+        if Rec."Payment Method Code" = '' then
+            if SalesRecSetup."EEC Default Payment Method" <> '' then begin
+                Rec.Validate("Payment Method Code", SalesRecSetup."EEC Default Payment Method");
                 Updated := true;
             end;
         if Updated then

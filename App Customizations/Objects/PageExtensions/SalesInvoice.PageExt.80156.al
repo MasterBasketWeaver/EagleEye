@@ -9,5 +9,12 @@ pageextension 80156 "EEC Sales Invoice" extends "Sales Invoice"
                 Rec."EEC Updated Payment Terms" := true;
             end;
         }
+        modify("Payment Method Code")
+        {
+            trigger OnBeforeValidate()
+            begin
+                Rec."EEC Updated Payment Method" := true;
+            end;
+        }
     }
 }
