@@ -14,7 +14,7 @@ codeunit 80006 "EE Upgrade"
     procedure UpdateData()
     begin
         // ClearGLSetups();
-        PopulateDocumentNos();
+        // PopulateDocumentNos();
     end;
 
     local procedure PopulateDocumentNos()
