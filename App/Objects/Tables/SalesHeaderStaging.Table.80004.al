@@ -17,12 +17,12 @@ table 80004 "EE Sales Header Staging"
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(11; group; Text[50])
+        field(11; group; Text[100])
         {
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(12; ro_group_hierarchy; Text[50])
+        field(12; ro_group_hierarchy; Text[1024])
         {
             DataClassification = CustomerContent;
             Editable = false;

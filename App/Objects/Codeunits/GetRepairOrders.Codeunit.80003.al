@@ -18,7 +18,7 @@ codeunit 80003 "EE Get Repair Orders"
         T: JsonToken;
         OrderJsonObj: JsonObject;
         StartDateTime: DateTime;
-        ObjId, URL : Text;
+        URL, s : Text;
         ImportEntryNo: Integer;
         Success, LogEntry : Boolean;
     begin
@@ -47,11 +47,11 @@ codeunit 80003 "EE Get Repair Orders"
         SalesHeader.SetCurrentKey("EE Fleetrock ID");
         foreach T in JsonArry do begin
             OrderJsonObj := T.AsObject();
-            ObjId := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'id');
             ImportEntryNo := 0;
             Success := false;
             LogEntry := false;
             ClearLastError();
+
             if OrderStatus = OrderStatus::invoiced then begin
                 LogEntry := true;
                 if FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, false) and SalesHeaderStaging.Get(ImportEntryNo) then begin
@@ -72,7 +72,7 @@ codeunit 80003 "EE Get Repair Orders"
             end else
                 if JsonMgt.GetJsonValueAsText(OrderJsonObj, 'status') = 'In Progress' then begin
                     LogEntry := true;
-                    if FleetRockMgt.TryToCheckIfAlreadyImported(ObjId, SalesHeader) then
+                    if FleetRockMgt.TryToCheckIfAlreadyImported(JsonMgt.GetJsonValueAsText(OrderJsonObj, 'id'), SalesHeader) then
                         Success := FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, true);
                 end;
             if LogEntry then

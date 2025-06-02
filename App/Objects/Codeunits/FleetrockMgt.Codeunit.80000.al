@@ -243,6 +243,8 @@ codeunit 80000 "EE Fleetrock Mgt."
     var
         SalesInvHeader: Record "Sales Invoice Header";
     begin
+        if ImportId = '' then
+            exit(false);
         SalesHeader.SetCurrentKey("EE Fleetrock ID");
         SalesHeader.SetRange("EE Fleetrock ID", ImportId);
         if SalesHeader.FindFirst() then
