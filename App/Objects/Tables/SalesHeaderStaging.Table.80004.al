@@ -47,7 +47,7 @@ table 80004 "EE Sales Header Staging"
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(17; vendor_name; Text[50])
+        field(17; vendor_name; Text[100])
         {
             DataClassification = CustomerContent;
             Editable = false;
@@ -82,7 +82,7 @@ table 80004 "EE Sales Header Staging"
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(24; customer_name; Text[50])
+        field(24; customer_name; Text[100])
         {
             DataClassification = CustomerContent;
             Editable = false;
@@ -112,7 +112,7 @@ table 80004 "EE Sales Header Staging"
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(30; tag; Text[50])
+        field(30; tag; Text[250])
         {
             DataClassification = CustomerContent;
             Editable = false;
