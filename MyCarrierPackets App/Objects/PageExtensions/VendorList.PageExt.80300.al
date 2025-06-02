@@ -43,6 +43,20 @@ pageextension 80300 "EEMCP Vendors" extends "Vendor List"
                     Window.Close();
                 end;
             }
+            action("EEMCP Delete Blank Bank Accounts")
+            {
+                ApplicationArea = all;
+                Image = Delete;
+                Caption = 'Delete Blank Bank Accounts';
+
+                trigger OnAction()
+                var
+                    Install: Codeunit "EEMCP Install";
+                begin
+                    Install.InstallData();
+                    Message('done');
+                end;
+            }
         }
     }
 }

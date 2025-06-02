@@ -375,15 +375,12 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
                 AddVendorBankAccount(Vendor, VendorBankAccount, CarrierData);
                 Vendor.Get(Vendor."No.");
                 Vendor.Validate("Preferred Bank Account Code", VendorBankAccount.Code);
-            end else
-                Vendor.Validate("Preferred Bank Account Code", '');
+            end;
 
         VendorBankAccount.SetRange("Vendor No.", Vendor."No.");
         if VendorBankAccount.IsEmpty() then
             if PaymentMethod.Get('check') then
-                Vendor.Validate("Payment Method Code", PaymentMethod.Code)
-            else
-                Vendor.Validate("Payment Method Code", '');
+                Vendor.Validate("Payment Method Code", PaymentMethod.Code);
         Vendor.Modify(true);
 
         if CarrierData.RemitEmail <> '' then
@@ -402,9 +399,6 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         s: Text;
     begin
         s := 'ACH';
-        // s := CopyStr(CarrierData.BankName, 1, MaxStrLen(VendorBankAccount.Code));
-        // if s = '' then
-        //     s := Vendor."No.";
         if not VendorBankAccount.Get(Vendor."No.", s) then begin
             VendorBankAccount.Init();
             VendorBankAccount.Validate("Vendor No.", Vendor."No.");
@@ -430,10 +424,12 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         if Vendor."Currency Code" <> '' then
             VendorBankAccount.Validate("Currency Code", Vendor."Currency Code");
 
-        if CarrierData.CarrierPaymentType = 'ACH' then
+        if (CarrierData.CarrierPaymentType = 'ACH') or (VendorBankAccount.Code = 'ACH') then
             VendorBankAccount."Use for Electronic Payments" := true;
 
+        SingleInstance.SetUpdatedFromMCP(true);
         VendorBankAccount.Modify(true);
+        SingleInstance.SetUpdatedFromMCP(false);
     end;
 
 
@@ -505,6 +501,21 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
             exit(CountryRegion.Code);
     end;
 
+
+    [EventSubscriber(ObjectType::Table, Database::"Vendor Bank Account", OnAfterModifyEvent, '', false, false)]
+    local procedure VendorBankAccountOnAfterModifyEvent(var Rec: Record "Vendor Bank Account"; RunTrigger: Boolean)
+    begin
+        Rec."EEMCP Updated From MCP" := SingleInstance.GetUpdatedFromMCP();
+        if not Rec."EEMCP Updated From MCP" then begin
+            Rec."EEMCP Last Non-MCP Update By" := UserId();
+            Rec."EEMCP Last Non-MCP Update At" := CurrentDateTime();
+        end;
+    end;
+
+
     var
+
+        SingleInstance: Codeunit "EEMCP Single Instance";
+
         UnitedStatesLower: Label 'united states';
 }
