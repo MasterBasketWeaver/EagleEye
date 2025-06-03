@@ -207,40 +207,7 @@ page 80000 "EE Fleetrock Setup"
                     CurrPage.Update(false);
                 end;
             }
-            // action("Get Units")
-            // {
-            //     ApplicationArea = All;
-            //     Promoted = true;
-            //     PromotedCategory = Process;
-            //     PromotedIsBig = true;
-            //     PromotedOnly = true;
-            //     Image = Union;
 
-            //     trigger OnAction()
-            //     var
-            //         FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
-            //     begin
-            //         FleetrockMgt.GetUnits();
-            //     end;
-            // }
-            // action("Get Suppliers")
-            // {
-            //     ApplicationArea = All;
-            //     Promoted = true;
-            //     PromotedCategory = Process;
-            //     PromotedIsBig = true;
-            //     PromotedOnly = true;
-            //     Image = Vendor;
-
-            //     trigger OnAction()
-            //     var
-            //         FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
-            //         s: Text;
-            //     begin
-            //         FleetrockMgt.GetSuppliers().WriteTo(s);
-            //         Message(s);
-            //     end;
-            // }
             action("Get Open POs")
             {
                 ApplicationArea = All;
@@ -277,85 +244,30 @@ page 80000 "EE Fleetrock Setup"
                     Message(s);
                 end;
             }
-            action("Import Closed POs")
+            action("Get Specific PO")
             {
                 ApplicationArea = All;
                 Promoted = true;
                 PromotedCategory = Process;
                 PromotedIsBig = true;
                 PromotedOnly = true;
-                Image = ImportChartOfAccounts;
-
-                trigger OnAction()
-                var
-                    JobQueueEntry: Record "Job Queue Entry";
-                begin
-                    Codeunit.Run(Codeunit::"EE Get Repair Orders")
-                end;
-            }
-            action("Get Received POs By Date")
-            {
-                ApplicationArea = All;
-                Promoted = true;
-                PromotedCategory = Process;
-                PromotedIsBig = true;
-                PromotedOnly = true;
-                Image = ImportChartOfAccounts;
+                Image = Purchasing;
 
                 trigger OnAction()
                 var
                     FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
-                    s: Text;
+                    GetDocNo: Page "EE Get Doc. No.";
+                    DocNo, s : Text;
                 begin
-                    FleetrockMgt.GetPurchaseOrders(0DT, s, Enum::"EE Event Type"::Received).WriteTo(s);
+                    GetDocNo.RunModal();
+                    DocNo := GetDocNo.GetDocNo();
+                    if DocNo = '' then
+                        exit;
+                    FleetrockMgt.GetPurchaseOrder(DocNo).WriteTo(s);
                     Message(s);
                 end;
             }
-            action("Get Closed POs By Date")
-            {
-                ApplicationArea = All;
-                Promoted = true;
-                PromotedCategory = Process;
-                PromotedIsBig = true;
-                PromotedOnly = true;
-                Image = ImportChartOfAccounts;
 
-                trigger OnAction()
-                var
-                    FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
-                    s: Text;
-                begin
-                    FleetrockMgt.GetPurchaseOrders(0DT, s, Enum::"EE Event Type"::Closed).WriteTo(s);
-                    Message(s);
-                end;
-            }
-            action("Get Closed ROs By Date")
-            {
-                ApplicationArea = All;
-                Promoted = true;
-                PromotedCategory = Process;
-                PromotedIsBig = true;
-                PromotedOnly = true;
-                Image = ImportChartOfAccounts;
-
-                trigger OnAction()
-                var
-                    FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
-                    s: Text;
-                    Status: Enum "EE Repair Order Status";
-                    i: Integer;
-                begin
-                    i := StrMenu('Started,Invoiced');
-                    case i of
-                        1:
-                            Status := Status::started;
-                        2:
-                            Status := Status::invoiced;
-                    end;
-                    FleetrockMgt.GetRepairOrders(0DT, Status, s).WriteTo(s);
-                    Message(s);
-                end;
-            }
             action("Import ROs")
             {
                 ApplicationArea = All;

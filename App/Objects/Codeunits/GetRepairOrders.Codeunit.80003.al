@@ -11,6 +11,7 @@ codeunit 80003 "EE Get Repair Orders"
         SalesHeaderStaging: Record "EE Sales Header Staging";
         FleetRockSetup: Record "EE Fleetrock Setup";
         FleetRockMgt: Codeunit "EE Fleetrock Mgt.";
+        GetPurchaseOrders: Codeunit "EE Get Purchase Orders";
         JsonMgt: Codeunit "EE Json Mgt.";
         OrderStatus: Enum "EE Repair Order Status";
         EventType: Enum "EE Event Type";
@@ -48,7 +49,8 @@ codeunit 80003 "EE Get Repair Orders"
         foreach T in JsonArry do begin
             OrderJsonObj := T.AsObject();
             Tags := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'tag');
-            if (FleetRockSetup."Import Tag" = '') or Tags.Contains(FleetRockSetup."Import Tag") then begin
+            // if (FleetRockSetup."Import Tag" = '') or Tags.Contains(FleetRockSetup."Import Tag") then begin
+            if GetPurchaseOrders.CheckTagForImport(FleetRockSetup."Import Tag", Tags) then begin
                 ImportEntryNo := 0;
                 Success := false;
                 LogEntry := false;

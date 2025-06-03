@@ -49,7 +49,8 @@ codeunit 80001 "EE Get Purchase Orders"
         foreach T in JsonArry do begin
             OrderJsonObj := T.AsObject();
             Tags := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'tag');
-            if (FleetRockSetup."Import Tag" = '') or Tags.Contains(FleetRockSetup."Import Tag") then begin
+            // if (FleetRockSetup."Import Tag" = '') or Tags.Contains(FleetRockSetup."Import Tag") then begin
+            if CheckTagForImport(FleetRockSetup."Import Tag", Tags) then begin
                 ImportEntryNo := 0;
                 ClearLastError();
                 Success := false;
@@ -90,5 +91,34 @@ codeunit 80001 "EE Get Purchase Orders"
     local procedure TryToPostOrder(var PurchaseHeader: Record "Purchase Header")
     begin
         Codeunit.Run(Codeunit::"Purch.-Post", PurchaseHeader);
+    end;
+
+    procedure CheckTagForImport(ImportTags: Text; Tags: Text): Boolean
+    var
+        ImportParts, TagParts : List of [Text];
+        i: Integer;
+    begin
+        if ImportTags = '' then
+            exit(true);
+        if Tags = '' then
+            exit(false);
+        ImportTags := ImportTags.ToUpper().Trim();
+        Tags := Tags.ToUpper().Trim();
+        if ImportTags.Contains('|') then
+            ImportParts := ImportTags.Split('|');
+        if Tags.Contains(',') then
+            TagParts := Tags.Split(',');
+        if (ImportParts.Count() = 0) and (TagParts.Count() = 0) then
+            exit(ImportTags = Tags);
+        for i := 1 to ImportParts.Count() do
+            ImportParts.Set(i, ImportParts.Get(i).Trim());
+        for i := 1 to TagParts.Count() do
+            TagParts.Set(i, TagParts.Get(i).Trim());
+        if ImportParts.Count() = 0 then
+            exit(TagParts.Contains(ImportTags));
+        foreach Tags in TagParts do
+            if ImportParts.Contains(Tags) then
+                exit(true);
+        exit(false);
     end;
 }

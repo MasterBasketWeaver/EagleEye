@@ -642,6 +642,14 @@ codeunit 80000 "EE Fleetrock Mgt."
         exit(RestAPIMgt.GetResponseAsJsonArray(StrSubstNo('%1/API/GetPO?username=%2&status=%3&token=%4', FleetrockSetup."Integration URL", FleetrockSetup.Username, Status, APIToken), 'purchase_orders'));
     end;
 
+    procedure GetPurchaseOrder(DocId: Text): JsonArray
+    var
+        APIToken: Text;
+    begin
+        APIToken := CheckToGetAPIToken();
+        exit(RestAPIMgt.GetResponseAsJsonArray(StrSubstNo('%1/API/GetPO?username=%2&id=%3&token=%4', FleetrockSetup."Integration URL", FleetrockSetup.Username, DocId, APIToken), 'purchase_orders'));
+    end;
+
 
 
     [TryFunction]
