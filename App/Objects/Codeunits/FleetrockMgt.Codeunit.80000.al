@@ -326,6 +326,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         Vendor2: Record Vendor;
         PaymentTermsCode: Code[10];
         PaymentTermDays: Integer;
+        PhoneNo: Text;
     begin
         Vendor2 := Vendor;
         if Vendor.Address <> JsonMgt.GetJsonValueAsText(VendorObj, 'street_address_1') then
@@ -340,8 +341,9 @@ codeunit 80000 "EE Fleetrock Mgt."
             Vendor."Country/Region Code" := JsonMgt.GetJsonValueAsText(VendorObj, 'country');
         if Vendor."Post Code" <> JsonMgt.GetJsonValueAsText(VendorObj, 'zip_code') then
             Vendor.Validate("Post Code", JsonMgt.GetJsonValueAsText(VendorObj, 'zip_code'));
-        if Vendor."Phone No." <> JsonMgt.GetJsonValueAsText(VendorObj, 'phone') then
-            Vendor.Validate("Phone No.", JsonMgt.GetJsonValueAsText(VendorObj, 'phone'));
+        PhoneNo := JsonMgt.GetJsonValueAsText(VendorObj, 'phone');
+        if not TryToSetVendorNo(Vendor, PhoneNo) then
+            Vendor."Phone No." := PhoneNo;
         if Vendor."E-Mail" <> JsonMgt.GetJsonValueAsText(VendorObj, 'email') then
             Vendor.Validate("E-Mail", JsonMgt.GetJsonValueAsText(VendorObj, 'email'));
         PaymentTermDays := Round(JsonMgt.GetJsonValueAsDecimal(VendorObj, 'payment_term_days'), 1);
@@ -361,6 +363,12 @@ codeunit 80000 "EE Fleetrock Mgt."
             or (Vendor2."Phone No." <> Vendor."Phone No.")
             or (Vendor2."E-Mail" <> Vendor."E-Mail")
             or (Vendor2."Payment Terms Code" <> Vendor."Payment Terms Code"));
+    end;
+
+    [TryFunction]
+    local procedure TryToSetVendorNo(var Vendor: Record Vendor; PhoneNo: Text)
+    begin
+        Vendor.Validate("Phone No.", PhoneNo);
     end;
 
     local procedure InitVendor(var PurchHeaderStaging: Record "EE Purch. Header Staging"; var Vendor: Record Vendor)
@@ -441,7 +449,7 @@ codeunit 80000 "EE Fleetrock Mgt."
     local procedure UpdateCustomerFromJson(var Customer: Record Customer; var CustomerObj: JsonObject): Boolean
     var
         Customer2: Record Customer;
-        Name: Text;
+        Name, PhoneNo : Text;
         PaymentTermsCode: Code[10];
         PaymentTermDays: Integer;
     begin
@@ -456,8 +464,9 @@ codeunit 80000 "EE Fleetrock Mgt."
             Customer."Country/Region Code" := JsonMgt.GetJsonValueAsText(CustomerObj, 'country');
         if Customer."Post Code" <> JsonMgt.GetJsonValueAsText(CustomerObj, 'zip_code') then
             Customer.Validate("Post Code", JsonMgt.GetJsonValueAsText(CustomerObj, 'zip_code'));
-        if Customer."Phone No." <> JsonMgt.GetJsonValueAsText(CustomerObj, 'phone') then
-            Customer.Validate("Phone No.", JsonMgt.GetJsonValueAsText(CustomerObj, 'phone'));
+        PhoneNo := JsonMgt.GetJsonValueAsText(CustomerObj, 'phone');
+        if not TryToSetCustomerNo(Customer, PhoneNo) then
+            Customer."Phone No." := PhoneNo;
         Name := StrSubstNo('%1 %2', JsonMgt.GetJsonValueAsText(CustomerObj, 'first_name'), JsonMgt.GetJsonValueAsText(CustomerObj, 'last_name')).Trim();
         if Customer.Name <> Name then
             Customer.Validate(Name, Name);
@@ -471,6 +480,14 @@ codeunit 80000 "EE Fleetrock Mgt."
             or (Customer2."Post Code" <> Customer."Post Code")
             or (Customer2."Phone No." <> Customer."Phone No.")
             or (Customer2.Name <> Customer.Name));
+    end;
+
+
+    [TryFunction]
+
+    local procedure TryToSetCustomerNo(var Customer: Record Customer; PhoneNo: Text)
+    begin
+        Customer.Validate("Phone No.", PhoneNo);
     end;
 
     local procedure InitCustomer(var SalesHeaderStaging: Record "EE Sales Header Staging"; var Customer: Record Customer; SourceNo: Text)
