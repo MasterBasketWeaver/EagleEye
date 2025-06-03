@@ -15,10 +15,10 @@ codeunit 80003 "EE Get Repair Orders"
         OrderStatus: Enum "EE Repair Order Status";
         EventType: Enum "EE Event Type";
         JsonArry: JsonArray;
-        T: JsonToken;
         OrderJsonObj: JsonObject;
+        T: JsonToken;
         StartDateTime: DateTime;
-        URL, s : Text;
+        URL, Tags : Text;
         ImportEntryNo: Integer;
         Success, LogEntry : Boolean;
     begin
@@ -47,38 +47,40 @@ codeunit 80003 "EE Get Repair Orders"
         SalesHeader.SetCurrentKey("EE Fleetrock ID");
         foreach T in JsonArry do begin
             OrderJsonObj := T.AsObject();
-            ImportEntryNo := 0;
-            Success := false;
-            LogEntry := false;
-            ClearLastError();
-
-            if OrderStatus = OrderStatus::invoiced then begin
-                LogEntry := true;
-                if FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, false) and SalesHeaderStaging.Get(ImportEntryNo) then begin
-                    SalesHeader.SetCurrentKey("EE Fleetrock ID");
-                    SalesHeader.SetRange("EE Fleetrock ID", SalesHeaderStaging.id);
-                    if not SalesHeader.FindFirst() then begin
-                        FleetRockMgt.CreateSalesOrder(SalesHeaderStaging);
-                        if SalesHeaderStaging."Document No." <> '' then
-                            Success := FleetRockMgt.TryToUpdateRepairOrder(SalesHeaderStaging, SalesHeaderStaging."Document No.");
-                    end else
-                        Success := FleetRockMgt.TryToUpdateRepairOrder(SalesHeaderStaging, SalesHeader."No.");
-                    if Success then
-                        if FleetRockSetup."Auto-post Repair Orders" then begin
-                            SalesHeader.Get(SalesHeader."Document Type"::Invoice, SalesHeaderStaging."Document No.");
-                            Success := TryToPostInvoice(SalesHeader);
-                        end;
-                end;
-            end else
-                if JsonMgt.GetJsonValueAsText(OrderJsonObj, 'status') = 'In Progress' then begin
+            Tags := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'tag');
+            if (FleetRockSetup."Import Tag" = '') or Tags.Contains(FleetRockSetup."Import Tag") then begin
+                ImportEntryNo := 0;
+                Success := false;
+                LogEntry := false;
+                ClearLastError();
+                if OrderStatus = OrderStatus::invoiced then begin
                     LogEntry := true;
-                    if FleetRockMgt.TryToCheckIfAlreadyImported(JsonMgt.GetJsonValueAsText(OrderJsonObj, 'id'), SalesHeader) then
-                        Success := FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, true);
-                end;
-            if LogEntry then
-                FleetRockMgt.InsertImportEntry(Success and (GetLastErrorText() = ''), ImportEntryNo,
-                    ImportEntry."Document Type"::"Repair Order", EventType, Enum::"EE Direction"::Import,
-                    GetLastErrorText(), URL, 'GET');
+                    if FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, false) and SalesHeaderStaging.Get(ImportEntryNo) then begin
+                        SalesHeader.SetCurrentKey("EE Fleetrock ID");
+                        SalesHeader.SetRange("EE Fleetrock ID", SalesHeaderStaging.id);
+                        if not SalesHeader.FindFirst() then begin
+                            FleetRockMgt.CreateSalesOrder(SalesHeaderStaging);
+                            if SalesHeaderStaging."Document No." <> '' then
+                                Success := FleetRockMgt.TryToUpdateRepairOrder(SalesHeaderStaging, SalesHeaderStaging."Document No.");
+                        end else
+                            Success := FleetRockMgt.TryToUpdateRepairOrder(SalesHeaderStaging, SalesHeader."No.");
+                        if Success then
+                            if FleetRockSetup."Auto-post Repair Orders" then begin
+                                SalesHeader.Get(SalesHeader."Document Type"::Invoice, SalesHeaderStaging."Document No.");
+                                Success := TryToPostInvoice(SalesHeader);
+                            end;
+                    end;
+                end else
+                    if JsonMgt.GetJsonValueAsText(OrderJsonObj, 'status') = 'In Progress' then begin
+                        LogEntry := true;
+                        if FleetRockMgt.TryToCheckIfAlreadyImported(JsonMgt.GetJsonValueAsText(OrderJsonObj, 'id'), SalesHeader) then
+                            Success := FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, true);
+                    end;
+                if LogEntry then
+                    FleetRockMgt.InsertImportEntry(Success and (GetLastErrorText() = ''), ImportEntryNo,
+                        ImportEntry."Document Type"::"Repair Order", EventType, Enum::"EE Direction"::Import,
+                        GetLastErrorText(), URL, 'GET');
+            end;
         end;
     end;
 

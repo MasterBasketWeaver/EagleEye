@@ -9,7 +9,7 @@ page 80000 "EE Fleetrock Setup"
     {
         area(Content)
         {
-            group("Item & G/L Mappings")
+            group("Purchase & Repair Mappings")
             {
                 group("Purchase Orders")
                 {
@@ -123,6 +123,10 @@ page 80000 "EE Fleetrock Setup"
                     ShowMandatory = true;
                 }
                 field("Earliest Import DateTime"; Rec."Earliest Import DateTime")
+                {
+                    ApplicationArea = all;
+                }
+                field("Import Tag"; Rec."Import Tag")
                 {
                     ApplicationArea = all;
                 }
