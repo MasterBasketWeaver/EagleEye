@@ -51,12 +51,41 @@ pageextension 80300 "EEMCP Vendors" extends "Vendor List"
 
                 trigger OnAction()
                 var
-                    Install: Codeunit "EEMCP Install";
+
+                    VendorBankAccount: Record "Vendor Bank Account";
+                    i: Integer;
                 begin
-                    Install.InstallData();
-                    Message('done');
+                    if not Confirm('Delete all blank vendor bank accounts?') then
+                        exit;
+                    VendorBankAccount.SetRange(Code, '');
+                    i := VendorBankAccount.Count();
+                    Install.ClearVendorBankAccounts();
+                    Message('done: %1 -> %2', i, VendorBankAccount.Count());
+                end;
+            }
+            action("EEMCP Set Default Bank Account")
+            {
+                ApplicationArea = all;
+                Image = Bank;
+                Caption = 'Set Default Bank Account';
+
+                trigger OnAction()
+                var
+                    RecRef: RecordRef;
+                    i: Integer;
+                begin
+                    RecRef.Open(Database::Vendor);
+                    RecRef.Field(Rec.FieldNo("Preferred Bank Account Code")).SetRange('');
+                    if RecRef.FieldExist(60700) then
+                        RecRef.Field(60700).SetRange(true);
+                    i := RecRef.Count();
+                    Install.PopulateVendorBankAccounts();
+                    Message('done: %1 -> %2', i, RecRef.Count());
                 end;
             }
         }
     }
+
+    var
+        Install: Codeunit "EEMCP Install";
 }
