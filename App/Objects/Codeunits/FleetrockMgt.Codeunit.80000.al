@@ -681,9 +681,11 @@ codeunit 80000 "EE Fleetrock Mgt."
         APIToken: Text;
         EndDateTime: DateTime;
     begin
-        GetEventParameters(APIToken, StartDateTime, EndDateTime, false);
-        URL := StrSubstNo('%1/API/GetPO?username=%2&event=%3&token=%4&start=%5&end=%6', FleetrockSetup."Integration URL",
-            FleetrockSetup.Username, EventType, APIToken, Format(StartDateTime, 0, 9), Format(EndDateTime, 0, 9));
+        if URL = '' then begin
+            GetEventParameters(APIToken, StartDateTime, EndDateTime, false);
+            URL := StrSubstNo('%1/API/GetPO?username=%2&event=%3&token=%4&start=%5&end=%6', FleetrockSetup."Integration URL",
+                FleetrockSetup.Username, EventType, APIToken, Format(StartDateTime, 0, 9), Format(EndDateTime, 0, 9));
+        end;
         exit(RestAPIMgt.GetResponseAsJsonArray(URL, 'purchase_orders'));
     end;
 

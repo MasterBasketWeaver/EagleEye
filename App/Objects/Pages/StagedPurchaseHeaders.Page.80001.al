@@ -175,10 +175,40 @@ page 80001 "EE Staged Purchased Headers"
                 PromotedIsBig = true;
                 PromotedOnly = true;
                 Image = Error;
+                Enabled = not Rec.Processed;
 
                 trigger OnAction()
+                var
+                    FleetrockEntry: Record "EE Import/Export Entry";
                 begin
-                    Message(Rec."Error Message");
+                    if Rec."Error Message" = '' then begin
+                        FleetrockEntry.SetRange("Document Type", FleetrockEntry."Document Type"::"Purchase Order");
+                        FleetrockEntry.SetRange("Import Entry No.", Rec."Entry No.");
+                        FleetrockEntry.SetRange(Success, false);
+                        if FleetrockEntry.FindFirst() then
+                            FleetrockEntry.DisplayErrorMessage();
+                    end else
+                        Message(Rec."Error Message");
+                end;
+            }
+            action("Create Invoice")
+            {
+                ApplicationArea = all;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                Image = Invoice;
+
+                trigger OnAction()
+                var
+                    FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
+                    PurchaseHeader: Record "Purchase Header";
+                begin
+                    FleetrockMgt.CreatePurchaseOrder(Rec);
+                    PurchaseHeader.SetRange("EE Fleetrock ID", Rec.id);
+                    PurchaseHeader.FindLast();
+                    Page.Run(Page::"Purchase Invoice", PurchaseHeader);
                 end;
             }
         }

@@ -24,25 +24,43 @@ codeunit 80001 "EE Get Purchase Orders"
         ImportEntryNo: Integer;
         Success, IsReceived, LogEntry : Boolean;
     begin
-        if Rec."Parameter String" = 'received' then begin
-            IsReceived := true;
-            EventType := EventType::Received
-        end else
-            EventType := EventType::Closed;
+        if PassedURL = '' then begin
+            if Rec."Parameter String" = 'received' then begin
+                IsReceived := true;
+                EventType := EventType::Received
+            end else
+                EventType := EventType::Closed;
 
-        ImportEntry.SetRange("Document Type", ImportEntry."Document Type"::"Purchase Order");
-        ImportEntry.SetRange(Success, true);
-        ImportEntry.SetRange("Event Type", EventType);
-        if ImportEntry.FindLast() then
-            StartDateTime := ImportEntry.SystemCreatedAt;
+            ImportEntry.SetRange("Document Type", ImportEntry."Document Type"::"Purchase Order");
+            ImportEntry.SetRange(Success, true);
+            ImportEntry.SetRange("Event Type", EventType);
+            if ImportEntry.FindLast() then
+                StartDateTime := ImportEntry.SystemCreatedAt;
+        end else begin
+            URL := PassedURL;
+            if not URL.Contains('event') then
+                Error('Invalid URL: %1', URL);
+            if URL.Contains('event=Received') then begin
+                IsReceived := true;
+                EventType := EventType::Received;
+            end else begin
+                IsReceived := false;
+                EventType := EventType::Closed;
+            end;
+        end;
 
         if not FleetRockMgt.TryToGetPurchaseOrders(StartDateTime, JsonArry, URL, EventType) then begin
             FleetRockMgt.InsertImportEntry(false, 0, ImportEntry."Document Type"::"Purchase Order",
                 EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET');
             exit;
         end;
-        if JsonArry.Count() = 0 then
+        if JsonArry.Count() = 0 then begin
+            if (PassedURL <> '') and GuiAllowed() then begin
+                JsonArry.WriteTo(Tags);
+                if not Confirm('Empty array:\%1\\%2', false, URL, Tags) then;
+            end;
             exit;
+        end;
         FleetRockSetup.Get();
         PurchaseHeader.SetCurrentKey("EE Fleetrock ID");
         LogEntry := not IsReceived;
@@ -121,4 +139,12 @@ codeunit 80001 "EE Get Purchase Orders"
                 exit(true);
         exit(false);
     end;
+
+    procedure SetURL(NewURL: Text)
+    begin
+        PassedURL := NewURL;
+    end;
+
+    var
+        PassedURL: Text;
 }

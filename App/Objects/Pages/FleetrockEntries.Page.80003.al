@@ -106,25 +106,8 @@ page 80003 "EE Fleetrock Entries"
                 Enabled = Rec."Error Message" <> '';
 
                 trigger OnAction()
-                var
-                    Lines: List of [Text];
-                    Line: Text;
-                    ErrorStack: TextBuilder;
                 begin
-                    if Rec."Error Stack" <> '' then begin
-                        ErrorStack.AppendLine(Rec."Error Message");
-                        ErrorStack.AppendLine('');
-                        ErrorStack.AppendLine('Error Stack:');
-                        if Rec."Error Stack".Contains('\') then begin
-                            Lines := Rec."Error Stack".Split('\');
-                            foreach Line in Lines do
-                                if Line <> '' then
-                                    ErrorStack.AppendLine(Line);
-                        end else
-                            ErrorStack.AppendLine(Rec."Error Stack");
-                        Message(ErrorStack.ToText());
-                    end else
-                        Message(Rec."Error Message");
+                    Rec.DisplayErrorMessage();
                 end;
             }
             action("Show URL")
@@ -155,6 +138,27 @@ page 80003 "EE Fleetrock Entries"
                 trigger OnAction()
                 begin
                     Message(Rec."Request Body");
+                end;
+            }
+            action("Re-process Request")
+            {
+                ApplicationArea = all;
+                Image = Recalculate;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                Enabled = not Rec.Success and (Rec."Document Type" = Rec."Document Type"::"Purchase Order") and (Rec.URL <> '');
+
+                trigger OnAction()
+                var
+                    JobQueueEntry: Record "Job Queue Entry";
+                    GetPurchaseOrders: Codeunit "EE Get Purchase Orders";
+                begin
+                    GetPurchaseOrders.SetURL(Rec.URL);
+                    GetPurchaseOrders.Run(JobQueueEntry);
+                    CurrPage.Update();
+                    Message('Reprocessing completed.');
                 end;
             }
             action("Clear Entries")

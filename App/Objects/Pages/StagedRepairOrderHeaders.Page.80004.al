@@ -294,10 +294,19 @@ page 80004 "EE Staged Repair Order Headers"
                 PromotedIsBig = true;
                 PromotedOnly = true;
                 Image = Error;
-
+                Enabled = not Rec.Processed;
                 trigger OnAction()
+                var
+                    FleetrockEntry: Record "EE Import/Export Entry";
                 begin
-                    Message(Rec."Error Message");
+                    if Rec."Error Message" = '' then begin
+                        FleetrockEntry.SetRange("Document Type", FleetrockEntry."Document Type"::"Repair Order");
+                        FleetrockEntry.SetRange("Import Entry No.", Rec."Entry No.");
+                        FleetrockEntry.SetRange(Success, false);
+                        if FleetrockEntry.FindFirst() then
+                            FleetrockEntry.DisplayErrorMessage();
+                    end else
+                        Message(Rec."Error Message");
                 end;
             }
             action("Create Invoice")
