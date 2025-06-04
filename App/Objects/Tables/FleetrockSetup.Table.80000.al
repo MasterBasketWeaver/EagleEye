@@ -162,7 +162,7 @@ table 80000 "EE Fleetrock Setup"
         {
             DataClassification = CustomerContent;
         }
-        field(70; "Import Tag"; Text[50])
+        field(70; "Import Tags"; Text[50])
         {
             DataClassification = CustomerContent;
         }

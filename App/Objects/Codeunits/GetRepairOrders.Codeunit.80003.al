@@ -50,7 +50,7 @@ codeunit 80003 "EE Get Repair Orders"
             OrderJsonObj := T.AsObject();
             Tags := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'tag');
             // if (FleetRockSetup."Import Tag" = '') or Tags.Contains(FleetRockSetup."Import Tag") then begin
-            if GetPurchaseOrders.CheckTagForImport(FleetRockSetup."Import Tag", Tags) then begin
+            if GetPurchaseOrders.CheckTagForImport(FleetRockSetup."Import Tags", Tags) then begin
                 ImportEntryNo := 0;
                 Success := false;
                 LogEntry := false;

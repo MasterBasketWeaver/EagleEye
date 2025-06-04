@@ -126,7 +126,7 @@ page 80000 "EE Fleetrock Setup"
                 {
                     ApplicationArea = all;
                 }
-                field("Import Tag"; Rec."Import Tag")
+                field("Import Tag"; Rec."Import Tags")
                 {
                     ApplicationArea = all;
                 }

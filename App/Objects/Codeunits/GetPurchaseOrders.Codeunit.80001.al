@@ -68,7 +68,7 @@ codeunit 80001 "EE Get Purchase Orders"
             OrderJsonObj := T.AsObject();
             Tags := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'tag');
             // if (FleetRockSetup."Import Tag" = '') or Tags.Contains(FleetRockSetup."Import Tag") then begin
-            if CheckTagForImport(FleetRockSetup."Import Tag", Tags) then begin
+            if CheckTagForImport(FleetRockSetup."Import Tags", Tags) then begin
                 ImportEntryNo := 0;
                 ClearLastError();
                 Success := false;
