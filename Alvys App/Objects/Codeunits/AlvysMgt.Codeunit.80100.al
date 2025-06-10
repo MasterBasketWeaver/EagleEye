@@ -2,7 +2,7 @@ codeunit 80100 "EE Alvys Mgt."
 {
     var
         AlvysSetup: Record "EE Alvys Setup";
-        RestAPIMgt: Codeunit "EE REST API Mgt.";
+        // RestAPIMgt: Codeunit "EE REST API Mgt.";
         JsonMgt: Codeunit "EE Json Mgt.";
 
 
@@ -45,13 +45,10 @@ codeunit 80100 "EE Alvys Mgt."
         JsonBody.Add('grant_type', 'client_credentials');
 
         JsonBody.WriteTo(s);
-
-        // if not Confirm('%1\%2', false, URL, s) then
-        //     Error('');
+        if not Confirm('%1\%2', false, URL, s) then
+            Error('');
 
         JsonTkn := GetResponseAsJsonToken('POST', URL, 'access_token', JsonBody);
-
-
 
         JsonTkn.WriteTo(s);
         if not Confirm('recieved: %1', false, s) then
@@ -138,13 +135,15 @@ codeunit 80100 "EE Alvys Mgt."
             Headers.Add('Content-Type', ContentType);
             Headers.Add('Content-Length', Format(ContentLength));
 
-            // Debug.AppendLine('Request Headers');
-            // Debug.AppendLine(StrSubstNo('%1: %2', 'Host', 'integrations.alvys.com'));
-            // Debug.AppendLine(StrSubstNo('%1: %2', 'Accept', '*/*'));
-            // Debug.AppendLine(StrSubstNo('%1: %2', 'Content-Type', ContentType));
-            // Debug.AppendLine(StrSubstNo('%1: %2', 'Content-Length', Format(ContentLength)));
 
-            // Message(Debug.ToText());
+
+            Debug.AppendLine('Request Headers');
+            Debug.AppendLine(StrSubstNo('%1: %2', 'Host', 'integrations.alvys.com'));
+            Debug.AppendLine(StrSubstNo('%1: %2', 'Accept', '*/*'));
+            Debug.AppendLine(StrSubstNo('%1: %2', 'Content-Type', ContentType));
+            Debug.AppendLine(StrSubstNo('%1: %2', 'Content-Length', Format(ContentLength)));
+
+            Message(Debug.ToText());
             // Content.ReadAs(s);
             // Error(s);
 
@@ -167,11 +166,15 @@ codeunit 80100 "EE Alvys Mgt."
             exit(false);
         end;
 
-        Error('');
+        // Error('');
 
         // HttpRequestMessage.cook
         HttpResponseMessage.Content().ReadAs(ResponseText);
         ReasonPhrase := HttpResponseMessage.ReasonPhrase;
+
+        if not Confirm('%1\%2', false, ReasonPhrase, ResponseText) then
+            Error('');
+
         exit(HttpResponseMessage.IsSuccessStatusCode());
     end;
 

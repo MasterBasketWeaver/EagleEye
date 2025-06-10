@@ -59,7 +59,10 @@ page 80100 "EE Alvys Setup"
                 var
                     AlvysMgt: Codeunit "EE Alvys Mgt.";
                 begin
-                    Message(AlvysMgt.CheckToGetAPIToken(Rec));
+
+                    AlvysMgt.CheckToGetAPIToken(Rec);
+
+                    // Message(AlvysMgt.CheckToGetAPIToken(Rec));
                 end;
             }
         }
