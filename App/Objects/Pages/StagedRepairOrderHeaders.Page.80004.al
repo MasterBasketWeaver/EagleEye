@@ -45,6 +45,38 @@ page 80004 "EE Staged Repair Order Headers"
                             end;
                     end;
                 }
+                field("Purch. Staging Entry No."; Rec."Purch. Staging Entry No.")
+                {
+                    ApplicationArea = all;
+                    Visible = ShowPurchDocNo;
+                }
+                field("Purch. Document No."; Rec."Purch. Document No.")
+                {
+                    ApplicationArea = all;
+                    Visible = ShowPurchDocNo;
+
+                    trigger OnDrillDown()
+                    var
+                        PurchaseHeader: Record "Purchase Header";
+                        PurchInvHeader: Record "Purch. Inv. Header";
+                    begin
+                        if Rec."Purch. Document No." <> '' then
+                            if PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, Rec."Purch. Document No.") then
+                                Page.Run(Page::"Purchase Order", PurchaseHeader)
+                            else begin
+                                PurchInvHeader.SetCurrentKey("Order No.");
+                                PurchInvHeader.SetRange("Order No.", Rec."Purch. Document No.");
+                                if not PurchInvHeader.FindFirst() then begin
+                                    PurchInvHeader.Reset();
+                                    PurchInvHeader.SetCurrentKey("Pre-Assigned No.");
+                                    PurchInvHeader.SetRange("Pre-Assigned No.", Rec."Purch. Document No.");
+                                    if not PurchInvHeader.FindFirst() then
+                                        exit;
+                                end;
+                                Page.Run(Page::"Posted Purchase Invoice", PurchInvHeader);
+                            end;
+                    end;
+                }
                 field("Event Type"; Rec."Event Type")
                 {
                     ApplicationArea = all;
@@ -329,6 +361,49 @@ page 80004 "EE Staged Repair Order Headers"
                     Page.Run(Page::"Sales Invoice", SalesHeader);
                 end;
             }
+            action("Create Purchase Order")
+            {
+                ApplicationArea = all;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                Image = Order;
+
+                trigger OnAction()
+                var
+                    PurchaseHeader: Record "Purchase Header";
+                    FleetrockSetup: Record "EE Fleetrock Setup";
+                    PurchaseHeaderStaging: Record "EE Purch. Header Staging";
+                    FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
+                    GetPurchaseOrders: Codeunit "EE Get Purchase Orders";
+                    Result: Boolean;
+                begin
+                    FleetrockSetup.Get();
+                    FleetrockSetup."Auto-post Purchase Orders" := false;
+                    if FleetrockMgt.TryToCreatePurchaseStagingFromRepairStaging(Rec, PurchaseHeaderStaging) then
+                        Result := GetPurchaseOrders.UpdateAndPostPurchaseOrder(FleetrockSetup, PurchaseHeaderStaging);
+                    // Page.Run(0, PurchaseHeaderStaging);
+                    if not Result then
+                        Error('Failed:\%1', GetLastErrorText());
+                    if not PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseHeaderStaging."Document No.") then
+                        Error('Purchase Order not found for Document No. %1', PurchaseHeaderStaging."Document No.");
+
+                    Page.Run(Page::"Purchase Order", PurchaseHeader);
+                end;
+            }
         }
     }
+
+    var
+        FleetrockSetup: Record "EE Fleetrock Setup";
+        ShowPurchDocNo: Boolean;
+
+    trigger OnOpenPage()
+    begin
+        FleetrockSetup.Get();
+        ShowPurchDocNo := FleetrockSetup."Import Repairs as Purchases";
+    end;
+
+
 }

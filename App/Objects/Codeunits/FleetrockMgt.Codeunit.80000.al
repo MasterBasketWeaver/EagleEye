@@ -121,7 +121,7 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
 
-    local procedure CheckPurchaseOrderSetup()
+    procedure CheckPurchaseOrderSetup()
     begin
         FleetrockSetup.TestField("Purchase Item No.");
         FleetrockSetup.TestField("Vendor Posting Group");
@@ -1525,6 +1525,98 @@ codeunit 80000 "EE Fleetrock Mgt."
         JsonBody.Add('username', UserName);
         JsonBody.Add('repair_orders', RepairOrdersArray);
         exit(JsonBody);
+    end;
+
+
+
+
+
+
+    [TryFunction]
+    procedure TryToCreatePurchaseStagingFromRepairStaging(var SalesHeaderStaging: Record "EE Sales Header Staging"; var PurchHeaderStaging: Record "EE Purch. Header Staging")
+    begin
+        CreatePurchaseStagingFromRepairStaging(SalesHeaderStaging, PurchHeaderStaging);
+    end;
+
+    local procedure CreatePurchaseStagingFromRepairStaging(var SalesHeaderStaging: Record "EE Sales Header Staging"; var PurchHeaderStaging: Record "EE Purch. Header Staging")
+    var
+        PurchHeaderStaging2: Record "EE Purch. Header Staging";
+        PurchLineStaging: Record "EE Purch. Line Staging";
+        PartLineStaging: Record "EE Part Line Staging";
+        TaskLineStaging: Record "EE Task Line Staging";
+        EntryNo: Integer;
+    begin
+        if PurchHeaderStaging2.FindLast() then
+            EntryNo := PurchHeaderStaging2."Entry No.";
+        EntryNo += 1;
+
+        PurchHeaderStaging.Init();
+        PurchHeaderStaging."Entry No." := EntryNo;
+        PurchHeaderStaging.id := SalesHeaderStaging.id;
+        PurchHeaderStaging.supplier_name := SalesHeaderStaging.vendor_name;
+        PurchHeaderStaging.supplier_custom_id := SalesHeaderStaging.vendor_company_id;
+        PurchHeaderStaging.invoice_number := SalesHeaderStaging.po_number;
+        PurchHeaderStaging.tag := SalesHeaderStaging.tag;
+        PurchHeaderStaging.tax_total := SalesHeaderStaging.tax_total;
+        PurchHeaderStaging.other_total := SalesHeaderStaging.additional_charges;
+        PurchHeaderStaging.subtotal := SalesHeaderStaging.part_total + SalesHeaderStaging.labor_total + SalesHeaderStaging.additional_charges;
+        PurchHeaderStaging.grand_total := SalesHeaderStaging.grand_total;
+        PurchHeaderStaging.date_created := SalesHeaderStaging.date_created;
+        PurchHeaderStaging.date_closed := SalesHeaderStaging.date_invoiced;
+        PurchHeaderStaging.date_opened := SalesHeaderStaging.date_started;
+        PurchHeaderStaging.date_received := SalesHeaderStaging.date_invoiced;
+        PurchHeaderStaging.Insert(true);
+
+        SalesHeaderStaging."Purch. Staging Entry No." := PurchHeaderStaging."Entry No.";
+        SalesHeaderStaging.Modify(true);
+
+        if PurchLineStaging.FindLast() then
+            EntryNo := PurchLineStaging."Entry No."
+        else
+            EntryNo := 0;
+
+
+        TaskLineStaging.SetCurrentKey("Header Id", "Header Entry No.");
+        TaskLineStaging.SetRange("Header Id", SalesHeaderStaging.id);
+        TaskLineStaging.SetRange("Header Entry No.", SalesHeaderStaging."Entry No.");
+        TaskLineStaging.SetAutoCalcFields("Part Lines");
+        if TaskLineStaging.FindSet() then begin
+            PartLineStaging.SetCurrentKey("Task Entry No.", "Task Id");
+            repeat
+                EntryNo += 1;
+                PurchLineStaging.Init();
+                PurchLineStaging."Entry No." := EntryNo;
+                PurchLineStaging."Header Entry No." := PurchHeaderStaging."Entry No.";
+                PurchLineStaging."Header Id" := PurchHeaderStaging.id;
+                PurchLineStaging.part_id := CopyStr(TaskLineStaging.labor_cause_code, 1, MaxStrLen(PurchLineStaging.part_id));
+                PurchLineStaging.part_number := TaskLineStaging.labor_type;
+                PurchLineStaging.part_description := 'Labor';
+                PurchLineStaging.part_quantity := TaskLineStaging.labor_hours;
+                PurchLineStaging.unit_price := TaskLineStaging.labor_hourly_rate;
+                PurchLineStaging.part_system_code := TaskLineStaging.labor_system_code;
+                PurchLineStaging.line_total := TaskLineStaging.labor_hours * TaskLineStaging.labor_hourly_rate;
+                PurchLineStaging.Insert(true);
+
+                PartLineStaging.SetRange("Task Entry No.", TaskLineStaging."Entry No.");
+                PartLineStaging.SetRange("Task Id", TaskLineStaging.task_id);
+                if PartLineStaging.FindSet() then
+                    repeat
+                        EntryNo += 1;
+                        PurchLineStaging.Init();
+                        PurchLineStaging."Entry No." := EntryNo;
+                        PurchLineStaging."Header Entry No." := PurchHeaderStaging."Entry No.";
+                        PurchLineStaging."Header Id" := PurchHeaderStaging.id;
+                        PurchLineStaging.part_id := PartLineStaging.part_id;
+                        PurchLineStaging.part_number := PartLineStaging.part_number;
+                        PurchLineStaging.part_description := PartLineStaging.part_description;
+                        PurchLineStaging.part_quantity := PartLineStaging.part_quantity;
+                        PurchLineStaging.unit_price := PartLineStaging.part_price;
+                        PurchLineStaging.part_system_code := PartLineStaging.part_system_code;
+                        PurchLineStaging.line_total := PartLineStaging.part_price * PartLineStaging.part_quantity;
+                        PurchLineStaging.Insert(true);
+                    until PartLineStaging.Next() = 0;
+            until TaskLineStaging.Next() = 0;
+        end;
     end;
 
 

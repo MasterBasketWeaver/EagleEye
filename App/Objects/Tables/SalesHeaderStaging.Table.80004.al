@@ -260,6 +260,18 @@ table 80004 "EE Sales Header Staging"
             CalcFormula = lookup(User."User Name" where("User Security ID" = field(SystemCreatedBy)));
             Editable = false;
         }
+        field(106; "Purch. Document No."; Code[20])
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+            TableRelation = "Purchase Header"."No." where("Document Type" = const(Order));
+        }
+        field(107; "Purch. Staging Entry No."; Integer)
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+            TableRelation = "EE Purch. Header Staging"."Entry No.";
+        }
         field(110; "Task Lines"; Integer)
         {
             FieldClass = FlowField;

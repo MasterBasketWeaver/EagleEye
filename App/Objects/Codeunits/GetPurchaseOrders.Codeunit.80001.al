@@ -11,7 +11,7 @@ codeunit 80001 "EE Get Purchase Orders"
         PurchaseHeaderStaging: Record "EE Purch. Header Staging";
         ImportEntry: Record "EE Import/Export Entry";
         FleetrockSetup: Record "EE Fleetrock Setup";
-        FleetRockMgt: Codeunit "EE Fleetrock Mgt.";
+
         JsonMgt: Codeunit "EE Json Mgt.";
         OrderStatus: Enum "EE Repair Order Status";
         EventType: Enum "EE Event Type";
@@ -20,7 +20,7 @@ codeunit 80001 "EE Get Purchase Orders"
         T: JsonToken;
         StartDateTime: DateTime;
         URL, Tags : Text;
-        DocNo: Code[20];
+
         ImportEntryNo: Integer;
         Success, IsReceived, LogEntry : Boolean;
     begin
@@ -67,7 +67,6 @@ codeunit 80001 "EE Get Purchase Orders"
         foreach T in JsonArry do begin
             OrderJsonObj := T.AsObject();
             Tags := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'tag');
-            // if (FleetRockSetup."Import Tag" = '') or Tags.Contains(FleetRockSetup."Import Tag") then begin
             if CheckTagForImport(FleetRockSetup."Import Tags", Tags) then begin
                 ImportEntryNo := 0;
                 ClearLastError();
@@ -80,22 +79,8 @@ codeunit 80001 "EE Get Purchase Orders"
                     end;
                 end else begin
                     LogEntry := true;
-                    if FleetRockMgt.TryToInsertPOStagingRecords(OrderJsonObj, ImportEntryNo, false) and PurchaseHeaderStaging.Get(ImportEntryNo) then begin
-                        PurchaseHeader.SetCurrentKey("EE Fleetrock ID");
-                        PurchaseHeader.SetRange("EE Fleetrock ID", PurchaseHeaderStaging.id);
-                        if PurchaseHeader.FindFirst() then
-                            Success := FleetRockMgt.TryToUpdatePurchaseOrder(PurchaseHeaderStaging, PurchaseHeader)
-                        else
-                            if FleetRockMgt.TryToCreatePurchaseOrder(PurchaseHeaderStaging, DocNo) then
-                                Success := FleetRockMgt.TryToUpdatePurchaseOrder(PurchaseHeaderStaging, DocNo);
-                        if Success then
-                            if FleetRockSetup."Auto-post Purchase Orders" then begin
-                                PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseHeaderStaging."Document No.");
-                                PurchaseHeader.Receive := true;
-                                PurchaseHeader.Invoice := true;
-                                Success := TryToPostOrder(PurchaseHeader);
-                            end;
-                    end;
+                    if FleetRockMgt.TryToInsertPOStagingRecords(OrderJsonObj, ImportEntryNo, false) and PurchaseHeaderStaging.Get(ImportEntryNo) then
+                        Success := UpdateAndPostPurchaseOrder(FleetrockSetup, PurchaseHeaderStaging);
                 end;
                 if LogEntry then
                     FleetRockMgt.InsertImportEntry(Success and (GetLastErrorText() = ''), ImportEntryNo,
@@ -103,6 +88,29 @@ codeunit 80001 "EE Get Purchase Orders"
                         GetLastErrorText(), URL, 'GET');
             end;
         end;
+    end;
+
+    procedure UpdateAndPostPurchaseOrder(var FleetrockSetup: Record "EE Fleetrock Setup"; var PurchaseHeaderStaging: Record "EE Purch. Header Staging"): Boolean
+    var
+        PurchaseHeader: Record "Purchase Header";
+        DocNo: Code[20];
+        Success: Boolean;
+    begin
+        PurchaseHeader.SetCurrentKey("EE Fleetrock ID");
+        PurchaseHeader.SetRange("EE Fleetrock ID", PurchaseHeaderStaging.id);
+        if PurchaseHeader.FindFirst() then
+            Success := FleetRockMgt.TryToUpdatePurchaseOrder(PurchaseHeaderStaging, PurchaseHeader)
+        else
+            if FleetRockMgt.TryToCreatePurchaseOrder(PurchaseHeaderStaging, DocNo) then
+                Success := FleetRockMgt.TryToUpdatePurchaseOrder(PurchaseHeaderStaging, DocNo);
+        if Success then
+            if FleetRockSetup."Auto-post Purchase Orders" then begin
+                PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseHeaderStaging."Document No.");
+                PurchaseHeader.Receive := true;
+                PurchaseHeader.Invoice := true;
+                Success := TryToPostOrder(PurchaseHeader);
+            end;
+        exit(Success);
     end;
 
     [TryFunction]
@@ -146,5 +154,6 @@ codeunit 80001 "EE Get Purchase Orders"
     end;
 
     var
+        FleetRockMgt: Codeunit "EE Fleetrock Mgt.";
         PassedURL: Text;
 }

@@ -17,17 +17,17 @@ table 80001 "EE Purch. Header Staging"
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(11; supplier_name; Text[50])
+        field(11; supplier_name; Text[100])
         {
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(12; supplier_custom_id; Text[50])
+        field(12; supplier_custom_id; Text[100])
         {
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(13; recipient_name; Text[50])
+        field(13; recipient_name; Text[100])
         {
             DataClassification = CustomerContent;
             Editable = false;

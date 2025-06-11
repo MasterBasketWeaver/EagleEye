@@ -22,6 +22,10 @@ page 80000 "EE Fleetrock Setup"
                     {
                         ApplicationArea = all;
                     }
+                    field("Import Repairs as Purchases"; Rec."Import Repairs as Purchases")
+                    {
+                        ApplicationArea = all;
+                    }
                 }
                 group("Repair Orders")
                 {
@@ -300,6 +304,7 @@ page 80000 "EE Fleetrock Setup"
                     TaskLineStaging: Record "EE Task Line Staging";
                     PartLineStaging: Record "EE Part Line Staging";
                     SalesHeader: Record "Sales Header";
+                    PurchHeader: Record "Purchase Header";
                 begin
                     if not Confirm('Delete all log entries?') then
                         exit;
@@ -312,6 +317,11 @@ page 80000 "EE Fleetrock Setup"
                     SalesHeader.SetRange("Document Type", SalesHeader."Document Type"::Invoice);
                     SalesHeader.SetRange("Sell-to Customer No.", '');
                     SalesHeader.DeleteAll(true);
+                    SalesHeader.Reset();
+                    SalesHeader.SetFilter("EE Fleetrock ID", '<>%1', '');
+                    SalesHeader.DeleteAll(true);
+                    PurchHeader.SetFilter("EE Fleetrock ID", '<>%1', '');
+                    PurchHeader.DeleteAll(true);
                 end;
             }
         }

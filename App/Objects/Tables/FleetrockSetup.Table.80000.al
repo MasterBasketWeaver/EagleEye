@@ -166,6 +166,11 @@ table 80000 "EE Fleetrock Setup"
         {
             DataClassification = CustomerContent;
         }
+        field(80; "Import Repairs as Purchases"; Boolean)
+        {
+            DataClassification = CustomerContent;
+            Caption = 'Import Repair Orders as Purchase Invoices';
+        }
     }
 
     keys

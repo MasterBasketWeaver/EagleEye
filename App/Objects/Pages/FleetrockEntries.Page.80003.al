@@ -63,7 +63,10 @@ page 80003 "EE Fleetrock Entries"
                                         Page.Run(Page::"EE Staged Purchased Headers", PurchHeaderStaging);
                                 Rec."Document Type"::"Repair Order":
                                     if SalesHeaderStaging.Get(Rec."Import Entry No.") then
-                                        Page.Run(0, SalesHeaderStaging);
+                                        if (SalesHeaderStaging."Purch. Staging Entry No." <> 0) and PurchHeaderStaging.Get(SalesHeaderStaging."Purch. Staging Entry No.") then
+                                            Page.Run(Page::"EE Staged Purchased Headers", PurchHeaderStaging)
+                                        else
+                                            Page.Run(0, SalesHeaderStaging);
                             end;
                     end;
                 }
