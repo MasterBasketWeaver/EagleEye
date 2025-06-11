@@ -12,9 +12,9 @@ codeunit 80003 "EE Get Repair Orders"
         FleetRockSetup: Record "EE Fleetrock Setup";
         OrderStatus: Enum "EE Repair Order Status";
         EventType: Enum "EE Event Type";
-        JsonArry: JsonArray;
+        JsonArry, VendorJsonArray : JsonArray;
         OrderJsonObj: JsonObject;
-        T: JsonToken;
+        T, T2 : JsonToken;
         StartDateTime: DateTime;
         URL, Tags : Text;
         ImportEntryNo: Integer;
@@ -34,13 +34,20 @@ codeunit 80003 "EE Get Repair Orders"
         if ImportEntry.FindLast() then
             StartDateTime := ImportEntry.SystemCreatedAt;
 
-        if not FleetRockMgt.TryToGetRepairOrders(StartDateTime, OrderStatus, JsonArry, URL) then begin
+
+        if not FleetRockMgt.TryToGetRepairOrders(StartDateTime, OrderStatus, JsonArry, URL, false) then begin
             FleetRockMgt.InsertImportEntry(false, 0, ImportEntry."Document Type"::"Repair Order",
                 EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET');
             exit;
         end;
+
+        if FleetRockMgt.TryToGetRepairOrders(StartDateTime, OrderStatus, VendorJsonArray, URL, true) then
+            if (VendorJsonArray.Count() > 0) and (VendorJsonArray.Count() <> JsonArry.Count()) then
+                MergeJsonArrays(VendorJsonArray, JsonArry);
+
         if JsonArry.Count() = 0 then
             exit;
+
         FleetRockSetup.Get();
         if FleetRockSetup."Import Repairs as Purchases" then
             FleetRockMgt.CheckPurchaseOrderSetup();
@@ -122,6 +129,49 @@ codeunit 80003 "EE Get Repair Orders"
     local procedure TryToPostInvoice(var SalesHeader: Record "Sales Header")
     begin
         Codeunit.Run(Codeunit::"Sales-Post", SalesHeader);
+    end;
+
+    local procedure MergeJsonArrays(var VendorJsonArray: JsonArray; var CustomerVendorArray: JsonArray)
+    var
+        JsonBuffer: Record "JSON Buffer" temporary;
+        JTkn: JsonToken;
+        JObj: JsonObject;
+        VendorROs, CustomerROs, DeltaROs : List of [Text];
+        s: Text;
+    begin
+        VendorJsonArray.WriteTo(s);
+        JsonBuffer.ReadFromText(s);
+        JsonBuffer.SetRange(Depth, 1);
+        if JsonBuffer.FindSet() then
+            repeat
+                if JsonBuffer.GetPropertyValue(s, 'id') then
+                    if not VendorROs.Contains(s) then
+                        VendorROs.Add(s);
+            until JsonBuffer.Next() = 0;
+
+        CustomerVendorArray.WriteTo(s);
+        JsonBuffer.Reset();
+        JsonBuffer.ReadFromText(s);
+        JsonBuffer.SetRange(Depth, 1);
+        if JsonBuffer.FindSet() then
+            repeat
+                if JsonBuffer.GetPropertyValue(s, 'id') then
+                    if not CustomerROs.Contains(s) then
+                        CustomerROs.Add(s);
+            until JsonBuffer.Next() = 0;
+
+        foreach s in VendorROs do
+            if not CustomerROs.Contains(s) then
+                DeltaROs.Add(s);
+
+        if DeltaROs.Count() = 0 then
+            exit;
+
+        foreach JTkn in VendorJsonArray do begin
+            JObj := JTkn.AsObject();
+            if DeltaROs.Contains(JsonMgt.GetJsonValueAsText(JObj, 'id')) then
+                CustomerVendorArray.Add(JTkn);
+        end;
     end;
 
     var
