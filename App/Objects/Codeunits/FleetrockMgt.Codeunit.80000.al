@@ -697,19 +697,23 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
     [TryFunction]
-    procedure TryToGetRepairOrders(StartDateTime: DateTime; Status: Enum "EE Repair Order Status"; var RepairOrdersJsonArray: JsonArray; var URL: Text)
+    procedure TryToGetRepairOrders(StartDateTime: DateTime; Status: Enum "EE Repair Order Status"; var RepairOrdersJsonArray: JsonArray; var URL: Text; UseVendorcAccount: Boolean)
     begin
-        RepairOrdersJsonArray := GetRepairOrders(StartDateTime, Status, URL);
+        RepairOrdersJsonArray := GetRepairOrders(StartDateTime, Status, URL, UseVendorcAccount);
     end;
 
-    procedure GetRepairOrders(StartDateTime: DateTime; Status: Enum "EE Repair Order Status"; var URL: Text): JsonArray
+    procedure GetRepairOrders(StartDateTime: DateTime; Status: Enum "EE Repair Order Status"; var URL: Text; UseVendorcAccount: Boolean): JsonArray
     var
         APIToken: Text;
         EndDateTime: DateTime;
     begin
-        GetEventParameters(APIToken, StartDateTime, EndDateTime, true);
-        URL := StrSubstNo('%1/API/GetRO?username=%2&event=%3&token=%4&start=%5&end=%6', FleetrockSetup."Integration URL",
-            FleetrockSetup.Username, Status, APIToken, Format(StartDateTime, 0, 9), Format(EndDateTime, 0, 9));
+        GetEventParameters(APIToken, StartDateTime, EndDateTime, UseVendorcAccount);
+        if UseVendorcAccount then
+            URL := StrSubstNo('%1/API/GetRO?username=%2&event=%3&token=%4&start=%5&end=%6', FleetrockSetup."Integration URL",
+                FleetrockSetup."Vendor Username", Status, APIToken, Format(StartDateTime, 0, 9), Format(EndDateTime, 0, 9))
+        else
+            URL := StrSubstNo('%1/API/GetRO?username=%2&event=%3&token=%4&start=%5&end=%6', FleetrockSetup."Integration URL",
+                   FleetrockSetup.Username, Status, APIToken, Format(StartDateTime, 0, 9), Format(EndDateTime, 0, 9));
         exit(RestAPIMgt.GetResponseAsJsonArray(URL, 'repair_orders'));
     end;
 
@@ -717,9 +721,7 @@ codeunit 80000 "EE Fleetrock Mgt."
 
     local procedure GetEventParameters(var APIToken: Text; var StartDateTime: DateTime; var EndDateTime: DateTime; UseVendorKey: Boolean)
     begin
-        APIToken := CheckToGetAPIToken();
-        if UseVendorKey then
-            CheckToGetAPIToken(true);
+        APIToken := CheckToGetAPIToken(UseVendorKey);
         if StartDateTime = 0DT then begin
             FleetrockSetup.TestField("Earliest Import DateTime");
             StartDateTime := FleetrockSetup."Earliest Import DateTime";
