@@ -3,14 +3,14 @@
     "configurations": [
         //https://businesscentral.dynamics.com/de2a36e9-10b6-4c2b-a089-d0e7265e3f06/production
         {
-            //https://businesscentral.dynamics.com/de2a36e9-10b6-4c2b-a089-d0e7265e3f06/Sandbox_010225
-            "name": "Sandbox_010225",
+            //https://businesscentral.dynamics.com/de2a36e9-10b6-4c2b-a089-d0e7265e3f06/Sandbox_Pro060625
+            "name": "Sandbox_Pro060625",
             "request": "launch",
             "type": "al",
             "tenant": "de2a36e9-10b6-4c2b-a089-d0e7265e3f06",
             "environmentType": "Sandbox",
-            "environmentName": "Sandbox_010225",
-            "startupObjectId": 80300,
+            "environmentName": "Sandbox_Pro060625",
+            "startupObjectId": 80000,
             "startupObjectType": "Page",
             // "startupCompany": "Test - Eagle Eye Logistics",
             // "startupCompany": "CRONUS USA, Inc.",

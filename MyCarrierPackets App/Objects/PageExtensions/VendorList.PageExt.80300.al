@@ -83,6 +83,44 @@ pageextension 80300 "EEMCP Vendors" extends "Vendor List"
                     Message('done: %1 -> %2', i, RecRef.Count());
                 end;
             }
+            action("EEMCP Set Document Layouts")
+            {
+                ApplicationArea = all;
+                Image = Bank;
+                Caption = 'Set Document Layouts';
+
+                trigger OnAction()
+                var
+                    Vendor: Record Vendor;
+                    Carrier: Record "EEMCP Carrier";
+                    CarrierData: Record "EEMCP Carrier Data";
+                    MCPMgt: Codeunit "EEMCP My Carrier Packets Mgt.";
+                    i: Integer;
+                begin
+                    if Rec.GetFilter("No.") <> '' then
+                        Rec.CopyFilter("No.", Vendor."No.");
+                    Vendor.SetRange("Payment Method Code", 'ACH');
+                    Vendor.SetFilter("E-Mail", '<>%1', '');
+                    if Vendor.FindSet(true) then
+                        repeat
+                            MCPMgt.AddVendorDocumentLayouts(Vendor, Vendor."E-Mail");
+                        until Vendor.Next() = 0;
+                    i := Vendor.Count();
+                    Vendor.SetRange("E-Mail", '');
+                    if Vendor.FindSet() then
+                        repeat
+                            Carrier.SetRange("Vendor No.", Vendor."No.");
+                            if Carrier.FindFirst() then
+                                if CarrierData.Get(Carrier."DOT No.") then
+                                    if CarrierData.RemitEmail <> '' then begin
+                                        MCPMgt.AddVendorDocumentLayouts(Vendor, CarrierData.RemitEmail);
+                                        i += 1;
+                                    end;
+                            MCPMgt.AddVendorDocumentLayouts(Vendor, '');
+                        until Vendor.Next() = 0;
+                    Message('Updated: %1', i);
+                end;
+            }
         }
     }
 

@@ -383,11 +383,12 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
                 Vendor.Validate("Payment Method Code", PaymentMethod.Code);
         Vendor.Modify(true);
 
-        if CarrierData.RemitEmail <> '' then
-            AddVendorDocumentLayouts(Vendor, CarrierData.RemitEmail)
-        else
-            if Vendor."E-Mail" <> '' then
-                AddVendorDocumentLayouts(Vendor, Vendor."E-Mail");
+        if Vendor."Payment Method Code" = 'ACH' then
+            if CarrierData.RemitEmail <> '' then
+                AddVendorDocumentLayouts(Vendor, CarrierData.RemitEmail)
+            else
+                if Vendor."E-Mail" <> '' then
+                    AddVendorDocumentLayouts(Vendor, Vendor."E-Mail");
 
         Commit();
     end;
@@ -433,7 +434,9 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
     end;
 
 
-    local procedure AddVendorDocumentLayouts(var Vendor: Record Vendor; EmailAddr: Text)
+
+
+    procedure AddVendorDocumentLayouts(var Vendor: Record Vendor; EmailAddr: Text)
     begin
         AddVendorDocumentLayout(Vendor, EmailAddr, 'CTS Email Body 10083', 'EEL Remite', Enum::"Report Selection Usage"::"V.Remittance", Report::"Export Electronic Payments");
         AddVendorDocumentLayout(Vendor, EmailAddr, 'CTS Email Body', '', Enum::"Report Selection Usage"::"P.V.Remit.", Report::"Remittance Advice - Entries");
@@ -457,7 +460,7 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         CustomReportSelection.Validate("Report ID", ReportID);
         CustomReportSelection.Validate("Send To Email", EmailAddr);
         CustomReportSelection.Validate("Use for Email Body", true);
-        CustomReportSelection.Validate("Use for Email Attachment", true);
+        CustomReportSelection.Validate("Use for Email Attachment", Usage = Enum::"Report Selection Usage"::"P.V.Remit.");
         GetLayoutDetails(CustomReportSelection, 'CTS Email Body 10083', true);
         if CompanyName.Contains('CTS') then
             GetLayoutDetails(CustomReportSelection, 'CTS Email Body', true)
