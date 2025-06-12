@@ -8,5 +8,11 @@ tableextension 80154 "EEC Purchase Header" extends "Purchase Header"
             Caption = 'Updated Payment Terms';
             Editable = false;
         }
+        field(80151; "EEC Updated Payment Method"; Boolean)
+        {
+            DataClassification = CustomerContent;
+            Caption = 'Updated Payment Method';
+            Editable = false;
+        }
     }
 }

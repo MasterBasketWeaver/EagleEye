@@ -134,12 +134,14 @@ codeunit 80150 "EEC Custom Subscribers"
     local procedure PurchaseHeaderOnAfterInsertEvent(var Rec: Record "Purchase Header")
     begin
         CheckToSetDefaultPaymentTerms(Rec);
+        CheckToSetDefaultPaymentMethod(Rec);
     end;
 
     [EventSubscriber(ObjectType::Table, Database::"Purchase Header", OnAfterModifyEvent, '', false, false)]
     local procedure PurchaseHeaderOnAfterModifyEvent(var Rec: Record "Purchase Header")
     begin
         CheckToSetDefaultPaymentTerms(Rec);
+        CheckToSetDefaultPaymentMethod(Rec);
     end;
 
     local procedure CheckToSetDefaultPaymentTerms(var PurchaseHeader: Record "Purchase Header")
@@ -158,6 +160,21 @@ codeunit 80150 "EEC Custom Subscribers"
         end;
     end;
 
+    local procedure CheckToSetDefaultPaymentMethod(var PurchaseHeader: Record "Purchase Header")
+    var
+        PurchaseRecSetup: Record "Purchases & Payables Setup";
+    begin
+        if PurchaseHeader.IsTemporary then
+            exit;
+        if (PurchaseHeader."Document Type" <> PurchaseHeader."Document Type"::Invoice) or (PurchaseHeader."EE Fleetrock ID" <> '') or PurchaseHeader."EEC Updated Payment Method" then
+            exit;
+        if not PurchaseRecSetup.Get() or (PurchaseRecSetup."EEC Default Payment Method" = '') then
+            exit;
+        if PurchaseHeader."Payment Method Code" <> PurchaseRecSetup."EEC Default Payment Method" then begin
+            PurchaseHeader.Validate("Payment Method Code", PurchaseRecSetup."EEC Default Payment Method");
+            PurchaseHeader.Modify(false);
+        end;
+    end;
 
 
 
@@ -201,6 +218,7 @@ codeunit 80150 "EEC Custom Subscribers"
     local procedure VendorOnAfterInsert(var Rec: Record Vendor)
     var
         PurchPaySetup: Record "Purchases & Payables Setup";
+        Updated: Boolean;
     begin
         if Rec.IsTemporary then
             exit;
@@ -208,7 +226,19 @@ codeunit 80150 "EEC Custom Subscribers"
         if Rec."Vendor Posting Group" = '' then
             if PurchPaySetup."EEC Default Vend. Post. Group" <> '' then begin
                 Rec.Validate("Vendor Posting Group", PurchPaySetup."EEC Default Vend. Post. Group");
-                Rec.Modify(true);
+                Updated := true;
             end;
+        if Rec."Payment Terms Code" = '' then
+            if PurchPaySetup."EEC Default Payment Terms" <> '' then begin
+                Rec.Validate("Payment Terms Code", PurchPaySetup."EEC Default Payment Terms");
+                Updated := true;
+            end;
+        if Rec."Payment Terms Code" = '' then
+            if PurchPaySetup."EEC Default Payment Method" <> '' then begin
+                Rec.Validate("Payment Terms Code", PurchPaySetup."EEC Default Payment Method");
+                Updated := true;
+            end;
+        if Updated then
+            Rec.Modify(true);
     end;
 }
