@@ -13,7 +13,12 @@ pageextension 80152 "EEC Purchase Payables Setup" extends "Purchases & Payables 
             {
                 ApplicationArea = all;
                 ShowMandatory = true;
-                ToolTip = 'Specifies the default payment terms code for Purchase Invoices.';
+                ToolTip = 'Specifies the default payment terms code for vendors and purchase invoices.';
+            }
+            field("EEC Default Payment Method"; Rec."EEC Default Payment Method")
+            {
+                ApplicationArea = all;
+                ToolTip = 'Specifies the default payment method to be used when creating new vendors.';
             }
             field("EE Default Vendor. Post. Group"; Rec."EEC Default Vend. Post. Group")
             {

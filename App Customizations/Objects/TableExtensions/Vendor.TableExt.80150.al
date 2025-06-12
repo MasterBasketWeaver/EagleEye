@@ -7,5 +7,11 @@ tableextension 80150 "EEC Vendor2" extends Vendor
             DataClassification = CustomerContent;
             Caption = 'Non-Mandatory Ext. Doc. No.';
         }
+        field(80160; "EEC Updated Payment Terms"; Boolean)
+        {
+            DataClassification = CustomerContent;
+            Caption = 'Updated Payment Terms';
+            Editable = false;
+        }
     }
 }

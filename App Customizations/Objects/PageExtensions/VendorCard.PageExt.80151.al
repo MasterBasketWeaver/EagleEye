@@ -9,5 +9,12 @@ pageextension 80151 "EEC Vendor Card2" extends "Vendor Card"
                 ApplicationArea = all;
             }
         }
+        modify("Payment Terms Code")
+        {
+            trigger OnBeforeValidate()
+            begin
+                Rec."EEC Updated Payment Terms" := true;
+            end;
+        }
     }
 }

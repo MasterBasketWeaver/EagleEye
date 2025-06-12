@@ -134,22 +134,26 @@ codeunit 80150 "EEC Custom Subscribers"
     local procedure PurchaseHeaderOnAfterInsertEvent(var Rec: Record "Purchase Header")
     begin
         CheckToSetDefaultPaymentTerms(Rec);
-        CheckToSetDefaultPaymentMethod(Rec);
+        // CheckToSetDefaultPaymentMethod(Rec);
     end;
 
     [EventSubscriber(ObjectType::Table, Database::"Purchase Header", OnAfterModifyEvent, '', false, false)]
     local procedure PurchaseHeaderOnAfterModifyEvent(var Rec: Record "Purchase Header")
     begin
         CheckToSetDefaultPaymentTerms(Rec);
-        CheckToSetDefaultPaymentMethod(Rec);
+        // CheckToSetDefaultPaymentMethod(Rec);
     end;
 
     local procedure CheckToSetDefaultPaymentTerms(var PurchaseHeader: Record "Purchase Header")
     var
+        Vendor: Record Vendor;
         PurchaseRecSetup: Record "Purchases & Payables Setup";
     begin
         if PurchaseHeader.IsTemporary then
             exit;
+        if Vendor.Get(PurchaseHeader."Buy-from Vendor No.") then
+            if Vendor."EEC Updated Payment Terms" then
+                exit;
         if (PurchaseHeader."Document Type" <> PurchaseHeader."Document Type"::Invoice) or (PurchaseHeader."EE Fleetrock ID" <> '') or PurchaseHeader."EEC Updated Payment Terms" then
             exit;
         if not PurchaseRecSetup.Get() or (PurchaseRecSetup."EEC Default Payment Terms" = '') then
