@@ -153,7 +153,8 @@ codeunit 80150 "EEC Custom Subscribers"
             exit;
         if Vendor.Get(PurchaseHeader."Buy-from Vendor No.") then
             if Vendor."EEC Updated Payment Terms" then
-                exit;
+                if Vendor."Payment Terms Code" <> '' then
+                    exit;
         if (PurchaseHeader."Document Type" <> PurchaseHeader."Document Type"::Invoice) or (PurchaseHeader."EE Fleetrock ID" <> '') or PurchaseHeader."EEC Updated Payment Terms" then
             exit;
         if not PurchaseRecSetup.Get() or (PurchaseRecSetup."EEC Default Payment Terms" = '') then

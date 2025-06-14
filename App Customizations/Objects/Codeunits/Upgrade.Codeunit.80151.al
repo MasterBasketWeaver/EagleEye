@@ -13,7 +13,7 @@ codeunit 80151 "EEC Upgrade"
 
     procedure InstallData()
     begin
-        SetVendorPaymentTerms();
+        // SetVendorPaymentTerms();
     end;
 
     local procedure SetVendorPaymentTerms()
@@ -24,6 +24,7 @@ codeunit 80151 "EEC Upgrade"
         Vendor.SetRange("EEC Updated Payment Terms", true);
         if not Vendor.IsEmpty() then
             exit;
+        Vendor.SetFilter("Payment Terms Code", '<>%1', '');
         Vendor.SetRange("EEC Updated Payment Terms");
         if PurchPaySetup.Get() and (PurchPaySetup."EEC Default Payment Terms" <> '') then
             Vendor.SetFilter("Payment Terms Code", '<>%1', PurchPaySetup."EEC Default Payment Terms");
