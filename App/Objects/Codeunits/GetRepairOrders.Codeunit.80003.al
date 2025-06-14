@@ -9,16 +9,11 @@ codeunit 80003 "EE Get Repair Orders"
         SalesHeader: Record "Sales Header";
         ImportEntry: Record "EE Import/Export Entry";
         SalesHeaderStaging: Record "EE Sales Header Staging";
-        FleetRockSetup: Record "EE Fleetrock Setup";
         OrderStatus: Enum "EE Repair Order Status";
         EventType: Enum "EE Event Type";
         JsonArry, VendorJsonArray : JsonArray;
-        OrderJsonObj: JsonObject;
-        T, T2 : JsonToken;
         StartDateTime: DateTime;
-        URL, Tags : Text;
-        ImportEntryNo: Integer;
-        Success, LogEntry : Boolean;
+        URL: Text;
     begin
         if Rec."Parameter String" = 'invoiced' then begin
             OrderStatus := OrderStatus::invoiced;
@@ -34,7 +29,6 @@ codeunit 80003 "EE Get Repair Orders"
         if ImportEntry.FindLast() then
             StartDateTime := ImportEntry.SystemCreatedAt;
 
-
         if not FleetRockMgt.TryToGetRepairOrders(StartDateTime, OrderStatus, JsonArry, URL, false) then begin
             FleetRockMgt.InsertImportEntry(false, 0, ImportEntry."Document Type"::"Repair Order",
                 EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET');
@@ -45,13 +39,23 @@ codeunit 80003 "EE Get Repair Orders"
             if (VendorJsonArray.Count() > 0) and (VendorJsonArray.Count() <> JsonArry.Count()) then
                 MergeJsonArrays(VendorJsonArray, JsonArry);
 
-        if JsonArry.Count() = 0 then
-            exit;
+        if JsonArry.Count() <> 0 then
+            ImportRepairOrders(JsonArry, OrderStatus, EventType, URL);
+    end;
 
+
+    procedure ImportRepairOrders(var JsonArry: JsonArray; OrderStatus: Enum "EE Repair Order Status"; EventType: Enum "EE Event Type"; URL: Text): Boolean
+    var
+        FleetRockSetup: Record "EE Fleetrock Setup";
+        OrderJsonObj: JsonObject;
+        T: JsonToken;
+        Tags: Text;
+        ImportEntryNo: Integer;
+        Success, LogEntry : Boolean;
+    begin
         FleetRockSetup.Get();
         if FleetRockSetup."Import Repairs as Purchases" then
             FleetRockMgt.CheckPurchaseOrderSetup();
-        SalesHeader.SetCurrentKey("EE Fleetrock ID");
         foreach T in JsonArry do begin
             OrderJsonObj := T.AsObject();
             Tags := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'tag');
@@ -66,7 +70,7 @@ codeunit 80003 "EE Get Repair Orders"
                     Success := ImportAsSalesInvoice(FleetRockSetup, OrderJsonObj, OrderStatus, ImportEntryNo, LogEntry);
                 if LogEntry then
                     FleetRockMgt.InsertImportEntry(Success and (GetLastErrorText() = ''), ImportEntryNo,
-                        ImportEntry."Document Type"::"Repair Order", EventType, Enum::"EE Direction"::Import,
+                        Enum::"EE Import Type"::"Purchase Order", EventType, Enum::"EE Direction"::Import,
                         GetLastErrorText(), URL, 'GET');
             end;
         end;

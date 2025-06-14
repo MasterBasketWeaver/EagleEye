@@ -361,6 +361,35 @@ page 80004 "EE Staged Repair Order Headers"
                     Page.Run(Page::"Sales Invoice", SalesHeader);
                 end;
             }
+            action("Import Single Repair Order")
+            {
+                ApplicationArea = all;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                Image = DocumentEdit;
+
+                trigger OnAction()
+                var
+                    GetDocNo: Page "EE Get Doc. No.";
+                    DocNo: Text;
+                    UseVendorAccount: Boolean;
+                begin
+                    GetDocNo.LookupMode(true);
+                    if GetDocNo.RunModal() <> Action::LookupOK then
+                        exit;
+                    DocNo := GetDocNo.GetDocNo();
+                    if DocNo = '' then
+                        exit;
+                    FleetrockSetup.Get();
+                    if FleetrockSetup."Vendor API Token" <> '' then
+                        UseVendorAccount := Confirm('Use %1 account?', false, FleetrockSetup."Vendor Username")
+                    else
+                        UseVendorAccount := false;
+                    FleetrockMgt.GetAndImportRepairOrder(DocNo, UseVendorAccount);
+                end;
+            }
             action("Create Purchase Order")
             {
                 ApplicationArea = all;
@@ -375,7 +404,7 @@ page 80004 "EE Staged Repair Order Headers"
                     PurchaseHeader: Record "Purchase Header";
                     FleetrockSetup: Record "EE Fleetrock Setup";
                     PurchaseHeaderStaging: Record "EE Purch. Header Staging";
-                    FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
+
                     GetPurchaseOrders: Codeunit "EE Get Purchase Orders";
                     Result: Boolean;
                 begin
@@ -397,6 +426,7 @@ page 80004 "EE Staged Repair Order Headers"
 
     var
         FleetrockSetup: Record "EE Fleetrock Setup";
+        FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
         ShowPurchDocNo: Boolean;
 
     trigger OnOpenPage()

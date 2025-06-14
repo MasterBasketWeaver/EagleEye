@@ -597,8 +597,8 @@ codeunit 80000 "EE Fleetrock Mgt."
     end;
 
 
-    [TryFunction]
 
+    [TryFunction]
     local procedure TryToSetCustomerNo(var Customer: Record Customer; PhoneNo: Text)
     begin
         Customer.Validate("Phone No.", PhoneNo);
@@ -829,6 +829,35 @@ codeunit 80000 "EE Fleetrock Mgt."
             URL := StrSubstNo('%1/API/GetRO?username=%2&event=%3&token=%4&start=%5&end=%6', FleetrockSetup."Integration URL",
                    FleetrockSetup.Username, Status, APIToken, Format(StartDateTime, 0, 9), Format(EndDateTime, 0, 9));
         exit(RestAPIMgt.GetResponseAsJsonArray(URL, 'repair_orders'));
+    end;
+
+    procedure GetAndImportRepairOrder(ID: Text; UseVendorcAccount: Boolean)
+    var
+        GetRepairOrdersCU: Codeunit "EE Get Repair Orders";
+        JsonArray, JsonArray2 : JsonArray;
+        JTkn: JsonToken;
+        JObjt: JsonObject;
+        StartDateTime, EndDateTime : DateTime;
+        APIToken, URL : Text;
+    begin
+        StartDateTime := CurrentDateTime();
+        GetEventParameters(APIToken, StartDateTime, EndDateTime, UseVendorcAccount);
+        if UseVendorcAccount then
+            URL := StrSubstNo('%1/API/GetRO?username=%2&ID=%3&token=%4', FleetrockSetup."Integration URL", FleetrockSetup."Vendor Username", ID, APIToken)
+        else
+            URL := StrSubstNo('%1/API/GetRO?username=%2&ID=%3&token=%4', FleetrockSetup."Integration URL", FleetrockSetup.Username, ID, APIToken);
+        JsonArray := RestAPIMgt.GetResponseAsJsonArray(URL, 'repair_orders');
+
+        foreach JTkn in JsonArray do begin
+            JObjt := JTkn.AsObject();
+            if JsonMgt.GetJsonValueAsText(JObjt, 'id') = ID then begin
+                JsonArray2.Add(JObjt);
+                GetRepairOrdersCU.ImportRepairOrders(JsonArray2, Enum::"EE Repair Order Status"::Invoiced, Enum::"EE Event Type"::"Manual Import", URL);
+                exit;
+            end;
+        end;
+
+        Error('Repair Order with ID "%1" not found.', ID);
     end;
 
 
