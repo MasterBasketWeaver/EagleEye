@@ -14,5 +14,12 @@ tableextension 80001 "EE Vendor" extends Vendor
             Caption = 'Source No.';
             Editable = false;
         }
+        field(80010; "EE Export Event Type"; Enum "EE Event Type")
+        {
+            DataClassification = CustomerContent;
+            Caption = 'Export Event Type';
+            Editable = false;
+            InitValue = " ";
+        }
     }
 }

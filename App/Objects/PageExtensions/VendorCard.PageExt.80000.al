@@ -12,6 +12,10 @@ pageextension 80000 "EE Vendor Card" extends "Vendor Card"
             {
                 ApplicationArea = all;
             }
+            field("EE Export Event Type"; Rec."EE Export Event Type")
+            {
+                ApplicationArea = all;
+            }
         }
     }
 }

@@ -291,6 +291,16 @@ codeunit 80000 "EE Fleetrock Mgt."
 
     local procedure GetVendorNo(var PurchHeaderStaging: Record "EE Purch. Header Staging"): Code[20]
     var
+        VendorNo: Code[20];
+    begin
+        SingleInstance.SetSkipVendorUpdate(true);
+        VendorNo := GetVendorNoAndUpdate(PurchHeaderStaging);
+        SingleInstance.SetSkipVendorUpdate(false);
+        exit(VendorNo);
+    end;
+
+    local procedure GetVendorNoAndUpdate(var PurchHeaderStaging: Record "EE Purch. Header Staging"): Code[20]
+    var
         Vendor: Record Vendor;
         VendorObj: JsonObject;
     begin
@@ -309,14 +319,9 @@ codeunit 80000 "EE Fleetrock Mgt."
             exit(Vendor."No.");
         end;
 
-        if not GetVendorDetails(PurchHeaderStaging.supplier_name, VendorObj) then begin
-            InitVendor(PurchHeaderStaging, Vendor);
-            Vendor.Modify(true);
-            exit(Vendor."No.");
-        end;
-
         InitVendor(PurchHeaderStaging, Vendor);
-        UpdateVendorFromJson(Vendor, VendorObj);
+        if GetVendorDetails(PurchHeaderStaging.supplier_name, VendorObj) then
+            UpdateVendorFromJson(Vendor, VendorObj);
         Vendor.Modify(true);
         exit(Vendor."No.");
     end;
@@ -395,10 +400,119 @@ codeunit 80000 "EE Fleetrock Mgt."
         VendorArray := RestAPIMgt.GetResponseAsJsonArray(StrSubstNo('%1/API/GetSuppliers?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, CheckToGetAPIToken()), 'suppliers');
         foreach T in VendorArray do begin
             VendorObj := T.AsObject();
-            if VendorObj.Get('name', T) then
-                if T.AsValue().AsText() = SupplierName then
+            if JsonMgt.GetJsonValueAsText(VendorObj, 'name') = SupplierName then
+                exit(true);
+        end;
+    end;
+
+    local procedure GetVendorAsUserDetails(SupplierName: Text): Boolean
+    var
+        VendorArray: JsonArray;
+        VendorObj: JsonObject;
+        T: JsonToken;
+    begin
+        CheckToGetAPIToken();
+        VendorArray := RestAPIMgt.GetResponseAsJsonArray(StrSubstNo('%1/API/GetUsers?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, CheckToGetAPIToken()), 'users');
+        foreach T in VendorArray do begin
+            VendorObj := T.AsObject();
+            if JsonMgt.GetJsonValueAsText(VendorObj, 'role') = 'vendor' then
+                if JsonMgt.GetJsonValueAsText(VendorObj, 'username') = SupplierName then
                     exit(true);
         end;
+    end;
+
+
+    procedure SendVendorDetails(var Vendor: Record Vendor; EventType: Enum "EE Event Type"): Boolean
+    var
+        ResponseArray: JsonArray;
+        JsonBody, VendorJson : JsonObject;
+        JTkn: JsonToken;
+        URL, APIToken, s : Text;
+        Success: Boolean;
+
+        b: Boolean;
+    begin
+        APIToken := CheckToGetAPIToken();
+        URL := StrSubstNo('%1/API/AddUser?token=%2', FleetrockSetup."Integration URL", APIToken);
+        if not TryToCreateAddUserJsonBody(Vendor, FleetrockSetup.Username, JsonBody) then begin
+            InsertImportEntry(false, 0, Enum::"EE Import Type"::Vendor, EventType, Enum::"EE Direction"::Export,
+                GetLastErrorText(), URL, 'POST', JsonBody);
+            exit(false);
+        end;
+
+        b := GetVendorAsUserDetails(Vendor."No.");
+
+        // if GetVendorAsUserDetails(Vendor."No.") then
+        if b then
+            URL := StrSubstNo('%1/API/UpdateUser?token=%2', FleetrockSetup."Integration URL", APIToken);
+
+        if not Confirm('%1: %2', false, b, URL) then
+            Error('');
+
+        if not RestAPIMgt.TryToGetResponseAsJsonArray(URL, 'response', 'POST', JsonBody, ResponseArray) then begin
+            InsertImportEntry(false, 0, Enum::"EE Import Type"::Vendor, EventType, Enum::"EE Direction"::Export,
+                GetLastErrorText(), URL, 'POST', JsonBody);
+            exit(false);
+        end;
+        if (ResponseArray.Count() = 0) then
+            exit;
+        if not ResponseArray.Get(0, JTkn) then begin
+            ResponseArray.WriteTo(s);
+            InsertImportEntry(false, 0, Enum::"EE Import Type"::Vendor, EventType, Enum::"EE Direction"::Export,
+                'Failed to load results token from response array: ' + s, URL, 'POST', JsonBody);
+            exit(false);
+        end;
+        ClearLastError();
+        Success := TryToHandleRepairUpdateResponse(JTkn, Vendor."No.", StrSubstNo('Failed to %1 User ', EventType) + '%1:\%2');
+        InsertImportEntry(Success and (GetLastErrorText() = ''), 0, Enum::"EE Import Type"::Vendor, EventType,
+            Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', JsonBody);
+        exit(Success);
+    end;
+
+
+    [TryFunction]
+    local procedure TryToCreateAddUserJsonBody(var Vendor: Record Vendor; Username: Text; var JsonBody: JsonObject)
+    begin
+        JsonBody := CreateAddUserJsonBody(Vendor, Username);
+    end;
+
+    local procedure CreateAddUserJsonBody(var Vendor: Record Vendor; Username: Text): JsonObject
+    var
+        JsonBody, UserObj : JsonObject;
+        UserArray: JsonArray;
+        Parts: List of [Text];
+    begin
+        Vendor.TestField("No.");
+        Vendor.TestField(Name);
+        Vendor.TestField("E-Mail");
+
+        UserObj.Add('username', Vendor."No.");
+        UserObj.Add('custom_id', Vendor."No.");
+        UserObj.Add('role', 'vendor');
+        UserObj.Add('email', Vendor."E-Mail");
+        UserObj.Add('first_name', Vendor.Name);
+        UserObj.Add('last_name', Vendor.Name);
+        UserObj.Add('company_name', Vendor.Name);
+        if Vendor."EE Source No." <> '' then
+            UserObj.Add('company_id', Vendor."EE Source No.");
+        if Vendor.Address <> '' then
+            UserObj.Add('street_address', Vendor.Address);
+        if Vendor.City <> '' then
+            UserObj.Add('city', Vendor."City");
+        if Vendor.County <> '' then
+            UserObj.Add('state', Vendor."County");
+        if Vendor."Post Code" <> '' then
+            UserObj.Add('zip_code', Vendor."Post Code");
+        case Vendor."Country/Region Code" of
+            'US', 'CA':
+                UserObj.Add('country', Vendor."Country/Region Code");
+        end;
+        if Vendor."Phone No." <> '' then
+            UserObj.Add('phone', Vendor."Phone No.");
+        UserArray.Add(UserObj);
+        JsonBody.Add('username', UserName);
+        JsonBody.Add('users', UserArray);
+        exit(JsonBody);
     end;
 
 
@@ -1492,7 +1606,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             exit;
         end;
         ClearLastError();
-        Success := TryToHandleRepairUpdateResponse(T, OrderId);
+        Success := TryToHandleRepairUpdateResponse(T, OrderId, 'Failed to update Repair Order %1:\%2');
         InsertImportEntry(Success and (GetLastErrorText() = ''), 0, Enum::"EE Import Type"::"Repair Order",
             Enum::"EE Event Type"::Paid, Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', JsonBody);
         SalesInvHeader."EE Sent Payment" := Success;
@@ -1501,7 +1615,7 @@ codeunit 80000 "EE Fleetrock Mgt."
     end;
 
     [TryFunction]
-    local procedure TryToHandleRepairUpdateResponse(var T: JsonToken; OrderId: Text)
+    local procedure TryToHandleRepairUpdateResponse(var T: JsonToken; Id: Text; ErrorMsg: Text)
     var
         ResponseArray: JsonArray;
         JsonBody, ResponseObj : JsonObject;
@@ -1513,7 +1627,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             Error('Invalid response message:\%1', s);
         end;
         if T.AsValue().AsText() <> 'success' then
-            Error('Failed to update Repair Order %1:\%2', OrderId, JsonMgt.GetJsonValueAsText(ResponseObj, 'message'));
+            Error(ErrorMsg, Id, JsonMgt.GetJsonValueAsText(ResponseObj, 'message'));
     end;
 
     local procedure CreateUpdateRepairOrderJsonBody(UserName: Text; RepairOrderId: Text; PaidDateTime: DateTime): JsonObject
@@ -1713,4 +1827,5 @@ codeunit 80000 "EE Fleetrock Mgt."
         FleetrockSetup: Record "EE Fleetrock Setup";
         RestAPIMgt: Codeunit "EE REST API Mgt.";
         JsonMgt: Codeunit "EE Json Mgt.";
+        SingleInstance: Codeunit "EE Single Instace";
 }

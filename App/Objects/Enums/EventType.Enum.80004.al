@@ -5,4 +5,7 @@ enum 80004 "EE Event Type"
     value(3; "Invoiced") { }
     value(4; "Paid") { }
     value(5; "Received") { }
+    value(6; "Created") { }
+    value(7; "Updated") { }
+    value(8; " ") { Caption = ''; }
 }
