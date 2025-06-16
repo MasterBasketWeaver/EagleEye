@@ -429,8 +429,6 @@ codeunit 80000 "EE Fleetrock Mgt."
         JTkn: JsonToken;
         URL, APIToken, s : Text;
         Success: Boolean;
-
-        b: Boolean;
     begin
         APIToken := CheckToGetAPIToken();
         URL := StrSubstNo('%1/API/AddUser?token=%2', FleetrockSetup."Integration URL", APIToken);
@@ -440,15 +438,8 @@ codeunit 80000 "EE Fleetrock Mgt."
             exit(false);
         end;
 
-        b := GetVendorAsUserDetails(Vendor."No.");
-
-        // if GetVendorAsUserDetails(Vendor."No.") then
-        if b then
+        if GetVendorAsUserDetails(Vendor."No.") then
             URL := StrSubstNo('%1/API/UpdateUser?token=%2', FleetrockSetup."Integration URL", APIToken);
-
-        if not Confirm('%1: %2', false, b, URL) then
-            Error('');
-
         if not RestAPIMgt.TryToGetResponseAsJsonArray(URL, 'response', 'POST', JsonBody, ResponseArray) then begin
             InsertImportEntry(false, 0, Enum::"EE Import Type"::Vendor, EventType, Enum::"EE Direction"::Export,
                 GetLastErrorText(), URL, 'POST', JsonBody);

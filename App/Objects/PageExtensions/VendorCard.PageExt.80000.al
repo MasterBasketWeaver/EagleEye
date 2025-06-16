@@ -18,4 +18,32 @@ pageextension 80000 "EE Vendor Card" extends "Vendor Card"
             }
         }
     }
+    actions
+    {
+        addlast(Processing)
+        {
+            action("EE Send Vendor Details")
+            {
+                ApplicationArea = all;
+                Caption = 'Send Vendor Details';
+                Image = LaunchWeb;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+
+                trigger OnAction()
+                var
+                    FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
+                begin
+                    if FleetrockMgt.SendVendorDetails(Rec, Enum::"EE Event Type"::Updated) then begin
+                        Rec."EE Export Event Type" := Enum::"EE Event Type"::" ";
+                        Rec.Modify(false);
+                        CurrPage.Update();
+                    end else
+                        Error(GetLastErrorText());
+                end;
+            }
+        }
+    }
 }
