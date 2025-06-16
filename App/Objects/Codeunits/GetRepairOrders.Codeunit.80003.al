@@ -50,12 +50,16 @@ codeunit 80003 "EE Get Repair Orders"
         OrderJsonObj: JsonObject;
         T: JsonToken;
         Tags: Text;
+        ImportType: Enum "EE Import Type";
         ImportEntryNo: Integer;
         Success, LogEntry : Boolean;
     begin
         FleetRockSetup.Get();
-        if FleetRockSetup."Import Repairs as Purchases" then
+        if FleetRockSetup."Import Repairs as Purchases" then begin
             FleetRockMgt.CheckPurchaseOrderSetup();
+            ImportType := ImportType::"Purchase Order";
+        end else
+            ImportType := ImportType::"Repair Order";
         foreach T in JsonArry do begin
             OrderJsonObj := T.AsObject();
             Tags := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'tag');
@@ -69,9 +73,7 @@ codeunit 80003 "EE Get Repair Orders"
                 else
                     Success := ImportAsSalesInvoice(FleetRockSetup, OrderJsonObj, OrderStatus, ImportEntryNo, LogEntry);
                 if LogEntry then
-                    FleetRockMgt.InsertImportEntry(Success and (GetLastErrorText() = ''), ImportEntryNo,
-                        Enum::"EE Import Type"::"Purchase Order", EventType, Enum::"EE Direction"::Import,
-                        GetLastErrorText(), URL, 'GET');
+                    FleetRockMgt.InsertImportEntry(Success and (GetLastErrorText() = ''), ImportEntryNo, ImportType, EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET');
             end;
         end;
     end;
