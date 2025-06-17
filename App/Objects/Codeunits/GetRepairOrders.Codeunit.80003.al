@@ -7,6 +7,7 @@ codeunit 80003 "EE Get Repair Orders"
     trigger OnRun()
     var
         SalesHeader: Record "Sales Header";
+        FleetRockSetup: Record "EE Fleetrock Setup";
         ImportEntry: Record "EE Import/Export Entry";
         SalesHeaderStaging: Record "EE Sales Header Staging";
         OrderStatus: Enum "EE Repair Order Status";
@@ -35,9 +36,11 @@ codeunit 80003 "EE Get Repair Orders"
             exit;
         end;
 
-        if FleetRockMgt.TryToGetRepairOrders(StartDateTime, OrderStatus, VendorJsonArray, URL, true) then
-            if (VendorJsonArray.Count() > 0) and (VendorJsonArray.Count() <> JsonArry.Count()) then
-                MergeJsonArrays(VendorJsonArray, JsonArry);
+        FleetRockSetup.Get();
+        if FleetRockSetup."Import Repair with Vendor" and (FleetRockSetup."Vendor API Key" <> '') then
+            if FleetRockMgt.TryToGetRepairOrders(StartDateTime, OrderStatus, VendorJsonArray, URL, true) then
+                if (VendorJsonArray.Count() > 0) and (VendorJsonArray.Count() <> JsonArry.Count()) then
+                    MergeJsonArrays(VendorJsonArray, JsonArry);
 
         if JsonArry.Count() <> 0 then
             ImportRepairOrders(JsonArry, OrderStatus, EventType, URL);

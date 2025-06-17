@@ -11,7 +11,6 @@ codeunit 80001 "EE Get Purchase Orders"
         PurchaseHeaderStaging: Record "EE Purch. Header Staging";
         ImportEntry: Record "EE Import/Export Entry";
         FleetrockSetup: Record "EE Fleetrock Setup";
-
         JsonMgt: Codeunit "EE Json Mgt.";
         OrderStatus: Enum "EE Repair Order Status";
         EventType: Enum "EE Event Type";
@@ -28,8 +27,10 @@ codeunit 80001 "EE Get Purchase Orders"
             if Rec."Parameter String" = 'received' then begin
                 IsReceived := true;
                 EventType := EventType::Received
-            end else
+            end else begin
                 EventType := EventType::Closed;
+                CheckToWaitForOtherJobQueue(Rec);
+            end;
 
             ImportEntry.SetRange("Document Type", ImportEntry."Document Type"::"Purchase Order");
             ImportEntry.SetRange(Success, true);
@@ -63,7 +64,6 @@ codeunit 80001 "EE Get Purchase Orders"
         end;
         FleetRockSetup.Get();
         PurchaseHeader.SetCurrentKey("EE Fleetrock ID");
-        LogEntry := not IsReceived;
         foreach T in JsonArry do begin
             OrderJsonObj := T.AsObject();
             Tags := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'tag');
@@ -71,6 +71,7 @@ codeunit 80001 "EE Get Purchase Orders"
                 ImportEntryNo := 0;
                 ClearLastError();
                 Success := false;
+                LogEntry := false;
                 if IsReceived then begin
                     if JsonMgt.GetJsonValueAsText(OrderJsonObj, 'status') = 'Received' then begin
                         LogEntry := true;
@@ -90,9 +91,40 @@ codeunit 80001 "EE Get Purchase Orders"
         end;
     end;
 
+    local procedure CheckToWaitForOtherJobQueue(var Rec: Record "Job Queue Entry")
+    var
+        JobQueueEntry: Record "Job Queue Entry";
+        JobQueueLogEntry: Record "Job Queue Log Entry";
+        StartTime: DateTime;
+        TimeoutLength: Integer;
+    begin
+        JobQueueEntry.SetFilter(ID, '<>%1', Rec.ID);
+        JobQueueEntry.SetRange("Object Type to Run", Rec."Object Type to Run");
+        JobQueueEntry.SetRange("Object ID to Run", Rec."Object ID to Run");
+        JobQueueEntry.SetRange("Parameter String", 'received');
+        if not JobQueueEntry.FindFirst() then
+            exit;
+
+        JobQueueLogEntry.SetRange(ID, JobQueueEntry.ID);
+        JobQueueLogEntry.SetRange("Object Type to Run", Rec."Object Type to Run");
+        JobQueueLogEntry.SetRange("Object ID to Run", Rec."Object ID to Run");
+        JobQueueLogEntry.SetRange(Status, JobQueueLogEntry.Status::"In Process");
+        if JobQueueLogEntry.IsEmpty() then
+            exit;
+
+        TimeoutLength := Rec."No. of Minutes between Runs" * 2 * 60000; // Convert minutes to milliseconds, double the timeout between runs.
+        StartTime := CurrentDateTime();
+        while not JobQueueLogEntry.IsEmpty() do begin
+            if CurrentDateTime() - StartTime > TimeoutLength then
+                Error('Timeout waiting for other job queue entry %1 to finish.', JobQueueEntry.ID);
+            Sleep(5000);
+        end;
+    end;
+
     procedure UpdateAndPostPurchaseOrder(var FleetrockSetup: Record "EE Fleetrock Setup"; var PurchaseHeaderStaging: Record "EE Purch. Header Staging"): Boolean
     var
         PurchaseHeader: Record "Purchase Header";
+
         DocNo: Code[20];
         Success: Boolean;
     begin
@@ -115,7 +147,15 @@ codeunit 80001 "EE Get Purchase Orders"
 
     [TryFunction]
     local procedure TryToPostOrder(var PurchaseHeader: Record "Purchase Header")
+    var
+        PurchaseLine: Record "Purchase Line";
     begin
+        PurchaseLine.SetRange("Document Type", PurchaseHeader."Document Type");
+        PurchaseLine.SetRange("Document No.", PurchaseHeader."No.");
+        PurchaseLine.SetRange(Type, PurchaseLine.Type::Item);
+        PurchaseLine.SetFilter(Quantity, '<%1', 0);
+        if PurchaseLine.FindFirst() then
+            Error('Cannot post Purchase Order %1 because line %2 has a negative quantity: %3.', PurchaseHeader."No.", PurchaseLine."Line No.", PurchaseLine.Quantity);
         Codeunit.Run(Codeunit::"Purch.-Post", PurchaseHeader);
     end;
 

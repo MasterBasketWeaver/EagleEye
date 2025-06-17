@@ -332,27 +332,36 @@ codeunit 80000 "EE Fleetrock Mgt."
     var
         Vendor2: Record Vendor;
         PaymentTermsCode: Code[10];
+        PhoneNo, Input : Text;
         PaymentTermDays: Integer;
-        PhoneNo: Text;
     begin
         Vendor2 := Vendor;
-        if Vendor.Address <> JsonMgt.GetJsonValueAsText(VendorObj, 'street_address_1') then
-            Vendor.Validate(Address, JsonMgt.GetJsonValueAsText(VendorObj, 'street_address_1'));
-        if Vendor."Address 2" <> JsonMgt.GetJsonValueAsText(VendorObj, 'street_address_2') then
-            Vendor.Validate("Address 2", JsonMgt.GetJsonValueAsText(VendorObj, 'street_address_2'));
-        if Vendor."City" <> JsonMgt.GetJsonValueAsText(VendorObj, 'city') then
-            Vendor.Validate("City", JsonMgt.GetJsonValueAsText(VendorObj, 'city'));
-        if Vendor."County" <> JsonMgt.GetJsonValueAsText(VendorObj, 'state') then
-            Vendor.Validate(County, JsonMgt.GetJsonValueAsText(VendorObj, 'state'));
-        if Vendor."Country/Region Code" <> JsonMgt.GetJsonValueAsText(VendorObj, 'country') then
-            Vendor."Country/Region Code" := JsonMgt.GetJsonValueAsText(VendorObj, 'country');
-        if Vendor."Post Code" <> JsonMgt.GetJsonValueAsText(VendorObj, 'zip_code') then
-            Vendor.Validate("Post Code", JsonMgt.GetJsonValueAsText(VendorObj, 'zip_code'));
-        PhoneNo := JsonMgt.GetJsonValueAsText(VendorObj, 'phone');
+
+        Input := CopyStr(JsonMgt.GetJsonValueAsText(VendorObj, 'street_address_1'), 1, MaxStrLen(Vendor.Address));
+        if Vendor.Address <> Input then
+            Vendor.Validate(Address, Input);
+        Input := CopyStr(JsonMgt.GetJsonValueAsText(VendorObj, 'street_address_2'), 1, MaxStrLen(Vendor."Address 2"));
+        if Vendor."Address 2" <> Input then
+            Vendor.Validate("Address 2", Input);
+        Input := CopyStr(JsonMgt.GetJsonValueAsText(VendorObj, 'city'), 1, MaxStrLen(Vendor."City"));
+        if Vendor."City" <> Input then
+            Vendor.Validate("City", Input);
+        Input := CopyStr(JsonMgt.GetJsonValueAsText(VendorObj, 'state'), 1, MaxStrLen(Vendor.County));
+        if Vendor."County" <> Input then
+            Vendor.Validate(County, Input);
+        Input := CopyStr(JsonMgt.GetJsonValueAsText(VendorObj, 'country'), 1, MaxStrLen(Vendor."Country/Region Code"));
+        if Vendor."Country/Region Code" <> Input then
+            Vendor."Country/Region Code" := Input;
+        Input := CopyStr(JsonMgt.GetJsonValueAsText(VendorObj, 'zip_code'), 1, MaxStrLen(Vendor."Post Code"));
+        if Vendor."Post Code" <> Input then
+            Vendor.Validate("Post Code", Input);
+        Input := CopyStr(JsonMgt.GetJsonValueAsText(VendorObj, 'email'), 1, MaxStrLen(Vendor."E-Mail"));
+        if Vendor."E-Mail" <> Input then
+            Vendor.Validate("E-Mail", Input);
+
+        PhoneNo := CopyStr(JsonMgt.GetJsonValueAsText(VendorObj, 'phone'), 1, MaxStrLen(Vendor."Phone No."));
         if not TryToSetVendorNo(Vendor, PhoneNo) then
             Vendor."Phone No." := PhoneNo;
-        if Vendor."E-Mail" <> JsonMgt.GetJsonValueAsText(VendorObj, 'email') then
-            Vendor.Validate("E-Mail", JsonMgt.GetJsonValueAsText(VendorObj, 'email'));
         PaymentTermDays := Round(JsonMgt.GetJsonValueAsDecimal(VendorObj, 'payment_term_days'), 1);
         if PaymentTermDays = 0 then
             PaymentTermsCode := FleetrockSetup."Payment Terms"
@@ -556,29 +565,39 @@ codeunit 80000 "EE Fleetrock Mgt."
     local procedure UpdateCustomerFromJson(var Customer: Record Customer; var CustomerObj: JsonObject): Boolean
     var
         Customer2: Record Customer;
-        Name, PhoneNo : Text;
+        Name, PhoneNo, Input : Text;
         PaymentTermsCode: Code[10];
         PaymentTermDays: Integer;
     begin
         Customer2 := Customer;
-        if Customer.Address <> JsonMgt.GetJsonValueAsText(CustomerObj, 'street_address') then
-            Customer.Validate(Address, JsonMgt.GetJsonValueAsText(CustomerObj, 'street_address'));
-        if Customer."City" <> JsonMgt.GetJsonValueAsText(CustomerObj, 'city') then
-            Customer.Validate("City", JsonMgt.GetJsonValueAsText(CustomerObj, 'city'));
-        if Customer."County" <> JsonMgt.GetJsonValueAsText(CustomerObj, 'state') then
-            Customer.Validate(County, JsonMgt.GetJsonValueAsText(CustomerObj, 'state'));
-        if Customer."Country/Region Code" <> JsonMgt.GetJsonValueAsText(CustomerObj, 'country') then
-            Customer."Country/Region Code" := JsonMgt.GetJsonValueAsText(CustomerObj, 'country');
-        if Customer."Post Code" <> JsonMgt.GetJsonValueAsText(CustomerObj, 'zip_code') then
-            Customer.Validate("Post Code", JsonMgt.GetJsonValueAsText(CustomerObj, 'zip_code'));
-        PhoneNo := JsonMgt.GetJsonValueAsText(CustomerObj, 'phone');
+        Input := CopyStr(JsonMgt.GetJsonValueAsText(CustomerObj, 'street_address_1'), 1, MaxStrLen(Customer.Address));
+        if Customer.Address <> Input then
+            Customer.Validate(Address, Input);
+        Input := CopyStr(JsonMgt.GetJsonValueAsText(CustomerObj, 'street_address_2'), 1, MaxStrLen(Customer."Address 2"));
+        if Customer."Address 2" <> Input then
+            Customer.Validate("Address 2", Input);
+        Input := CopyStr(JsonMgt.GetJsonValueAsText(CustomerObj, 'city'), 1, MaxStrLen(Customer."City"));
+        if Customer."City" <> Input then
+            Customer.Validate("City", Input);
+        Input := CopyStr(JsonMgt.GetJsonValueAsText(CustomerObj, 'state'), 1, MaxStrLen(Customer.County));
+        if Customer."County" <> Input then
+            Customer.Validate(County, Input);
+        Input := CopyStr(JsonMgt.GetJsonValueAsText(CustomerObj, 'country'), 1, MaxStrLen(Customer."Country/Region Code"));
+        if Customer."Country/Region Code" <> Input then
+            Customer."Country/Region Code" := Input;
+        Input := CopyStr(JsonMgt.GetJsonValueAsText(CustomerObj, 'zip_code'), 1, MaxStrLen(Customer."Post Code"));
+        if Customer."Post Code" <> Input then
+            Customer.Validate("Post Code", Input);
+
+        PhoneNo := CopyStr(JsonMgt.GetJsonValueAsText(CustomerObj, 'phone'), 1, MaxStrLen(Customer."Phone No."));
         if not TryToSetCustomerNo(Customer, PhoneNo) then
             Customer."Phone No." := PhoneNo;
-        Name := StrSubstNo('%1 %2', JsonMgt.GetJsonValueAsText(CustomerObj, 'first_name'), JsonMgt.GetJsonValueAsText(CustomerObj, 'last_name')).Trim();
+        Name := CopyStr(StrSubstNo('%1 %2', JsonMgt.GetJsonValueAsText(CustomerObj, 'first_name'), JsonMgt.GetJsonValueAsText(CustomerObj, 'last_name')).Trim(), 1, MaxStrLen(Customer.Name));
         if Customer.Name <> Name then
             Customer.Validate(Name, Name);
-        if Customer."Name 2" <> JsonMgt.GetJsonValueAsText(CustomerObj, 'company_name') then
-            Customer.Validate("Name 2", CopyStr(JsonMgt.GetJsonValueAsText(CustomerObj, 'company_name'), 1, MaxStrLen(Customer."Name 2")));
+        Input := CopyStr(JsonMgt.GetJsonValueAsText(CustomerObj, 'company_name'), 1, MaxStrLen(Customer."Name 2"));
+        if Customer."Name 2" <> Input then
+            Customer.Validate("Name 2", Input);
 
         exit((Customer.Address <> Customer2.Address)
             or (Customer2."City" <> Customer."City")
@@ -586,7 +605,8 @@ codeunit 80000 "EE Fleetrock Mgt."
             or (Customer2."Country/Region Code" <> Customer."Country/Region Code")
             or (Customer2."Post Code" <> Customer."Post Code")
             or (Customer2."Phone No." <> Customer."Phone No.")
-            or (Customer2.Name <> Customer.Name));
+            or (Customer2.Name <> Customer.Name)
+            or (Customer2."Name 2" <> Customer."Name 2"));
     end;
 
 
@@ -1077,7 +1097,10 @@ codeunit 80000 "EE Fleetrock Mgt."
         SalesHeader.SetHideValidationDialog(true);
         SalesHeader.SetHideCreditCheckDialogue(true);
         SalesHeader.Validate("Document Type", Enum::"Sales Document Type"::Invoice);
-        SalesHeader.Validate("Posting Date", DT2Date(SalesHeaderStaging."Expected Finish At"));
+        if SalesHeaderStaging."Expected Finish At" <> 0DT then
+            SalesHeader.Validate("Posting Date", DT2Date(SalesHeaderStaging."Expected Finish At"))
+        else
+            SalesHeader.Validate("Posting Date", DT2Date(SalesHeaderStaging."Started At"));
         SalesHeader.Insert(true);
         DocNo := SalesHeader."No.";
 
@@ -1534,7 +1557,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         FieldRec.SetRange(Type, FieldRec.Type::Text);
         if FieldRec.FindSet() then
             repeat
-                RecRef.Field(FieldRec."No.").Value(JsonMgt.GetJsonValueAsText(OrderJsonObj, FieldRec.FieldName));
+                RecRef.Field(FieldRec."No.").Value(CopyStr(JsonMgt.GetJsonValueAsText(OrderJsonObj, FieldRec.FieldName), 1, FieldRec.Len));
             until FieldRec.Next() = 0;
         FieldRec.SetRange(Type, FieldRec.Type::Decimal);
         if FieldRec.FindSet() then
