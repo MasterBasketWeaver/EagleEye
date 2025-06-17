@@ -3,7 +3,7 @@
   "name": "EagleEye My Carrier Packets Integration",
   "description": "Provides functionality to integrate MyCarrierPackets with Business Central for Eagle Eye Produce.",
   "publisher": "BryanA BC Developments Inc.",
-  "version": "25.0.1.14",
+  "version": "25.0.1.15",
   "runtime": "14.0",
   "target": "Cloud",
   "application": "25.0.0.0",
@@ -23,6 +23,12 @@
         "name": "EagleEye Fleetrock Integration",
         "publisher": "BryanA BC Developments Inc.",
         "version": "25.0.1.28"
+      },
+      {
+        "id": "9ac25096-0cd1-482d-adc1-cc823016a989",
+        "name": "EagleEye Customizations",
+        "publisher": "BryanA BC Developments Inc.",
+        "version": "25.0.0.17"
       }
     ],
   "idRanges": [

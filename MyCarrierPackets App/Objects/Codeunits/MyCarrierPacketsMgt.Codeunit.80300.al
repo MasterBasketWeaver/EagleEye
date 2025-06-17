@@ -117,6 +117,7 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
 
     procedure GetMonitoredCarrierData()
     var
+        PurchPayableSetup: Record "Purchases & Payables Setup";
         Carrier: Record "EEMCP Carrier";
         Headers: HttpHeaders;
         JsonArry: JsonArray;
@@ -151,7 +152,65 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
                 GetCarrierData(Carrier, Headers);
                 CreateAndUpdateVendorFromCarrier(Carrier, false);
             until Carrier.Next() = 0;
+
+
+        if PurchPayableSetup.Get() and (PurchPayableSetup."EEC ACH Payment Method" <> '') then
+            UpdateValuesAfterImport(PurchPayableSetup."EEC ACH Payment Method");
     end;
+
+    local procedure UpdateValuesAfterImport(ACHCode: Code[10])
+    var
+        Vendor: Record Vendor;
+        Contact: Record Contact;
+        VendorBankAccount: Record "Vendor Bank Account";
+        Carrier: Record "EEMCP Carrier";
+        CarrierData: Record "EEMCP Carrier Data";
+    begin
+        VendorBankAccount.SetLoadFields("Vendor No.", "Use for Electronic Payments");
+        if Vendor.FindSet(true) then
+            repeat
+                VendorBankAccount.SetRange("Vendor No.", Vendor."No.");
+                if VendorBankAccount.FindFirst() then begin
+                    Vendor.Validate("Payment Method Code", ACHCode);
+                    Vendor.Modify(true);
+                    VendorBankAccount."Use for Electronic Payments" := true;
+                    VendorBankAccount.Modify(true);
+                end;
+            until Vendor.Next() = 0;
+
+        Vendor.Reset();
+        Vendor.SetLoadFields("No.", Contact, "Primary Contact No.");
+        Vendor.setcurrentkey(Contact);
+        Vendor.SetFilter(Contact, '<>%1', '');
+        Vendor.SetRange("Primary Contact No.", '');
+        if Vendor.FindSet(true) then
+            repeat
+                Contact.SetRange("No.", Vendor.Contact);
+                if Contact.IsEmpty() then begin
+                    Vendor.Contact := '';
+                    Vendor.Modify(true);
+                end;
+            until Vendor.Next() = 0;
+
+        Vendor.Reset();
+        CarrierData.SetLoadFields("DOT No.", RemitEmail);
+        Vendor.SetLoadFields("No.", "Payment Method Code", "EEMCP DOT No.", "E-Mail");
+        Vendor.SetRange("Payment Method Code", ACHCode);
+        Vendor.SetFilter("EEMCP DOT No.", '<>%1', 0);
+        if Vendor.FindSet(false) then
+            repeat
+                if CarrierData.Get(Vendor."EEMCP DOT No.") then
+                    AddVendorDocumentLayouts(Vendor, CarrierData.RemitEmail)
+            until Vendor.Next() = 0;
+
+        Vendor.SetRange("EEMCP DOT No.");
+        Vendor.SetFilter("E-Mail", '<>%1', '');
+        if Vendor.FindSet() then
+            repeat
+                AddVendorDocumentLayouts(Vendor, Vendor."E-Mail");
+            until Vendor.Next() = 0;
+    end;
+
 
 
     local procedure InsertCarriers(var CarrierJsonArray: JsonArray): Boolean
@@ -382,7 +441,6 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
             if PaymentMethod.Get('check') then
                 Vendor.Validate("Payment Method Code", PaymentMethod.Code);
         Vendor.Modify(true);
-
         if Vendor."Payment Method Code" = 'ACH' then
             if CarrierData.RemitEmail <> '' then
                 AddVendorDocumentLayouts(Vendor, CarrierData.RemitEmail)
@@ -392,6 +450,9 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
 
         Commit();
     end;
+
+
+
 
 
     local procedure AddVendorBankAccount(var Vendor: Record Vendor; var VendorBankAccount: Record "Vendor Bank Account"; var CarrierData: Record "EEMCP Carrier Data")
@@ -406,6 +467,8 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
             VendorBankAccount.Validate(Code, s);
             VendorBankAccount.Insert(true);
         end;
+
+
 
         if CarrierData.BankAccountName <> '' then
             VendorBankAccount.Name := CopyStr(CarrierData.BankAccountName, 1, MaxStrLen(VendorBankAccount.Name));
@@ -429,6 +492,7 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
             VendorBankAccount."Use for Electronic Payments" := true;
 
         SingleInstance.SetUpdatedFromMCP(true);
+        VendorBankAccount."EEMCP Updated From MCP" := true;
         VendorBankAccount.Modify(true);
         SingleInstance.SetUpdatedFromMCP(false);
     end;
@@ -436,13 +500,15 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
 
 
 
+
+
     procedure AddVendorDocumentLayouts(var Vendor: Record Vendor; EmailAddr: Text)
     begin
-        AddVendorDocumentLayout(Vendor, EmailAddr, 'CTS Email Body 10083', 'EEL Remite', Enum::"Report Selection Usage"::"V.Remittance", Report::"Export Electronic Payments");
-        AddVendorDocumentLayout(Vendor, EmailAddr, 'CTS Email Body', '', Enum::"Report Selection Usage"::"P.V.Remit.", Report::"Remittance Advice - Entries");
+        AddVendorDocumentLayout(Vendor, EmailAddr, 'CTS Email Body 10083', Enum::"Report Selection Usage"::"V.Remittance", Report::"Export Electronic Payments");
+        AddVendorDocumentLayout(Vendor, EmailAddr, 'CTS Email Body', Enum::"Report Selection Usage"::"P.V.Remit.", Report::"Remittance Advice - Entries");
     end;
 
-    local procedure AddVendorDocumentLayout(var Vendor: Record Vendor; EmailAddr: Text; BodyLayout: Text; AttachmentLayout: Text; Usage: Enum "Report Selection Usage"; ReportID: Integer)
+    local procedure AddVendorDocumentLayout(var Vendor: Record Vendor; EmailAddr: Text; BodyLayout: Text; Usage: Enum "Report Selection Usage"; ReportID: Integer)
     var
         CustomReportSelection: Record "Custom Report Selection";
     begin
@@ -508,11 +574,11 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
     [EventSubscriber(ObjectType::Table, Database::"Vendor Bank Account", OnAfterModifyEvent, '', false, false)]
     local procedure VendorBankAccountOnAfterModifyEvent(var Rec: Record "Vendor Bank Account"; RunTrigger: Boolean)
     begin
-        Rec."EEMCP Updated From MCP" := SingleInstance.GetUpdatedFromMCP();
-        if not Rec."EEMCP Updated From MCP" then begin
-            Rec."EEMCP Last Non-MCP Update By" := UserId();
-            Rec."EEMCP Last Non-MCP Update At" := CurrentDateTime();
-        end;
+        if SingleInstance.GetUpdatedFromMCP() then
+            exit;
+        Rec."EEMCP Updated From MCP" := false;
+        Rec."EEMCP Last Non-MCP Update By" := UserId();
+        Rec."EEMCP Last Non-MCP Update At" := CurrentDateTime();
     end;
 
 
