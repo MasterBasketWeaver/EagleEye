@@ -171,6 +171,11 @@ table 80000 "EE Fleetrock Setup"
             DataClassification = CustomerContent;
             Caption = 'Import Repair Orders as Purchase Invoices';
         }
+        field(90; "Import Repair with Vendor"; Boolean)
+        {
+            DataClassification = CustomerContent;
+            Caption = 'Import Repair Orders with Vendor Account';
+        }
     }
 
     keys

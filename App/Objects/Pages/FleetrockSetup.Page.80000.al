@@ -65,6 +65,10 @@ page 80000 "EE Fleetrock Setup"
                     {
                         ApplicationArea = all;
                     }
+                    field("Import Repair with Vendor"; Rec."Import Repair with Vendor")
+                    {
+                        ApplicationArea = all;
+                    }
                 }
             }
 
@@ -304,7 +308,11 @@ page 80000 "EE Fleetrock Setup"
                     TaskLineStaging: Record "EE Task Line Staging";
                     PartLineStaging: Record "EE Part Line Staging";
                     SalesHeader: Record "Sales Header";
+                    SalesShptHeader: Record "Sales Shipment Header";
+                    SalesInvHeader: Record "Sales Invoice Header";
                     PurchHeader: Record "Purchase Header";
+                    PurchRcptHeader: Record "Purch. Rcpt. Header";
+                    PurchInvHeader: Record "Purch. Inv. Header";
                 begin
                     if not Confirm('Delete all log entries?') then
                         exit;
@@ -322,6 +330,23 @@ page 80000 "EE Fleetrock Setup"
                     SalesHeader.DeleteAll(true);
                     PurchHeader.SetFilter("EE Fleetrock ID", '<>%1', '');
                     PurchHeader.DeleteAll(true);
+                    SalesInvHeader.SetFilter("EE Fleetrock ID", '<>%1', '');
+                    SalesShptHeader.SetCurrentKey("Order No.");
+                    if SalesInvHeader.FindSet() then
+                        repeat
+                            SalesShptHeader.SetRange("Order No.", SalesInvHeader."Order No.");
+                            SalesShptHeader.DeleteAll(true);
+                            SalesInvHeader."No. Printed" := 1;
+                            SalesInvHeader.Delete(true);
+                        until SalesInvHeader.Next() = 0;
+                    PurchInvHeader.SetFilter("EE Fleetrock ID", '<>%1', '');
+                    PurchRcptHeader.SetCurrentKey("Order No.");
+                    if PurchInvHeader.FindSet() then
+                        repeat
+                            PurchRcptHeader.SetRange("Order No.", PurchInvHeader."Order No.");
+                            PurchRcptHeader.DeleteAll(true);
+                            PurchInvHeader.Delete(true);
+                        until PurchInvHeader.Next() = 0;
                 end;
             }
         }
