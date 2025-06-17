@@ -111,6 +111,7 @@ codeunit 80003 "EE Get Repair Orders"
             LogEntry := true;
             if FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, false) and SalesHeaderStaging.Get(ImportEntryNo) then begin
                 SalesHeader.SetCurrentKey("EE Fleetrock ID");
+                SalesHeader.SetRange("Document Type", SalesHeader."Document Type"::Invoice);
                 SalesHeader.SetRange("EE Fleetrock ID", SalesHeaderStaging.id);
                 if not SalesHeader.FindFirst() then begin
                     FleetRockMgt.CreateSalesOrder(SalesHeaderStaging);

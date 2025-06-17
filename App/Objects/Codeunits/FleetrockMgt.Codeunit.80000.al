@@ -246,6 +246,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         if ImportId = '' then
             exit(false);
         SalesHeader.SetCurrentKey("EE Fleetrock ID");
+        SalesHeader.SetRange("Document Type", SalesHeader."Document Type"::Invoice);
         SalesHeader.SetRange("EE Fleetrock ID", ImportId);
         if SalesHeader.FindFirst() then
             Error('Fleetrock Sales Order %1 has already been imported as order %2.', ImportId, SalesHeader."No.");
@@ -279,6 +280,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         if PurchInvHeader.FindFirst() then
             Error('Fleetrock Purchase Order %1 has already been imported as order %2, and posted as invoice %3.', ImportId, PurchInvHeader."Order No.", PurchInvHeader."No.");
         PurchaseHeader.SetCurrentKey("EE Fleetrock ID");
+        PurchaseHeader.SetRange("Document Type", PurchaseHeader."Document Type"::Order);
         PurchaseHeader.SetRange("EE Fleetrock ID", ImportId);
         if PurchaseHeader.FindFirst() then;
     end;
@@ -786,12 +788,27 @@ codeunit 80000 "EE Fleetrock Mgt."
         exit(RestAPIMgt.GetResponseAsJsonArray(StrSubstNo('%1/API/GetPO?username=%2&status=%3&token=%4', FleetrockSetup."Integration URL", FleetrockSetup.Username, Status, APIToken), 'purchase_orders'));
     end;
 
-    procedure GetPurchaseOrder(DocId: Text): JsonArray
+    procedure GetAndImportPurchaseOrder(DocId: Text)
     var
-        APIToken: Text;
+        GetPurchOrdersCU: Codeunit "EE Get Purchase Orders";
+        JsonArray, JsonArray2 : JsonArray;
+        JTkn: JsonToken;
+        JObjt: JsonObject;
+        APIToken, URL : Text;
     begin
         APIToken := CheckToGetAPIToken();
-        exit(RestAPIMgt.GetResponseAsJsonArray(StrSubstNo('%1/API/GetPO?username=%2&id=%3&token=%4', FleetrockSetup."Integration URL", FleetrockSetup.Username, DocId, APIToken), 'purchase_orders'));
+        URL := StrSubstNo('%1/API/GetPO?username=%2&id=%3&token=%4', FleetrockSetup."Integration URL", FleetrockSetup.Username, DocId, APIToken);
+        JsonArray := RestAPIMgt.GetResponseAsJsonArray(URL, 'purchase_orders');
+        foreach JTkn in JsonArray do begin
+            JObjt := JTkn.AsObject();
+            if JsonMgt.GetJsonValueAsText(JObjt, 'id') = DocId then begin
+                JsonArray2.Add(JObjt);
+                GetPurchOrdersCU.ImportPurchaseOrders(JsonArray2, Enum::"EE Event Type"::"Manual Import", URL, false);
+                exit;
+            end;
+        end;
+
+        Error('Purchase Order with ID "%1" not found.', DocId);
     end;
 
 

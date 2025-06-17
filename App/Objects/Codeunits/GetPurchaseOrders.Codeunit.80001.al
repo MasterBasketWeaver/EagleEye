@@ -7,20 +7,12 @@ codeunit 80001 "EE Get Purchase Orders"
 
     trigger OnRun()
     var
-        PurchaseHeader: Record "Purchase Header";
         PurchaseHeaderStaging: Record "EE Purch. Header Staging";
         ImportEntry: Record "EE Import/Export Entry";
-        FleetrockSetup: Record "EE Fleetrock Setup";
-        JsonMgt: Codeunit "EE Json Mgt.";
-        OrderStatus: Enum "EE Repair Order Status";
         EventType: Enum "EE Event Type";
         JsonArry: JsonArray;
-        OrderJsonObj: JsonObject;
-        T: JsonToken;
         StartDateTime: DateTime;
-        URL, Tags : Text;
-
-        ImportEntryNo: Integer;
+        URL: Text;
         Success, IsReceived, LogEntry : Boolean;
     begin
         if PassedURL = '' then begin
@@ -39,15 +31,13 @@ codeunit 80001 "EE Get Purchase Orders"
                 StartDateTime := ImportEntry.SystemCreatedAt;
         end else begin
             URL := PassedURL;
-            if not URL.Contains('event') then
-                Error('Invalid URL: %1', URL);
+            // if not URL.Contains('event') then
+            //     Error('Invalid URL: %1', URL);
             if URL.Contains('event=Received') then begin
                 IsReceived := true;
                 EventType := EventType::Received;
-            end else begin
-                IsReceived := false;
+            end else
                 EventType := EventType::Closed;
-            end;
         end;
 
         if not FleetRockMgt.TryToGetPurchaseOrders(StartDateTime, JsonArry, URL, EventType) then begin
@@ -55,13 +45,22 @@ codeunit 80001 "EE Get Purchase Orders"
                 EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET');
             exit;
         end;
-        if JsonArry.Count() = 0 then begin
-            if (PassedURL <> '') and GuiAllowed() then begin
-                JsonArry.WriteTo(Tags);
-                if not Confirm('Empty array:\%1\\%2', false, URL, Tags) then;
-            end;
-            exit;
-        end;
+        if JsonArry.Count() > 0 then
+            ImportPurchaseOrders(JsonArry, EventType, URL, IsReceived);
+    end;
+
+    procedure ImportPurchaseOrders(var JsonArry: JsonArray; EventType: Enum "EE Event Type"; URL: Text; IsReceived: Boolean): Boolean
+    var
+        PurchaseHeader: Record "Purchase Header";
+        ImportEntry: Record "EE Import/Export Entry";
+        PurchaseHeaderStaging: Record "EE Purch. Header Staging";
+        FleetRockSetup: Record "EE Fleetrock Setup";
+        OrderJsonObj: JsonObject;
+        T: JsonToken;
+        Tags: Text;
+        ImportEntryNo: Integer;
+        Success, LogEntry : Boolean;
+    begin
         FleetRockSetup.Get();
         PurchaseHeader.SetCurrentKey("EE Fleetrock ID");
         foreach T in JsonArry do begin
@@ -129,6 +128,7 @@ codeunit 80001 "EE Get Purchase Orders"
         Success: Boolean;
     begin
         PurchaseHeader.SetCurrentKey("EE Fleetrock ID");
+        PurchaseHeader.SetRange("Document Type", PurchaseHeader."Document Type"::Order);
         PurchaseHeader.SetRange("EE Fleetrock ID", PurchaseHeaderStaging.id);
         if PurchaseHeader.FindFirst() then
             Success := FleetRockMgt.TryToUpdatePurchaseOrder(PurchaseHeaderStaging, PurchaseHeader)
@@ -195,5 +195,6 @@ codeunit 80001 "EE Get Purchase Orders"
 
     var
         FleetRockMgt: Codeunit "EE Fleetrock Mgt.";
+        JsonMgt: Codeunit "EE Json Mgt.";
         PassedURL: Text;
 }

@@ -202,15 +202,41 @@ page 80001 "EE Staged Purchased Headers"
 
                 trigger OnAction()
                 var
-                    FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
+
                     PurchaseHeader: Record "Purchase Header";
                 begin
                     FleetrockMgt.CreatePurchaseOrder(Rec);
+                    PurchaseHeader.SetRange("Document Type", PurchaseHeader."Document Type"::Order);
                     PurchaseHeader.SetRange("EE Fleetrock ID", Rec.id);
                     PurchaseHeader.FindLast();
                     Page.Run(Page::"Purchase Invoice", PurchaseHeader);
                 end;
             }
+            action("Import Single Purchase Order")
+            {
+                ApplicationArea = all;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                Image = DocumentEdit;
+
+                trigger OnAction()
+                var
+                    GetDocNo: Page "EE Get Doc. No.";
+                    DocNo: Text;
+                begin
+                    GetDocNo.LookupMode(true);
+                    if GetDocNo.RunModal() <> Action::LookupOK then
+                        exit;
+                    DocNo := GetDocNo.GetDocNo();
+                    if DocNo <> '' then
+                        FleetrockMgt.GetAndImportPurchaseOrder(DocNo);
+                end;
+            }
         }
     }
+
+    var
+        FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
 }

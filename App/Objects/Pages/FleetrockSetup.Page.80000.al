@@ -252,29 +252,29 @@ page 80000 "EE Fleetrock Setup"
                     Message(s);
                 end;
             }
-            action("Get Specific PO")
-            {
-                ApplicationArea = All;
-                Promoted = true;
-                PromotedCategory = Process;
-                PromotedIsBig = true;
-                PromotedOnly = true;
-                Image = Purchasing;
+            // action("Get Specific PO")
+            // {
+            //     ApplicationArea = All;
+            //     Promoted = true;
+            //     PromotedCategory = Process;
+            //     PromotedIsBig = true;
+            //     PromotedOnly = true;
+            //     Image = Purchasing;
 
-                trigger OnAction()
-                var
-                    FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
-                    GetDocNo: Page "EE Get Doc. No.";
-                    DocNo, s : Text;
-                begin
-                    GetDocNo.RunModal();
-                    DocNo := GetDocNo.GetDocNo();
-                    if DocNo = '' then
-                        exit;
-                    FleetrockMgt.GetPurchaseOrder(DocNo).WriteTo(s);
-                    Message(s);
-                end;
-            }
+            //     trigger OnAction()
+            //     var
+            //         FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
+            //         GetDocNo: Page "EE Get Doc. No.";
+            //         DocNo, s : Text;
+            //     begin
+            //         GetDocNo.RunModal();
+            //         DocNo := GetDocNo.GetDocNo();
+            //         if DocNo = '' then
+            //             exit;
+            //         FleetrockMgt.GetPurchaseOrder(DocNo).WriteTo(s);
+            //         Message(s);
+            //     end;
+            // }
 
             action("Import ROs")
             {

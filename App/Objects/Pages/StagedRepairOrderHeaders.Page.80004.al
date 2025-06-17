@@ -356,6 +356,7 @@ page 80004 "EE Staged Repair Order Headers"
                     SalesHeader: Record "Sales Header";
                 begin
                     FleetrockMgt.CreateSalesOrder(Rec);
+                    SalesHeader.SetRange("Document Type", SalesHeader."Document Type"::Invoice);
                     SalesHeader.SetRange("EE Fleetrock ID", Rec.id);
                     SalesHeader.FindLast();
                     Page.Run(Page::"Sales Invoice", SalesHeader);
@@ -383,7 +384,7 @@ page 80004 "EE Staged Repair Order Headers"
                     if DocNo = '' then
                         exit;
                     FleetrockSetup.Get();
-                    if FleetrockSetup."Vendor API Token" <> '' then
+                    if FleetrockSetup."Vendor API Key" <> '' then
                         UseVendorAccount := Confirm('Use %1 account?', false, FleetrockSetup."Vendor Username")
                     else
                         UseVendorAccount := false;
