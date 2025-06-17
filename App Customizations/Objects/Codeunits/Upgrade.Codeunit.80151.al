@@ -4,7 +4,10 @@ codeunit 80151 "EEC Upgrade"
 
     Permissions = tabledata "Posted Gen. Journal Line" = RD,
     tabledata Vendor = RIMD,
-    tabledata "Purchases & Payables Setup" = RIMD;
+    tabledata "Purchases & Payables Setup" = RIMD,
+    tabledata "Cancelled Document" = RIMD;
+
+
 
     trigger OnUpgradePerCompany()
     begin
@@ -14,6 +17,21 @@ codeunit 80151 "EEC Upgrade"
     procedure InstallData()
     begin
         // SetVendorPaymentTerms();
+        CancelInvalidInvoices();
+    end;
+
+
+    local procedure CancelInvalidInvoices()
+    var
+        //Cancelled Doc. No.
+        CancelledDocument: Record "Cancelled Document";
+    begin
+        if CompanyName() <> 'Test - Diesel Repair Shop' then
+            exit;
+        if not CancelledDocument.Get(Database::"Purch. Inv. Header", 'PPINV000069') then
+            CancelledDocument.InsertPurchInvToCrMemoCancelledDocument('PPINV000069', 'PPCM0000004');
+        if not CancelledDocument.Get(Database::"Purch. Inv. Header", 'PPINV000071') then
+            CancelledDocument.InsertPurchInvToCrMemoCancelledDocument('PPINV000071', 'PPCM0000006');
     end;
 
     local procedure SetVendorPaymentTerms()

@@ -256,4 +256,13 @@ codeunit 80150 "EEC Custom Subscribers"
             if PurchInvHeader."No." in ['PPINV000069', 'PPINV000071'] then
                 IsHandled := true;
     end;
+
+
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Correct Posted Purch. Invoice", "OnAfterCreateCopyDocument", '', false, false)]
+    local procedure CorrectPostedPurchInvoiceOnAfterCreateCopyDocument(var PurchaseHeader: Record "Purchase Header"; PurchInvHeader: Record "Purch. Inv. Header")
+    begin
+        if CompanyName() = 'Test - Diesel Repair Shop' then
+            if PurchInvHeader."No." in ['PPINV000069', 'PPINV000071'] then
+                PurchaseHeader."Tax Area Code" := PurchInvHeader."Tax Area Code";
+    end;
 }
