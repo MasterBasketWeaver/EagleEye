@@ -251,6 +251,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             Error('Fleetrock Sales Order %1 has already been imported as order %2.', ImportId, SalesHeader."No.");
         SalesInvHeader.SetCurrentKey("EE Fleetrock ID");
         SalesInvHeader.SetRange("EE Fleetrock ID", ImportId);
+        SalesInvHeader.SetRange(Cancelled, false);
         if SalesInvHeader.FindFirst() then
             Error('Fleetrock Sales Order %1 has already been imported as order %2, and posted as invoice %3.', ImportId, SalesInvHeader."Order No.", SalesInvHeader."No.");
         exit(false);
@@ -274,6 +275,7 @@ codeunit 80000 "EE Fleetrock Mgt."
     begin
         PurchInvHeader.SetCurrentKey("EE Fleetrock ID");
         PurchInvHeader.SetRange("EE Fleetrock ID", ImportId);
+        PurchInvHeader.SetRange(Cancelled, false);
         if PurchInvHeader.FindFirst() then
             Error('Fleetrock Purchase Order %1 has already been imported as order %2, and posted as invoice %3.', ImportId, PurchInvHeader."Order No.", PurchInvHeader."No.");
         PurchaseHeader.SetCurrentKey("EE Fleetrock ID");
