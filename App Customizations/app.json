@@ -3,7 +3,7 @@
   "name": "EagleEye Customizations",
   "description": "Provides custom functionality for Eagle Eye Produce.",
   "publisher": "BryanA BC Developments Inc.",
-  "version": "25.0.0.21",
+  "version": "25.0.0.22",
   "runtime": "13.1",
   "target": "Cloud",
   "application": "25.0.0.0",

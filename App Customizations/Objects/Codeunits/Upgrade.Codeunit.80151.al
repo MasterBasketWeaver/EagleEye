@@ -17,7 +17,7 @@ codeunit 80151 "EEC Upgrade"
     procedure InstallData()
     begin
         // SetVendorPaymentTerms();
-        CancelInvalidInvoices();
+        // CancelInvalidInvoices();
     end;
 
 
