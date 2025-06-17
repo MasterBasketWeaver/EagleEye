@@ -434,7 +434,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         URL := StrSubstNo('%1/API/AddUser?token=%2', FleetrockSetup."Integration URL", APIToken);
         if not TryToCreateAddUserJsonBody(Vendor, FleetrockSetup.Username, JsonBody) then begin
             InsertImportEntry(false, 0, Enum::"EE Import Type"::Vendor, EventType, Enum::"EE Direction"::Export,
-                GetLastErrorText(), URL, 'POST', JsonBody);
+                GetLastErrorText(), URL, 'POST', JsonBody, Vendor."No.");
             exit(false);
         end;
 
@@ -442,7 +442,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             URL := StrSubstNo('%1/API/UpdateUser?token=%2', FleetrockSetup."Integration URL", APIToken);
         if not RestAPIMgt.TryToGetResponseAsJsonArray(URL, 'response', 'POST', JsonBody, ResponseArray) then begin
             InsertImportEntry(false, 0, Enum::"EE Import Type"::Vendor, EventType, Enum::"EE Direction"::Export,
-                GetLastErrorText(), URL, 'POST', JsonBody);
+                GetLastErrorText(), URL, 'POST', JsonBody, Vendor."No.");
             exit(false);
         end;
         if (ResponseArray.Count() = 0) then
@@ -450,13 +450,13 @@ codeunit 80000 "EE Fleetrock Mgt."
         if not ResponseArray.Get(0, JTkn) then begin
             ResponseArray.WriteTo(s);
             InsertImportEntry(false, 0, Enum::"EE Import Type"::Vendor, EventType, Enum::"EE Direction"::Export,
-                'Failed to load results token from response array: ' + s, URL, 'POST', JsonBody);
+                'Failed to load results token from response array: ' + s, URL, 'POST', JsonBody, Vendor."No.");
             exit(false);
         end;
         ClearLastError();
         Success := TryToHandleRepairUpdateResponse(JTkn, Vendor."No.", StrSubstNo('Failed to %1 User ', EventType) + '%1:\%2');
         InsertImportEntry(Success and (GetLastErrorText() = ''), 0, Enum::"EE Import Type"::Vendor, EventType,
-            Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', JsonBody);
+            Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', JsonBody, Vendor."No.");
         exit(Success);
     end;
 
@@ -1764,14 +1764,21 @@ codeunit 80000 "EE Fleetrock Mgt."
         JsonBody: JsonObject;
         EntryNo: Integer;
     begin
-        InsertImportEntry(EntryNo, Success, ImportEntryNo, Type, EventType, Direction, ErrorMsg, URL, Method, JsonBody);
+        InsertImportEntry(EntryNo, Success, ImportEntryNo, Type, EventType, Direction, ErrorMsg, URL, Method, JsonBody, '');
     end;
 
     procedure InsertImportEntry(Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type"; Direction: Enum "EE Direction"; ErrorMsg: Text; URL: Text; Method: Text; var JsonBody: JsonObject)
     var
         EntryNo: Integer;
     begin
-        InsertImportEntry(EntryNo, Success, ImportEntryNo, Type, EventType, Direction, ErrorMsg, URL, Method, JsonBody);
+        InsertImportEntry(EntryNo, Success, ImportEntryNo, Type, EventType, Direction, ErrorMsg, URL, Method, JsonBody, '');
+    end;
+
+    procedure InsertImportEntry(Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type"; Direction: Enum "EE Direction"; ErrorMsg: Text; URL: Text; Method: Text; var JsonBody: JsonObject; DocNo: Code[20])
+    var
+        EntryNo: Integer;
+    begin
+        InsertImportEntry(EntryNo, Success, ImportEntryNo, Type, EventType, Direction, ErrorMsg, URL, Method, JsonBody, DocNo);
     end;
 
 
@@ -1782,26 +1789,26 @@ codeunit 80000 "EE Fleetrock Mgt."
     //     InsertImportEntry(EntryNo, Success, ImportEntryNo, Type, EventType, Direction, ErrorMsg, URL, Method, JsonBody);
     // end;
 
-    procedure InsertImportEntry(var EntryNo: Integer; Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type"; Direction: Enum "EE Direction"; ErrorMsg: Text; URL: Text; Method: Text; var JsonBody: JsonObject)
+    procedure InsertImportEntry(var EntryNo: Integer; Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type"; Direction: Enum "EE Direction"; ErrorMsg: Text; URL: Text; Method: Text; var JsonBody: JsonObject; DocNo: Code[20])
     var
         ImportEntry: Record "EE Import/Export Entry";
         PurchHeaderStaging: Record "EE Purch. Header Staging";
         SalesHeaderStaging: Record "EE Sales Header Staging";
         s: Text;
-        DocNo: Code[20];
     begin
-        if ImportEntryNo <> 0 then begin
-            PurchHeaderStaging.SetLoadFields("Entry No.", "Document No.");
-            SalesHeaderStaging.SetLoadFields("Entry No.", "Document No.");
-            case Type of
-                Type::"Purchase Order":
-                    if PurchHeaderStaging.Get(ImportEntryNo) then
-                        DocNo := PurchHeaderStaging."Document No.";
-                Type::"Repair Order":
-                    if SalesHeaderStaging.Get(ImportEntryNo) then
-                        DocNo := SalesHeaderStaging."Document No.";
+        if DocNo = '' then
+            if ImportEntryNo <> 0 then begin
+                PurchHeaderStaging.SetLoadFields("Entry No.", "Document No.");
+                SalesHeaderStaging.SetLoadFields("Entry No.", "Document No.");
+                case Type of
+                    Type::"Purchase Order":
+                        if PurchHeaderStaging.Get(ImportEntryNo) then
+                            DocNo := PurchHeaderStaging."Document No.";
+                    Type::"Repair Order":
+                        if SalesHeaderStaging.Get(ImportEntryNo) then
+                            DocNo := SalesHeaderStaging."Document No.";
+                end;
             end;
-        end;
         ErrorMsg := CopyStr(ErrorMsg, 1, MaxStrLen(ImportEntry."Error Message"));
         if (ErrorMsg <> '') then begin
             ImportEntry.SetRange(Direction, Direction);
