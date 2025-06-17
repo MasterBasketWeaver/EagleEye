@@ -246,4 +246,14 @@ codeunit 80150 "EEC Custom Subscribers"
         if Updated then
             Rec.Modify(true);
     end;
+
+
+
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Correct Posted Purch. Invoice", "OnBeforeTestIfInvoiceIsPaid", '', false, false)]
+    local procedure CorrectPostedPurchInvoiceOnBeforeTestIfInvoiceIsPaid(var PurchInvHeader: Record "Purch. Inv. Header"; var IsHandled: Boolean)
+    begin
+        if CompanyName() = 'Test - Diesel Repair Shop' then
+            if PurchInvHeader."No." in ['PPINV000069', 'PPINV000071'] then
+                IsHandled := true;
+    end;
 }
