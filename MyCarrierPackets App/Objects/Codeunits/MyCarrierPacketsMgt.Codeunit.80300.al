@@ -178,6 +178,7 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
                 end;
             until Vendor.Next() = 0;
 
+        Contact.SetCurrentKey(Name);
         Vendor.Reset();
         Vendor.SetLoadFields("No.", Contact, "Primary Contact No.");
         Vendor.setcurrentkey(Contact);
@@ -185,7 +186,7 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         Vendor.SetRange("Primary Contact No.", '');
         if Vendor.FindSet(true) then
             repeat
-                Contact.SetRange("No.", Vendor.Contact);
+                Contact.SetRange(Name, Vendor.Contact);
                 if Contact.IsEmpty() then begin
                     Vendor.Contact := '';
                     Vendor.Modify(true);
