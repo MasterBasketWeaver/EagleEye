@@ -18,8 +18,26 @@ codeunit 80151 "EEC Upgrade"
     begin
         // SetVendorPaymentTerms();
         // CancelInvalidInvoices();
+        // RefreshPostingNumbers();
     end;
 
+
+    local procedure RefreshPostingNumbers()
+    var
+        PurchHeader: Record "Purchase Header";
+    begin
+        if CompanyName() <> 'Test - Diesel Repair Shop' then
+            exit;
+        PurchHeader.SetRange("Document Type", PurchHeader."Document Type"::Order);
+        PurchHeader.SetFilter("No.", '%1|%2', '106499', '106501');
+        if PurchHeader.FindSet(true) then
+            repeat
+                PurchHeader."Posting No." := '';
+                PurchHeader."Receiving No." := '';
+                PurchHeader."EE Fleetrock ID" := '';
+                PurchHeader.Modify(false);
+            until PurchHeader.Next() = 0;
+    end;
 
     local procedure CancelInvalidInvoices()
     var
