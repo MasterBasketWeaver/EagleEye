@@ -153,7 +153,6 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
                 CreateAndUpdateVendorFromCarrier(Carrier, false);
             until Carrier.Next() = 0;
 
-
         if PurchPayableSetup.Get() and (PurchPayableSetup."EEC ACH Payment Method" <> '') then
             UpdateValuesAfterImport(PurchPayableSetup."EEC ACH Payment Method");
     end;
@@ -163,8 +162,6 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         Vendor: Record Vendor;
         Contact: Record Contact;
         VendorBankAccount: Record "Vendor Bank Account";
-        Carrier: Record "EEMCP Carrier";
-        CarrierData: Record "EEMCP Carrier Data";
     begin
         VendorBankAccount.SetLoadFields("Vendor No.", "Use for Electronic Payments");
         if Vendor.FindSet(true) then
@@ -193,23 +190,38 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
                 end;
             until Vendor.Next() = 0;
 
-        Vendor.Reset();
-        CarrierData.SetLoadFields("DOT No.", RemitEmail);
+        SetVendorDocumentLayouts(ACHCode);
+    end;
+
+
+    procedure SetVendorDocumentLayouts(ACHCode: Code[10]): Integer
+    var
+        Vendor: Record Vendor;
+        CarrierData: Record "EEMCP Carrier Data";
+        i: Integer;
+    begin
         Vendor.SetLoadFields("No.", "Payment Method Code", "EEMCP DOT No.", "E-Mail");
         Vendor.SetRange("Payment Method Code", ACHCode);
-        Vendor.SetFilter("EEMCP DOT No.", '<>%1', 0);
-        if Vendor.FindSet(false) then
-            repeat
-                if CarrierData.Get(Vendor."EEMCP DOT No.") then
-                    AddVendorDocumentLayouts(Vendor, CarrierData.RemitEmail)
-            until Vendor.Next() = 0;
-
-        Vendor.SetRange("EEMCP DOT No.");
         Vendor.SetFilter("E-Mail", '<>%1', '');
+        i := Vendor.Count();
         if Vendor.FindSet() then
             repeat
                 AddVendorDocumentLayouts(Vendor, Vendor."E-Mail");
             until Vendor.Next() = 0;
+
+        Vendor.SetRange("E-Mail");
+        Vendor.SetFilter("EEMCP DOT No.", '<>%1', 0);
+        if not Vendor.FindSet(false) then
+            exit(i);
+        CarrierData.SetLoadFields("DOT No.", RemitEmail);
+        repeat
+            if CarrierData.Get(Vendor."EEMCP DOT No.") then
+                if CarrierData.RemitEmail <> '' then begin
+                    AddVendorDocumentLayouts(Vendor, CarrierData.RemitEmail);
+                    i += 1;
+                end;
+        until Vendor.Next() = 0;
+        exit(i);
     end;
 
 
@@ -505,21 +517,21 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
 
     procedure AddVendorDocumentLayouts(var Vendor: Record Vendor; EmailAddr: Text)
     begin
-        AddVendorDocumentLayout(Vendor, EmailAddr, 'CTS Email Body 10083', Enum::"Report Selection Usage"::"V.Remittance", Report::"Export Electronic Payments");
-        AddVendorDocumentLayout(Vendor, EmailAddr, 'CTS Email Body', Enum::"Report Selection Usage"::"P.V.Remit.", Report::"Remittance Advice - Entries");
+        AddVendorDocumentLayout(Vendor."No.", EmailAddr, 'CTS Email Body 10083', true, Enum::"Report Selection Usage"::"V.Remittance", Report::"Export Electronic Payments");
+        AddVendorDocumentLayout(Vendor."No.", EmailAddr, 'CTS Email Body', false, Enum::"Report Selection Usage"::"P.V.Remit.", Report::"Remittance Advice - Entries");
     end;
 
-    local procedure AddVendorDocumentLayout(var Vendor: Record Vendor; EmailAddr: Text; BodyLayout: Text; Usage: Enum "Report Selection Usage"; ReportID: Integer)
+    local procedure AddVendorDocumentLayout(VendorNo: Code[20]; EmailAddr: Text; BodyLayout: Text; HasAttachment: Boolean; Usage: Enum "Report Selection Usage"; ReportID: Integer)
     var
         CustomReportSelection: Record "Custom Report Selection";
     begin
         CustomReportSelection.SetRange("Source Type", Database::Vendor);
-        CustomReportSelection.SetRange("Source No.", Vendor."No.");
+        CustomReportSelection.SetRange("Source No.", VendorNo);
         CustomReportSelection.SetRange(Usage, Usage);
         if not CustomReportSelection.FindFirst() then begin
             CustomReportSelection.Init();
             CustomReportSelection.Validate("Source Type", Database::Vendor);
-            CustomReportSelection.Validate("Source No.", Vendor."No.");
+            CustomReportSelection.Validate("Source No.", VendorNo);
             CustomReportSelection.Validate(Usage, Usage);
             CustomReportSelection.Validate("Report ID", ReportID);
             CustomReportSelection.Insert(true);
@@ -527,11 +539,9 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         CustomReportSelection.Validate("Report ID", ReportID);
         CustomReportSelection.Validate("Send To Email", EmailAddr);
         CustomReportSelection.Validate("Use for Email Body", true);
-        CustomReportSelection.Validate("Use for Email Attachment", Usage = Enum::"Report Selection Usage"::"P.V.Remit.");
-        GetLayoutDetails(CustomReportSelection, 'CTS Email Body 10083', true);
-        if CompanyName.Contains('CTS') then
-            GetLayoutDetails(CustomReportSelection, 'CTS Email Body', true)
-        else
+        CustomReportSelection.Validate("Use for Email Attachment", true);
+        GetLayoutDetails(CustomReportSelection, BodyLayout, true);
+        if HasAttachment then
             GetLayoutDetails(CustomReportSelection, 'EEL Remite', false);
         CustomReportSelection.Modify(true);
     end;
@@ -550,7 +560,7 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
                 CustomReportSelection.Validate("Email Body Layout AppID", ReportLayoutList."Application ID");
             end else begin
                 CustomReportSelection.Validate("Email Attachment Layout Name", ReportLayoutList.Name);
-                CustomReportSelection.Validate("Email Body Layout AppID", ReportLayoutList."Application ID");
+                CustomReportSelection.Validate("Email Attachment Layout AppID", ReportLayoutList."Application ID");
             end;
     end;
 
