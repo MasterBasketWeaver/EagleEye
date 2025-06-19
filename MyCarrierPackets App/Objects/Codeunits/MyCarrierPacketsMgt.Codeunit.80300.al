@@ -162,6 +162,7 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         Vendor: Record Vendor;
         Contact: Record Contact;
         VendorBankAccount: Record "Vendor Bank Account";
+
     begin
         VendorBankAccount.SetLoadFields("Vendor No.", "Use for Electronic Payments");
         if Vendor.FindSet(true) then
@@ -516,53 +517,23 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
 
 
     procedure AddVendorDocumentLayouts(var Vendor: Record Vendor; EmailAddr: Text)
-    begin
-        AddVendorDocumentLayout(Vendor."No.", EmailAddr, 'CTS Email Body 10083', true, Enum::"Report Selection Usage"::"V.Remittance", Report::"Export Electronic Payments");
-        AddVendorDocumentLayout(Vendor."No.", EmailAddr, 'CTS Email Body', false, Enum::"Report Selection Usage"::"P.V.Remit.", Report::"Remittance Advice - Entries");
-    end;
-
-    local procedure AddVendorDocumentLayout(VendorNo: Code[20]; EmailAddr: Text; BodyLayout: Text; HasAttachment: Boolean; Usage: Enum "Report Selection Usage"; ReportID: Integer)
     var
+        ReportSelections: Record "Report Selections";
         CustomReportSelection: Record "Custom Report Selection";
     begin
+        ReportSelections.SetFilter(Usage, '%1|%2', CustomReportSelection.Usage::"V.Remittance", CustomReportSelection.Usage::"P.V.Remit.");
         CustomReportSelection.SetRange("Source Type", Database::Vendor);
-        CustomReportSelection.SetRange("Source No.", VendorNo);
-        CustomReportSelection.SetRange(Usage, Usage);
-        if not CustomReportSelection.FindFirst() then begin
-            CustomReportSelection.Init();
-            CustomReportSelection.Validate("Source Type", Database::Vendor);
-            CustomReportSelection.Validate("Source No.", VendorNo);
-            CustomReportSelection.Validate(Usage, Usage);
-            CustomReportSelection.Validate("Report ID", ReportID);
-            CustomReportSelection.Insert(true);
-        end;
-        CustomReportSelection.Validate("Report ID", ReportID);
-        CustomReportSelection.Validate("Send To Email", EmailAddr);
-        CustomReportSelection.Validate("Use for Email Body", true);
-        CustomReportSelection.Validate("Use for Email Attachment", true);
-        GetLayoutDetails(CustomReportSelection, BodyLayout, true);
-        if HasAttachment then
-            GetLayoutDetails(CustomReportSelection, 'EEL Remite', false);
-        CustomReportSelection.Modify(true);
+        CustomReportSelection.SetRange("Source No.", Vendor."No.");
+        CustomReportSelection.SetFilter(Usage, '%1|%2', CustomReportSelection.Usage::"V.Remittance", CustomReportSelection.Usage::"P.V.Remit.");
+        CustomReportSelection.DeleteAll(true);
+        CustomReportSelection.Reset();
+        CustomReportSelection.CopyFromReportSelections(ReportSelections, Database::Vendor, Vendor."No.");
+        CustomReportSelection.SetRange("Source Type", Database::Vendor);
+        CustomReportSelection.SetRange("Source No.", Vendor."No.");
+        CustomReportSelection.ModifyAll("Send To Email", EmailAddr, true);
     end;
 
-    local procedure GetLayoutDetails(var CustomReportSelection: Record "Custom Report Selection"; LayoutName: Text; Body: Boolean)
-    var
-        ReportLayoutList: Record "Report Layout List";
-    begin
-        if LayoutName = '' then
-            exit;
-        ReportLayoutList.SetRange("Report ID", CustomReportSelection."Report ID");
-        ReportLayoutList.SetRange(Name, LayoutName);
-        if ReportLayoutList.FindFirst() then
-            if Body then begin
-                CustomReportSelection.Validate("Email Body Layout Name", ReportLayoutList.Name);
-                CustomReportSelection.Validate("Email Body Layout AppID", ReportLayoutList."Application ID");
-            end else begin
-                CustomReportSelection.Validate("Email Attachment Layout Name", ReportLayoutList.Name);
-                CustomReportSelection.Validate("Email Attachment Layout AppID", ReportLayoutList."Application ID");
-            end;
-    end;
+
 
 
     local procedure GetCountryCode(Input: Text): Code[10]
