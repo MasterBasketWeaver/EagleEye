@@ -5,7 +5,17 @@ codeunit 80151 "EEC Upgrade"
     Permissions = tabledata "Posted Gen. Journal Line" = RD,
     tabledata Vendor = RIMD,
     tabledata "Purchases & Payables Setup" = RIMD,
-    tabledata "Cancelled Document" = RIMD;
+    tabledata "Cancelled Document" = RIMD,
+    tabledata "G/L Entry" = RIMD,
+    tabledata "Value Entry" = RIMD,
+    tabledata "Item Ledger Entry" = RIMD,
+    tabledata "Vendor Ledger Entry" = RIMD,
+    tabledata "Detailed Vendor Ledg. Entry" = RIMD,
+    tabledata "Purch. Rcpt. Header" = RIMD,
+    tabledata "Purch. Rcpt. Line" = RIMD,
+    tabledata "Purch. Comment Line" = RIMD,
+    tabledata "Purch. Inv. Header" = RIMD,
+    tabledata "Purch. Inv. Line" = RIMD;
 
 
 
@@ -19,7 +29,81 @@ codeunit 80151 "EEC Upgrade"
         // SetVendorPaymentTerms();
         // CancelInvalidInvoices();
         // RefreshPostingNumbers();
+
+        RemoveInvalidEntries();
     end;
+
+
+    local procedure RemoveInvalidEntries()
+    var
+        GLEntry: Record "G/L Entry";
+        ValueEntry: Record "Value Entry";
+        ItemLedgerEntry: Record "Item Ledger Entry";
+        VendorLedgerEntry: Record "Vendor Ledger Entry";
+        DtldVendorLedgerEntry: Record "Detailed Vendor Ledg. Entry";
+        CancelledDocument: Record "Cancelled Document";
+    begin
+        if CompanyName() <> 'EER Delete Entries' then
+            exit;
+        GLEntry.SetFilter("Transaction No.", '%1..%2|%3..%4', 257, 260, 267, 270);
+        GLEntry.DeleteAll(false);
+        ValueEntry.SetFilter("Entry No.", '%1..%2|%3..%4', 443, 445, 453, 455);
+        ValueEntry.DeleteAll(false);
+        ItemLedgerEntry.SetFilter("Entry No.", '%1..%2|%3..%4', 441, 443, 451, 453);
+        ItemLedgerEntry.DeleteAll(false);
+        VendorLedgerEntry.SetRange("Transaction No.", 268);
+        if VendorLedgerEntry.FindSet(true) then
+            repeat
+                DtldVendorLedgerEntry.SetRange("Vendor Ledger Entry No.", VendorLedgerEntry."Entry No.");
+                DtldVendorLedgerEntry.DeleteAll(false);
+            until VendorLedgerEntry.Next() = 0;
+        VendorLedgerEntry.DeleteAll(false);
+
+        DeletePurchRcptTables('107059');
+        DeletePurchRcptTables('107061');
+        DeletePurchInvTables('PPINV000069');
+        DeletePurchInvTables('PPINV000071');
+
+        if CancelledDocument.Get(Database::"Cancelled Document", 'PPINV000069') then
+            CancelledDocument.Delete(false);
+        if CancelledDocument.Get(Database::"Cancelled Document", 'PPINV000071') then
+            CancelledDocument.Delete(false);
+    end;
+
+    local procedure DeletePurchRcptTables(DocNo: Code[20])
+    var
+        PurchRcptHeader: Record "Purch. Rcpt. Header";
+        PurchRcptLine: Record "Purch. Rcpt. Line";
+        PurchCommentLine: Record "Purch. Comment Line";
+    begin
+        if not PurchRcptHeader.Get(DocNo) then
+            exit;
+        PurchRcptLine.SetRange("Document No.", PurchRcptHeader."No.");
+        PurchRcptLine.DeleteAll(true);
+        PurchCommentLine.SetRange("Document Type", PurchCommentLine."Document Type"::Receipt);
+        PurchCommentLine.SetRange("No.", PurchRcptHeader."No.");
+        PurchCommentLine.DeleteAll();
+        PurchRcptHeader.Delete(false);
+    end;
+
+    local procedure DeletePurchInvTables(DocNo: Code[20])
+    var
+        PurchInvHeader: Record "Purch. Inv. Header";
+        PurchInvLine: Record "Purch. Inv. Line";
+        PurchCommentLine: Record "Purch. Comment Line";
+    begin
+        if not PurchInvHeader.Get(DocNo) then
+            exit;
+        PurchInvLine.SetRange("Document No.", PurchInvHeader."No.");
+        PurchInvLine.DeleteAll(true);
+        PurchCommentLine.SetRange("Document Type", PurchCommentLine."Document Type"::"Posted Invoice");
+        PurchCommentLine.SetRange("No.", PurchInvHeader."No.");
+        PurchCommentLine.DeleteAll();
+        PurchInvHeader.Delete(false);
+    end;
+
+
+
 
 
     local procedure RefreshPostingNumbers()

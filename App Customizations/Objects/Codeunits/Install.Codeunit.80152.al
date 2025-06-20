@@ -8,6 +8,8 @@ codeunit 80152 "EEC Install"
         Upgrade.InstallData();
     end;
 
+
+
     var
         Upgrade: Codeunit "EEC Upgrade";
 }
