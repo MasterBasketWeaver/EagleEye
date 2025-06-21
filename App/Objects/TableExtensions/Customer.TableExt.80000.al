@@ -14,11 +14,5 @@ tableextension 80000 "EE Customer" extends Customer
             Caption = 'Source No.';
             Editable = false;
         }
-        field(80002; "EE Source Search Name"; Text[100])
-        {
-            DataClassification = CustomerContent;
-            Caption = 'Source Search Name';
-            Editable = false;
-        }
     }
 }

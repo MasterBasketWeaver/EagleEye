@@ -307,19 +307,32 @@ codeunit 80000 "EE Fleetrock Mgt."
     var
         Vendor: Record Vendor;
         VendorObj: JsonObject;
+        MissingSource, Update : Boolean;
     begin
         if PurchHeaderStaging.supplier_name = '' then
             Error('supplier_name must be specified.');
         Vendor.SetRange("EE Source Type", Vendor."EE Source Type"::Fleetrock);
         Vendor.SetRange("EE Source No.", PurchHeaderStaging.supplier_name);
+        if Vendor.IsEmpty() then begin
+            Vendor.Reset();
+            Vendor.SetRange(Name, PurchHeaderStaging.supplier_name);
+            MissingSource := true;
+        end;
         if Vendor.FindFirst() then begin
             if GetVendorDetails(PurchHeaderStaging.supplier_name, VendorObj) then
                 if UpdateVendorFromJson(Vendor, VendorObj) then
-                    Vendor.Modify(true);
+                    Update := true;
             if Vendor."Tax Area Code" = '' then begin
                 Vendor.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
-                Vendor.Modify(true);
+                Update := true;
             end;
+            if MissingSource then begin
+                Vendor.Validate("EE Source Type", Vendor."EE Source Type"::Fleetrock);
+                Vendor.Validate("EE Source No.", PurchHeaderStaging.supplier_name);
+                Update := true;
+            end;
+            if Update then
+                Vendor.Modify(true);
             exit(Vendor."No.");
         end;
 
