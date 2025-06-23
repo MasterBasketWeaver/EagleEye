@@ -9,6 +9,11 @@ pageextension 80152 "EEC Purchase Payables Setup" extends "Purchases & Payables 
                 ApplicationArea = all;
                 ToolTip = 'Specifies the ACH payment method code for vendors with at least one bank account assigned.';
             }
+            field("EEC Check Payment Method"; Rec."EEC Check Payment Method")
+            {
+                ApplicationArea = all;
+                ToolTip = 'Specifies the check payment method code for vendors with no bank accounts assigned.';
+            }
             field("EE Default Payment Terms"; Rec."EEC Default Payment Terms")
             {
                 ApplicationArea = all;

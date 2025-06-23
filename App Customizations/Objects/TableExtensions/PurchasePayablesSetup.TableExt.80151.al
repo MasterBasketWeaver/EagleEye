@@ -27,5 +27,11 @@ tableextension 80151 "EEC Purchase Payables Setup" extends "Purchases & Payables
             Caption = 'Default Payment Method';
             TableRelation = "Payment Method".Code;
         }
+        field(80154; "EEC Check Payment Method"; Code[10])
+        {
+            DataClassification = CustomerContent;
+            Caption = 'Check Payment Method';
+            TableRelation = "Payment Method".Code;
+        }
     }
 }

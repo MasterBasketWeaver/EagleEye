@@ -54,7 +54,7 @@ codeunit 80150 "EEC Custom Subscribers"
         Vendor: Record Vendor;
     begin
         if Vendor.Get(Rec."Vendor No.") then
-            UpdateVendorDefaultPaymentMethod(Vendor);
+            UpdateVendorACHPaymentMethod(Vendor);
     end;
 
     [EventSubscriber(ObjectType::Table, Database::"Vendor Bank Account", OnAfterModifyEvent, '', false, false)]
@@ -63,16 +63,35 @@ codeunit 80150 "EEC Custom Subscribers"
         Vendor: Record Vendor;
     begin
         if Vendor.Get(Rec."Vendor No.") then
-            UpdateVendorDefaultPaymentMethod(Vendor);
+            UpdateVendorACHPaymentMethod(Vendor);
     end;
 
-    local procedure UpdateVendorDefaultPaymentMethod(var Vendor: Record Vendor)
+    [EventSubscriber(ObjectType::Table, Database::"Vendor Bank Account", OnAfterDeleteEvent, '', false, false)]
+    local procedure VendorBankAccountOnAfterDeleteEvent(var Rec: Record "Vendor Bank Account")
+    var
+        Vendor: Record Vendor;
+    begin
+        if Vendor.Get(Rec."Vendor No.") then
+            UpdateVendorCheckPaymentMethod(Vendor);
+    end;
+
+    local procedure UpdateVendorACHPaymentMethod(var Vendor: Record Vendor)
     var
         PurchPayableSetup: Record "Purchases & Payables Setup";
     begin
-        if PurchPayableSetup.Get() and (PurchPayableSetup."EEC ACH Payment Method" <> '') then begin
+        if PurchPayableSetup.Get() and (PurchPayableSetup."EEC ACH Payment Method" <> '') and (Vendor."Payment Method Code" <> PurchPayableSetup."EEC ACH Payment Method") then begin
             Vendor.Validate("Payment Method Code", PurchPayableSetup."EEC ACH Payment Method");
-            Vendor.Modify(true);
+            Vendor.Modify(false);
+        end;
+    end;
+
+    local procedure UpdateVendorCheckPaymentMethod(var Vendor: Record Vendor)
+    var
+        PurchPayableSetup: Record "Purchases & Payables Setup";
+    begin
+        if PurchPayableSetup.Get() and (PurchPayableSetup."EEC Check Payment Method" <> '') and (Vendor."Payment Method Code" <> PurchPayableSetup."EEC Check Payment Method") then begin
+            Vendor.Validate("Payment Method Code", PurchPayableSetup."EEC Check Payment Method");
+            Vendor.Modify(false);
         end;
     end;
 
@@ -138,10 +157,20 @@ codeunit 80150 "EEC Custom Subscribers"
     end;
 
     [EventSubscriber(ObjectType::Table, Database::"Purchase Header", OnAfterModifyEvent, '', false, false)]
-    local procedure PurchaseHeaderOnAfterModifyEvent(var Rec: Record "Purchase Header")
+    local procedure PurchaseHeaderOnAfterModifyEvent(var Rec: Record "Purchase Header"; RunTrigger: Boolean)
+    var
+        PurchPaySetup: Record "Purchases & Payables Setup";
     begin
+        if not RunTrigger then
+            exit;
         CheckToSetDefaultPaymentTerms(Rec);
-        // CheckToSetDefaultPaymentMethod(Rec);
+        if Rec."Payment Terms Code" = '' then begin
+            PurchPaySetup.Get();
+            if PurchPaySetup."EEC Default Payment Terms" <> '' then
+                Rec.Validate("Payment Terms Code", PurchPaySetup."EEC Default Payment Terms");
+        end else
+            Rec.Validate("Payment Terms Code");
+        Rec.Modify(false);
     end;
 
     local procedure CheckToSetDefaultPaymentTerms(var PurchaseHeader: Record "Purchase Header")
@@ -233,12 +262,12 @@ codeunit 80150 "EEC Custom Subscribers"
                 Rec.Validate("Vendor Posting Group", PurchPaySetup."EEC Default Vend. Post. Group");
                 Updated := true;
             end;
-        if Rec."Payment Terms Code" = '' then
+        if Rec."Payment Terms Code" <> '' then
             if PurchPaySetup."EEC Default Payment Terms" <> '' then begin
                 Rec.Validate("Payment Terms Code", PurchPaySetup."EEC Default Payment Terms");
                 Updated := true;
             end;
-        if Rec."Payment Terms Code" = '' then
+        if Rec."Payment Method Code" = '' then
             if PurchPaySetup."EEC Default Payment Method" <> '' then begin
                 Rec.Validate("Payment Terms Code", PurchPaySetup."EEC Default Payment Method");
                 Updated := true;
@@ -246,6 +275,22 @@ codeunit 80150 "EEC Custom Subscribers"
         if Updated then
             Rec.Modify(true);
     end;
+
+    [EventSubscriber(ObjectType::Table, Database::Vendor, OnAfterModifyEvent, '', false, false)]
+    local procedure VendorOnAfterModify(var Rec: Record Vendor; RunTrigger: Boolean)
+    var
+        PurchPaySetup: Record "Purchases & Payables Setup";
+        VendorBankAccount: Record "Vendor Bank Account";
+    begin
+        if Rec.IsTemporary or not RunTrigger then
+            exit;
+        VendorBankAccount.SetRange("Vendor No.", Rec."No.");
+        if VendorBankAccount.IsEmpty() then
+            UpdateVendorCheckPaymentMethod(Rec)
+        else
+            UpdateVendorACHPaymentMethod(Rec);
+    end;
+
 
 
 

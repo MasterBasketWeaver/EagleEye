@@ -41,17 +41,20 @@ codeunit 80151 "EEC Upgrade"
         ItemLedgerEntry: Record "Item Ledger Entry";
         VendorLedgerEntry: Record "Vendor Ledger Entry";
         DtldVendorLedgerEntry: Record "Detailed Vendor Ledg. Entry";
+        VATEntry: Record "VAT Entry";
         CancelledDocument: Record "Cancelled Document";
     begin
         if CompanyName() <> 'EER Delete Entries' then
             exit;
         GLEntry.SetFilter("Transaction No.", '%1..%2|%3..%4', 257, 260, 267, 270);
         GLEntry.DeleteAll(false);
+        VATEntry.SetFilter("Transaction No.", '%1..%2|%3..%4', 257, 260, 267, 270);
+        VATEntry.DeleteAll(false);
         ValueEntry.SetFilter("Entry No.", '%1..%2|%3..%4', 443, 445, 453, 455);
         ValueEntry.DeleteAll(false);
         ItemLedgerEntry.SetFilter("Entry No.", '%1..%2|%3..%4', 441, 443, 451, 453);
         ItemLedgerEntry.DeleteAll(false);
-        VendorLedgerEntry.SetRange("Transaction No.", 268);
+        VendorLedgerEntry.SetFilter("Transaction No.", '%1|%2', 268, 270);
         if VendorLedgerEntry.FindSet(true) then
             repeat
                 DtldVendorLedgerEntry.SetRange("Vendor Ledger Entry No.", VendorLedgerEntry."Entry No.");
