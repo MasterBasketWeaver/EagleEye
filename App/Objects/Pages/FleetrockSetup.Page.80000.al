@@ -25,6 +25,12 @@ page 80000 "EE Fleetrock Setup"
                     field("Import Repairs as Purchases"; Rec."Import Repairs as Purchases")
                     {
                         ApplicationArea = all;
+                        ToolTip = 'If enabled, the Repair Orders will be imported as Purchase Orders.';
+                    }
+                    field("Import Vendor Details"; Rec."Import Vendor Details")
+                    {
+                        ApplicationArea = all;
+                        ToolTip = 'If enabled, the vendor details will be imported from Fleetrock and used to create a vendor account in Business Central.';
                     }
                 }
                 group("Repair Orders")

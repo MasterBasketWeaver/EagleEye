@@ -176,6 +176,11 @@ table 80000 "EE Fleetrock Setup"
             DataClassification = CustomerContent;
             Caption = 'Import Repair Orders with Vendor Account';
         }
+        field(100; "Import Vendor Details"; Boolean)
+        {
+            DataClassification = CustomerContent;
+            Caption = 'Import Vendor Details';
+        }
     }
 
     keys

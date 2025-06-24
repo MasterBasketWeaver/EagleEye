@@ -336,6 +336,9 @@ codeunit 80000 "EE Fleetrock Mgt."
             exit(Vendor."No.");
         end;
 
+        if not FleetrockSetup."Import Vendor Details" then
+            Error('Vendor %1 not found.', PurchHeaderStaging.supplier_name);
+
         InitVendor(PurchHeaderStaging, Vendor);
         if GetVendorDetails(PurchHeaderStaging.supplier_name, VendorObj) then
             UpdateVendorFromJson(Vendor, VendorObj);
