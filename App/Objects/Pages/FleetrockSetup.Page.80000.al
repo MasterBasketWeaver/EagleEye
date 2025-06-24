@@ -9,72 +9,83 @@ page 80000 "EE Fleetrock Setup"
     {
         area(Content)
         {
-            group("Purchase & Repair Mappings")
+
+            group("Purchase Orders")
             {
-                group("Purchase Orders")
+                field("Purchase Item No."; Rec."Purchase Item No.")
                 {
-                    field("Purchase Item No."; Rec."Purchase Item No.")
-                    {
-                        ApplicationArea = all;
-                        ShowMandatory = true;
-                    }
-                    field("Auto-post Purchase Orders"; Rec."Auto-post Purchase Orders")
-                    {
-                        ApplicationArea = all;
-                    }
-                    field("Import Repairs as Purchases"; Rec."Import Repairs as Purchases")
-                    {
-                        ApplicationArea = all;
-                        ToolTip = 'If enabled, the Repair Orders will be imported as Purchase Orders.';
-                    }
-                    field("Import Vendor Details"; Rec."Import Vendor Details")
-                    {
-                        ApplicationArea = all;
-                        ToolTip = 'If enabled, the vendor details will be imported from Fleetrock and used to create a vendor account in Business Central.';
-                    }
+                    ApplicationArea = all;
+                    ShowMandatory = true;
                 }
-                group("Repair Orders")
+                field("Auto-post Purchase Orders"; Rec."Auto-post Purchase Orders")
                 {
-                    field("Internal Customer Name"; Rec."Internal Customer Names")
-                    {
-                        ApplicationArea = all;
-                    }
-                    field("Internal Labor Item No."; Rec."Internal Labor Item No.")
-                    {
-                        ApplicationArea = all;
-                        ShowMandatory = true;
-                    }
-                    field("Internal Parts Item No."; Rec."Internal Parts Item No.")
-                    {
-                        ApplicationArea = all;
-                        ShowMandatory = true;
-                    }
-                    field("External Labor Item No."; Rec."External Labor Item No.")
-                    {
-                        ApplicationArea = all;
-                        ShowMandatory = true;
-                    }
-                    field("External Parts Item No."; Rec."External Parts Item No.")
-                    {
-                        ApplicationArea = all;
-                        ShowMandatory = true;
-                    }
-                    field("Labor Cost"; Rec."Labor Cost")
-                    {
-                        ApplicationArea = all;
-                    }
-                    field("Additional Fee's G/L No."; Rec."Additional Fee's G/L No.")
-                    {
-                        ApplicationArea = all;
-                    }
-                    field("Auto-post Repair Orders"; Rec."Auto-post Repair Orders")
-                    {
-                        ApplicationArea = all;
-                    }
-                    field("Import Repair with Vendor"; Rec."Import Repair with Vendor")
-                    {
-                        ApplicationArea = all;
-                    }
+                    ApplicationArea = all;
+                }
+                field("Import Repairs as Purchases"; Rec."Import Repairs as Purchases")
+                {
+                    ApplicationArea = all;
+                    ToolTip = 'If enabled, the Repair Orders will be imported as Purchase Orders.';
+                }
+                field("Import Vendor Details"; Rec."Import Vendor Details")
+                {
+                    ApplicationArea = all;
+                    ToolTip = 'If enabled, the vendor details will be imported from Fleetrock and used to create a vendor account in Business Central.';
+                }
+            }
+            group("Repair Orders")
+            {
+                field("Internal Customer Name"; Rec."Internal Customer Names")
+                {
+                    ApplicationArea = all;
+                }
+                field("Internal Labor Item No."; Rec."Internal Labor Item No.")
+                {
+                    ApplicationArea = all;
+                    ShowMandatory = true;
+                }
+                field("Internal Parts Item No."; Rec."Internal Parts Item No.")
+                {
+                    ApplicationArea = all;
+                    ShowMandatory = true;
+                }
+                field("External Labor Item No."; Rec."External Labor Item No.")
+                {
+                    ApplicationArea = all;
+                    ShowMandatory = true;
+                }
+                field("External Parts Item No."; Rec."External Parts Item No.")
+                {
+                    ApplicationArea = all;
+                    ShowMandatory = true;
+                }
+                field("Labor Cost"; Rec."Labor Cost")
+                {
+                    ApplicationArea = all;
+                }
+                field("Additional Fee's G/L No."; Rec."Additional Fee's G/L No.")
+                {
+                    ApplicationArea = all;
+                }
+                field("Auto-post Repair Orders"; Rec."Auto-post Repair Orders")
+                {
+                    ApplicationArea = all;
+                }
+                field("Import Repair with Vendor"; Rec."Import Repair with Vendor")
+                {
+                    ApplicationArea = all;
+                }
+            }
+            group(Claims)
+            {
+                field("Claims Journal Template"; Rec."Claims Journal Template")
+                {
+                    ApplicationArea = all;
+                    Caption = 'Journal Template';
+                }
+                field("Claims Journal Batch"; Rec."Claims Journal Batch")
+                {
+                    ApplicationArea = all;
+                    Caption = 'Journal Batch';
                 }
             }
 

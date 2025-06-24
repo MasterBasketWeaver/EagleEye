@@ -1,9 +1,10 @@
-table 80002 "EE Purch. Line Staging"
+table 80008 "EE Claim Line"
 {
     DataClassification = CustomerContent;
-    Caption = 'Purch. Line Staging';
-    LookupPageId = "EE Staged Purchased Lines";
-    DrillDownPageId = "EE Staged Purchased Lines";
+    Caption = 'Claim Line';
+    LookupPageId = "EE Staged Claim Lines";
+    DrillDownPageId = "EE Staged Claim Lines";
+
 
     fields
     {
@@ -16,64 +17,64 @@ table 80002 "EE Purch. Line Staging"
         {
             DataClassification = CustomerContent;
             Editable = false;
-            TableRelation = "EE Purch. Header Staging"."Entry No.";
+            TableRelation = "EE Claim Header"."Entry No.";
         }
-        field(10; "Header id"; Text[20])
+        field(3; "Header id"; Text[100])
         {
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(11; part_id; Text[20])
+        field(11; "type"; Text[100])
         {
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(12; part_number; Text[50])
+        field(12; "ro_id"; Text[100])
         {
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(13; part_description; Text[250])
+        field(13; "task_id"; Text[100])
         {
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(14; part_system_code; Text[50])
+        field(14; "task_part_id"; Text[100])
         {
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(15; part_type; Text[50])
+        field(15; "part_id"; Text[100])
         {
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(16; tag; Text[50])
+        field(16; "system_component_code"; Text[100])
         {
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(17; part_quantity; Decimal)
+        field(17; "description"; Text[100])
         {
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(18; unit_price; Decimal)
+        field(18; "quantity"; Decimal)
         {
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(19; line_total; Decimal)
+        field(19; "unit_price"; Decimal)
         {
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(20; date_added; Text[50])
+        field(20; "claim_amount"; Decimal)
         {
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(50; "Added"; DateTime)
+        field(21; "amount_paid"; Decimal)
         {
             DataClassification = CustomerContent;
             Editable = false;
@@ -88,20 +89,4 @@ table 80002 "EE Purch. Line Staging"
         }
         key(K2; "Header id", "Header Entry No.") { }
     }
-
-    trigger OnInsert()
-    begin
-        FormatDateValues();
-    end;
-
-    procedure FormatDateValues()
-    var
-        TypeHelper: Codeunit "Type Helper";
-        TimezoneOffset: Duration;
-    begin
-        Rec.Added := 0DT;
-        if Rec.date_added <> '' then
-            if Evaluate(Rec.Added, Rec.date_added) then
-                Rec.Added := Rec.Added + TimezoneOffset;
-    end;
 }

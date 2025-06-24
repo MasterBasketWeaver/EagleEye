@@ -179,7 +179,16 @@ table 80000 "EE Fleetrock Setup"
         field(100; "Import Vendor Details"; Boolean)
         {
             DataClassification = CustomerContent;
-            Caption = 'Import Vendor Details';
+        }
+        field(110; "Claims Journal Template"; Code[20])
+        {
+            DataClassification = CustomerContent;
+            TableRelation = "Gen. Journal Template".Name;
+        }
+        field(111; "Claims Journal Batch"; Code[20])
+        {
+            DataClassification = CustomerContent;
+            TableRelation = "Gen. Journal Batch".Name where("Journal Template Name" = field("Claims Journal Template"));
         }
     }
 

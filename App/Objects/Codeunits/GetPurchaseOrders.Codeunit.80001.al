@@ -1,8 +1,8 @@
 codeunit 80001 "EE Get Purchase Orders"
 {
     TableNo = "Job Queue Entry";
-    Permissions = tabledata "EE Fleetrock Setup" = r,
-    tabledata "EE Import/Export Entry" = r;
+    Permissions = tabledata "EE Fleetrock Setup" = R,
+    tabledata "EE Import/Export Entry" = R;
 
 
     trigger OnRun()

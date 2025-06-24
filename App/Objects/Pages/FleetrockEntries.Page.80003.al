@@ -55,6 +55,7 @@ page 80003 "EE Fleetrock Entries"
                     var
                         PurchHeaderStaging: Record "EE Purch. Header Staging";
                         SalesHeaderStaging: Record "EE Sales Header Staging";
+                        ClaimHeader: Record "EE Claim Header";
                     begin
                         if Rec."Import Entry No." <> 0 then
                             case Rec."Document Type" of
@@ -67,6 +68,9 @@ page 80003 "EE Fleetrock Entries"
                                             Page.Run(Page::"EE Staged Purchased Headers", PurchHeaderStaging)
                                         else
                                             Page.Run(0, SalesHeaderStaging);
+                                Rec."Document Type"::Claim:
+                                    if ClaimHeader.Get(Rec."Import Entry No.") then
+                                        Page.Run(Page::"EE Staged Claim Headers", ClaimHeader);
                             end;
                     end;
                 }

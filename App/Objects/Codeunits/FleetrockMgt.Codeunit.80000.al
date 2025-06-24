@@ -1,23 +1,25 @@
 codeunit 80000 "EE Fleetrock Mgt."
 {
-    Permissions = tabledata "EE Fleetrock Setup" = rimd,
-    tabledata "EE Purch. Header Staging" = rimd,
-    tabledata "EE Purch. Line Staging" = rimd,
-    tabledata "EE Import/Export Entry" = rimd,
-    tabledata "EE Sales Header Staging" = rimd,
-    tabledata "EE Task Line Staging" = rimd,
-    tabledata "EE Part Line Staging" = rimd,
-    tabledata "Purchase Header" = rimd,
-    tabledata "Purchase Line" = rimd,
-    tabledata "Sales Header" = rimd,
-    tabledata "Sales Line" = rimd,
-    tabledata "Vendor" = rimd,
-    tabledata "Payment Terms" = rimd,
-    tabledata "G/L Account" = rimd,
-    tabledata "Purch. Inv. Header" = rm,
-    tabledata "Purch. Inv. Line" = rm,
-    tabledata "Sales Invoice Header" = rm,
-    tabledata "Sales Invoice Line" = rm;
+    Permissions = tabledata "EE Fleetrock Setup" = RIMD,
+    tabledata "EE Purch. Header Staging" = RIMD,
+    tabledata "EE Purch. Line Staging" = RIMD,
+    tabledata "EE Import/Export Entry" = RIMD,
+    tabledata "EE Sales Header Staging" = RIMD,
+    tabledata "EE Task Line Staging" = RIMD,
+    tabledata "EE Part Line Staging" = RIMD,
+    tabledata "Purchase Header" = RIMD,
+    tabledata "Purchase Line" = RIMD,
+    tabledata "Sales Header" = RIMD,
+    tabledata "Sales Line" = RIMD,
+    tabledata "Vendor" = RIMD,
+    tabledata "Payment Terms" = RIMD,
+    tabledata "G/L Account" = RIMD,
+    tabledata "Purch. Inv. Header" = RM,
+    tabledata "Purch. Inv. Line" = RM,
+    tabledata "Sales Invoice Header" = RM,
+    tabledata "Sales Invoice Line" = RM,
+    tabledata "EE Claim Header" = RIMD,
+    tabledata "EE Claim Line" = RIMD;
 
 
 
@@ -680,7 +682,7 @@ codeunit 80000 "EE Fleetrock Mgt."
     begin
         if PaymentTermsDays <= 0 then
             Error('Payment Term Days must be greater than zero: %1.', PaymentTermsDays);
-        Evaluate(DateForm, StrSubstNo('<%1D>', PaymentTermsDays));
+        Evaluate(DateFoRM, StrSubstNo('<%1D>', PaymentTermsDays));
         PaymentTerms.SetRange("Due Date Calculation", DateForm);
         PaymentTerms.SetFilter(Code, '%1|%2', StrSubstNo('NET%1', PaymentTermsDays), StrSubstNo('%1 DAYS', PaymentTermsDays));
         if PaymentTerms.FindFirst() then
@@ -1812,6 +1814,217 @@ codeunit 80000 "EE Fleetrock Mgt."
             until TaskLineStaging.Next() = 0;
         end;
     end;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    procedure CheckClaimSetup()
+    begin
+        FleetrockSetup.TestField("Claims Journal Template");
+        FleetrockSetup.TestField("Claims Journal Batch");
+    end;
+
+
+    [TryFunction]
+    procedure TryToGetClaims(StartDateTime: DateTime; Status: Enum "EE Event Type"; var ClaimsJsonArray: JsonArray; var URL: Text; UseVendorcAccount: Boolean)
+    begin
+        ClaimsJsonArray := GetClaims(StartDateTime, Status, URL, UseVendorcAccount);
+    end;
+
+    procedure GetClaims(StartDateTime: DateTime; Status: Enum "EE Event Type"; var URL: Text; UseVendorcAccount: Boolean): JsonArray
+    var
+        APIToken, UserName : Text;
+        EndDateTime: DateTime;
+    begin
+        GetEventParameters(APIToken, StartDateTime, EndDateTime, UseVendorcAccount);
+        CheckClaimSetup();
+        if UseVendorcAccount then
+            UserName := FleetrockSetup."Vendor Username"
+        else
+            UserName := FleetrockSetup.Username;
+        URL := StrSubstNo('%1/API/GetClaims?username=%2&Status=%3&token=%4', FleetrockSetup."Integration URL", UserName, Status, APIToken);
+        exit(RestAPIMgt.GetResponseAsJsonArray(URL, 'claims'));
+    end;
+
+    procedure GetAndImportClaim(ID: Text; UseVendorcAccount: Boolean)
+    var
+        GetRepairOrdersCU: Codeunit "EE Get Repair Orders";
+        JsonArray, JsonArray2 : JsonArray;
+        JTkn: JsonToken;
+        JObjt: JsonObject;
+        StartDateTime, EndDateTime : DateTime;
+        APIToken, URL, Username : Text;
+    begin
+        StartDateTime := CurrentDateTime();
+        GetEventParameters(APIToken, StartDateTime, EndDateTime, UseVendorcAccount);
+        CheckClaimSetup();
+        if UseVendorcAccount then
+            UserName := FleetrockSetup."Vendor Username"
+        else
+            UserName := FleetrockSetup.Username;
+        URL := StrSubstNo('%1/API/GetClaims?username=%2&ID=%3&token=%4', FleetrockSetup."Integration URL", UserName, ID, APIToken);
+        JsonArray := RestAPIMgt.GetResponseAsJsonArray(URL, 'claims');
+
+        foreach JTkn in JsonArray do begin
+            JObjt := JTkn.AsObject();
+            if JsonMgt.GetJsonValueAsText(JObjt, 'id') = ID then begin
+                JsonArray2.Add(JObjt);
+                //TODO
+                // GetRepairOrdersCU.ImportRepairOrders(JsonArray2, Enum::"EE Repair Order Status"::Invoiced, Enum::"EE Event Type"::"Manual Import", URL);
+                Error('NOT IMPLEMENTED: Importing claims is not yet implemented.');
+                exit;
+            end;
+        end;
+
+        Error('Claim with ID "%1" not found.', ID);
+    end;
+
+
+
+
+
+
+
+    [TryFunction]
+    procedure TryToInsertClaimStagingRecords(var OrderJsonObj: JsonObject; var ImportEntryNo: Integer)
+    begin
+        ImportEntryNo := InsertClaimStagingRecords(OrderJsonObj);
+    end;
+
+    procedure InsertClaimStagingRecords(var OrderJsonObj: JsonObject): Integer
+    var
+        ClaimHeader: Record "EE Claim Header";
+        EntryNo: Integer;
+    begin
+        if not TryToInsertClaimsStaging(OrderJsonObj, EntryNo) then begin
+            if not ClaimHeader.Get(EntryNo) then begin
+                ClaimHeader.Init();
+                ClaimHeader."Entry No." := EntryNo;
+                ClaimHeader.Insert(true);
+            end;
+            ClaimHeader."Import Error" := true;
+            ClaimHeader."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(ClaimHeader."Error Message"));
+            ClaimHeader.Modify(true);
+            exit(EntryNo);
+        end;
+        ClaimHeader.Get(EntryNo);
+        CreateClaimGenJournalLines(ClaimHeader);
+        exit(EntryNo);
+    end;
+
+    [TryFunction]
+    local procedure TryToInsertClaimsStaging(var OrderJsonObj: JsonObject; var EntryNo: Integer)
+    var
+        ClaimHeader: Record "EE Claim Header";
+        ClaimLine: Record "EE Claim Line";
+        UnitCosts: Dictionary of [Text, Decimal];
+        TaskLines, PartLines : JsonArray;
+        TaskLineJsonObj, PartLineJsonObj, PartObj : JsonObject;
+        T: JsonToken;
+        RecVar: Variant;
+        APIToken, VendorAPIToken : Text;
+        LineEntryNo: Integer;
+    begin
+        ClaimHeader.LockTable();
+        if ClaimHeader.FindLast() then
+            EntryNo := ClaimHeader."Entry No.";
+        EntryNo += 1;
+        ClaimHeader.Init();
+        ClaimHeader."Entry No." := EntryNo;
+        RecVar := ClaimHeader;
+        PopulateStagingTable(RecVar, OrderJsonObj, Database::"EE Claim Header", ClaimHeader.FieldNo(id));
+        ClaimHeader := RecVar;
+        ClaimHeader.Insert(true);
+
+        if not OrderJsonObj.Get('line_items', T) then
+            exit;
+        TaskLines := T.AsArray();
+        if TaskLines.Count() = 0 then
+            exit;
+        ClaimLine.LockTable();
+        if ClaimLine.FindLast() then
+            LineEntryNo := ClaimLine."Entry No.";
+        foreach T in TaskLines do begin
+            LineEntryNo += 1;
+            TaskLineJsonObj := T.AsObject();
+            ClaimLine.Init();
+            ClaimLine."Entry No." := LineEntryNo;
+            ClaimLine."Header Entry No." := ClaimHeader."Entry No.";
+            ClaimLine."Header Id" := ClaimHeader.id;
+            RecVar := ClaimLine;
+            PopulateStagingTable(RecVar, TaskLineJsonObj, Database::"EE Claim Line", ClaimLine.FieldNo("type"));
+            ClaimLine := RecVar;
+            ClaimLine.Insert(true);
+        end;
+    end;
+
+
+    procedure CreateClaimGenJournalLines(var ClaimHeader: Record "EE Claim Header")
+    var
+        GenJournalLine: Record "Gen. Journal Line";
+        ClaimLine: Record "EE Claim Line";
+        LineNo: Integer;
+    begin
+        ClaimLine.SetRange("Header Entry No.", ClaimHeader."Entry No.");
+        if not ClaimLine.FindSet() then
+            exit;
+
+        GenJournalLine.SetRange("Journal Template Name", FleetrockSetup."Claims Journal Template");
+        GenJournalLine.SetRange("Journal Batch Name", FleetrockSetup."Claims Journal Batch");
+        if GenJournalLine.FindLast() then
+            LineNo := GenJournalLine."Line No.";
+
+        repeat
+            LineNo += 10000;
+            GenJournalLine.Init();
+            GenJournalLine.Validate("Journal Template Name", FleetrockSetup."Claims Journal Template");
+            GenJournalLine.Validate("Journal Batch Name", FleetrockSetup."Claims Journal Batch");
+            GenJournalLine.Validate("Line No.", LineNo);
+            GenJournalLine.Validate("Document Type", GenJournalLine."Document Type"::Invoice);
+            GenJournalLine.Validate("Document No.", ClaimHeader.id);
+            GenJournalLine.Validate("Amount (LCY)", ClaimLine.quantity * ClaimLine.unit_price);
+            GenJournalLine.Validate("Job Unit Cost (LCY)", ClaimLine.unit_price);
+            GenJournalLine.Description := CopyStr(ClaimLine.description, 1, MaxStrLen(GenJournalLine.Description));
+            GenJournalLine.Insert(true);
+        until ClaimLine.Next() = 0;
+    end;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

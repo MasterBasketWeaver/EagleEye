@@ -50,6 +50,7 @@ codeunit 80005 "EE Json Mgt."
     var
         T: JsonToken;
         V: JsonValue;
+        Result: DateTime;
     begin
         if not JsonObj.Get(KeyName, T) then
             exit(0DT);
@@ -58,6 +59,19 @@ codeunit 80005 "EE Json Mgt."
             exit(0DT);
         if Format(V) = '""' then
             exit(0DT);
-        exit(V.AsDateTime());
+        if not TryToConvrtJsonToDateTime(V, Result) then
+            exit(0DT);
+        exit(Result);
+    end;
+
+    [TryFunction]
+    local procedure TryToConvrtJsonToDateTime(var V: JsonValue; var Result: DateTime)
+    var
+        s: Text;
+    begin
+        V.WriteTo(s);
+        if Evaluate(Result, s.Replace('"', '')) then
+            exit;
+        Result := V.AsDateTime();
     end;
 }
