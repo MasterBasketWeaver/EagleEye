@@ -29,8 +29,7 @@ codeunit 80151 "EEC Upgrade"
         // SetVendorPaymentTerms();
         // CancelInvalidInvoices();
         // RefreshPostingNumbers();
-
-        RemoveInvalidEntries();
+        // RemoveInvalidEntries();
     end;
 
 
@@ -44,7 +43,7 @@ codeunit 80151 "EEC Upgrade"
         VATEntry: Record "VAT Entry";
         CancelledDocument: Record "Cancelled Document";
     begin
-        if CompanyName() <> 'EER Delete Entries' then
+        if CompanyName() <> 'Test - Diesel Repair Shop' then
             exit;
         GLEntry.SetFilter("Transaction No.", '%1..%2|%3..%4', 257, 260, 267, 270);
         GLEntry.DeleteAll(false);
@@ -66,6 +65,8 @@ codeunit 80151 "EEC Upgrade"
         DeletePurchRcptTables('107061');
         DeletePurchInvTables('PPINV000069');
         DeletePurchInvTables('PPINV000071');
+        DeletePurchCrMemoTables('PPCM0000004');
+        DeletePurchCrMemoTables('PPCM0000006');
 
         if CancelledDocument.Get(Database::"Cancelled Document", 'PPINV000069') then
             CancelledDocument.Delete(false);
@@ -105,6 +106,22 @@ codeunit 80151 "EEC Upgrade"
         PurchInvHeader.Delete(false);
     end;
 
+
+    local procedure DeletePurchCrMemoTables(DocNo: Code[20])
+    var
+        PurchCrMemoHeader: Record "Purch. Cr. Memo Hdr.";
+        PurchCrMemoLine: Record "Purch. Cr. Memo Line";
+        PurchCommentLine: Record "Purch. Comment Line";
+    begin
+        if not PurchCrMemoHeader.Get(DocNo) then
+            exit;
+        PurchCrMemoLine.SetRange("Document No.", PurchCrMemoHeader."No.");
+        PurchCrMemoLine.DeleteAll(true);
+        PurchCommentLine.SetRange("Document Type", PurchCommentLine."Document Type"::"Posted Credit Memo");
+        PurchCommentLine.SetRange("No.", PurchCrMemoHeader."No.");
+        PurchCommentLine.DeleteAll();
+        PurchCrMemoHeader.Delete(false);
+    end;
 
 
 
