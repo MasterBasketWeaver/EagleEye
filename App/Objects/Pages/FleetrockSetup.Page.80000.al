@@ -325,6 +325,8 @@ page 80000 "EE Fleetrock Setup"
                 PromotedIsBig = true;
                 PromotedOnly = true;
                 Image = DeleteAllBreakpoints;
+                Enabled = not IsProduction;
+                Visible = not IsProduction;
 
                 trigger OnAction()
                 var
@@ -341,6 +343,8 @@ page 80000 "EE Fleetrock Setup"
                     PurchRcptHeader: Record "Purch. Rcpt. Header";
                     PurchInvHeader: Record "Purch. Inv. Header";
                 begin
+                    if IsProduction then
+                        Error('Cannot clear logs in production environment.');
                     if not Confirm('Delete all log entries?') then
                         exit;
                     ImportExportEntry.DeleteAll(false);
@@ -385,5 +389,15 @@ page 80000 "EE Fleetrock Setup"
             Rec.Init();
             Rec.Insert(true);
         end;
+    end;
+
+    var
+        IsProduction: Boolean;
+
+    trigger OnInit()
+    var
+        EnvInfo: Codeunit "Environment Information";
+    begin
+        IsProduction := EnvInfo.IsProduction();
     end;
 }

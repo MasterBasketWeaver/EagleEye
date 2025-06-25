@@ -176,9 +176,13 @@ page 80003 "EE Fleetrock Entries"
                 PromotedCategory = Process;
                 PromotedIsBig = true;
                 PromotedOnly = true;
+                Visible = not IsProduction;
+                Enabled = not IsProduction;
 
                 trigger OnAction()
                 begin
+                    if IsProduction then
+                        Error('Cannot delete entries in production environment.');
                     if not Confirm('Delete all invalid entries?') then
                         exit;
                     Rec.Reset();
@@ -200,9 +204,13 @@ page 80003 "EE Fleetrock Entries"
                 PromotedCategory = Process;
                 PromotedIsBig = true;
                 PromotedOnly = true;
+                Visible = not IsProduction;
+                Enabled = not IsProduction;
 
                 trigger OnAction()
                 begin
+                    if IsProduction then
+                        Error('Cannot delete entries in production environment.');
                     if not Confirm('Delete all entries?') then
                         exit;
                     Rec.Reset();
@@ -211,4 +219,14 @@ page 80003 "EE Fleetrock Entries"
             }
         }
     }
+
+    var
+        IsProduction: Boolean;
+
+    trigger OnInit()
+    var
+        EnvInfo: Codeunit "Environment Information";
+    begin
+        IsProduction := EnvInfo.IsProduction();
+    end;
 }
