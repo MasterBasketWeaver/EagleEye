@@ -27,9 +27,6 @@ codeunit 80010 "EE Get Claims"
             exit;
         end;
 
-        //TODO
-        StartDateTime := 0DT;
-
         if JsonArry.Count() <> 0 then
             ImportClaims(JsonArry, EventType, URL, StartDateTime);
     end;
