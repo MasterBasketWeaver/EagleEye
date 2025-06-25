@@ -14,19 +14,21 @@ codeunit 80010 "EE Get Claims"
         StartDateTime: DateTime;
         URL: Text;
     begin
+        EventType := Enum::"EE Event Type"::Closed;
         ImportEntry.SetRange("Document Type", ImportEntry."Document Type"::Claim);
         ImportEntry.SetRange("Event Type", EventType);
         ImportEntry.SetRange(Success, true);
         if ImportEntry.FindLast() then
             StartDateTime := ImportEntry.SystemCreatedAt;
 
-        EventType := Enum::"EE Event Type"::Closed;
         if not FleetRockMgt.TryToGetClaims(StartDateTime, EventType, JsonArry, URL, false) then begin
             FleetRockMgt.InsertImportEntry(false, 0, ImportEntry."Document Type"::Claim,
                 EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET');
             exit;
         end;
 
+        //TODO
+        StartDateTime := 0DT;
 
         if JsonArry.Count() <> 0 then
             ImportClaims(JsonArry, EventType, URL, StartDateTime);

@@ -87,6 +87,16 @@ page 80000 "EE Fleetrock Setup"
                     ApplicationArea = all;
                     Caption = 'Journal Batch';
                 }
+                field("Claims Parts G/L No."; Rec."Claims Parts G/L No.")
+                {
+                    ApplicationArea = all;
+                    Caption = 'Parts G/L No.';
+                }
+                field("Claims Labor G/L No."; Rec."Claims Labor G/L No.")
+                {
+                    ApplicationArea = all;
+                    Caption = 'Labor G/L No.';
+                }
             }
 
             group(Defaults)

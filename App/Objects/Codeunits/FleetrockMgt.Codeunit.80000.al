@@ -305,23 +305,40 @@ codeunit 80000 "EE Fleetrock Mgt."
         exit(VendorNo);
     end;
 
+
     local procedure GetVendorNoAndUpdate(var PurchHeaderStaging: Record "EE Purch. Header Staging"): Code[20]
+    begin
+        if PurchHeaderStaging.supplier_name = '' then
+            Error('supplier_name must be specified.');
+        exit(GetVendorNoAndUpdate(PurchHeaderStaging, PurchHeaderStaging.supplier_name, true));
+    end;
+
+    local procedure GetVendorNoAndUpdate(SupplierName: Text): Code[20]
+    var
+        PurchHeaderStaging: Record "EE Purch. Header Staging";
+    begin
+        if SupplierName = '' then
+            Error('supplier_name must be specified.');
+        if FleetrockSetup."Import Vendor Details" then
+            Error('Cannot get vendor details without related Purchase Staging Header if Vendor insert is enabled.\%1', SupplierName);
+        exit(GetVendorNoAndUpdate(PurchHeaderStaging, SupplierName, false));
+    end;
+
+    local procedure GetVendorNoAndUpdate(var PurchHeaderStaging: Record "EE Purch. Header Staging"; SupplierName: Text; ThrowError: Boolean): Code[20]
     var
         Vendor: Record Vendor;
         VendorObj: JsonObject;
         MissingSource, Update : Boolean;
     begin
-        if PurchHeaderStaging.supplier_name = '' then
-            Error('supplier_name must be specified.');
         Vendor.SetRange("EE Source Type", Vendor."EE Source Type"::Fleetrock);
-        Vendor.SetRange("EE Source No.", PurchHeaderStaging.supplier_name);
+        Vendor.SetRange("EE Source No.", SupplierName);
         if Vendor.IsEmpty() then begin
             Vendor.Reset();
-            Vendor.SetRange(Name, PurchHeaderStaging.supplier_name);
+            Vendor.SetRange(Name, SupplierName);
             MissingSource := true;
         end;
         if Vendor.FindFirst() then begin
-            if GetVendorDetails(PurchHeaderStaging.supplier_name, VendorObj) then
+            if GetVendorDetails(SupplierName, VendorObj) then
                 if UpdateVendorFromJson(Vendor, VendorObj) then
                     Update := true;
             if Vendor."Tax Area Code" = '' then begin
@@ -330,7 +347,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             end;
             if MissingSource then begin
                 Vendor.Validate("EE Source Type", Vendor."EE Source Type"::Fleetrock);
-                Vendor.Validate("EE Source No.", PurchHeaderStaging.supplier_name);
+                Vendor.Validate("EE Source No.", SupplierName);
                 Update := true;
             end;
             if Update then
@@ -339,10 +356,13 @@ codeunit 80000 "EE Fleetrock Mgt."
         end;
 
         if not FleetrockSetup."Import Vendor Details" then
-            Error('Vendor %1 not found.', PurchHeaderStaging.supplier_name);
+            if ThrowError then
+                Error('Vendor %1 not found.', SupplierName)
+            else
+                exit('');
 
         InitVendor(PurchHeaderStaging, Vendor);
-        if GetVendorDetails(PurchHeaderStaging.supplier_name, VendorObj) then
+        if GetVendorDetails(SupplierName, VendorObj) then
             UpdateVendorFromJson(Vendor, VendorObj);
         Vendor.Modify(true);
         exit(Vendor."No.");
@@ -409,6 +429,7 @@ codeunit 80000 "EE Fleetrock Mgt."
 
     local procedure InitVendor(var PurchHeaderStaging: Record "EE Purch. Header Staging"; var Vendor: Record Vendor)
     begin
+        PurchHeaderStaging.TestField("Entry No.");
         Vendor.Init();
         Vendor.Insert(true);
         Vendor.Validate(Name, PurchHeaderStaging.supplier_name);
@@ -1832,6 +1853,8 @@ codeunit 80000 "EE Fleetrock Mgt."
     begin
         FleetrockSetup.TestField("Claims Journal Template");
         FleetrockSetup.TestField("Claims Journal Batch");
+        FleetrockSetup.TestField("Claims Labor G/L No.");
+        FleetrockSetup.TestField("Claims Parts G/L No.");
     end;
 
 
@@ -1971,6 +1994,7 @@ codeunit 80000 "EE Fleetrock Mgt."
 
     procedure CreateClaimGenJournalLines(var ClaimHeader: Record "EE Claim Header")
     var
+        Vendor: Record Vendor;
         GenJournalLine: Record "Gen. Journal Line";
         ClaimLine: Record "EE Claim Line";
         LineNo: Integer;
@@ -1983,7 +2007,6 @@ codeunit 80000 "EE Fleetrock Mgt."
         GenJournalLine.SetRange("Journal Batch Name", FleetrockSetup."Claims Journal Batch");
         if GenJournalLine.FindLast() then
             LineNo := GenJournalLine."Line No.";
-
         repeat
             LineNo += 10000;
             GenJournalLine.Init();
@@ -1994,6 +2017,15 @@ codeunit 80000 "EE Fleetrock Mgt."
             GenJournalLine.Validate("Document No.", ClaimHeader.id);
             GenJournalLine.Validate("Amount (LCY)", ClaimLine.quantity * ClaimLine.unit_price);
             GenJournalLine.Validate("Job Unit Cost (LCY)", ClaimLine.unit_price);
+            GenJournalLine.Validate("Posting Date", DT2Date(ClaimHeader."Closed DateTime"));
+            GenJournalLine.Validate("Account Type", GenJournalLine."Account Type"::"G/L Account");
+            if ClaimLine.type = 'labor' then
+                GenJournalLine.Validate("Account No.", FleetrockSetup."Claims Labor G/L No.")
+            else
+                GenJournalLine.Validate("Account No.", FleetrockSetup."Claims Parts G/L No.");
+            GenJournalLine.Validate("Bal. Account Type", GenJournalLine."Bal. Account Type"::Vendor);
+            GenJournalLine.Validate("Bal. Account No.", GetVendorNoAndUpdate(ClaimHeader.supplier_name));
+            GenJournalLine.Validate("External Document No.", CopyStr(ClaimHeader.credit_number, 1, MaxStrLen(GenJournalLine."External Document No.")));
             GenJournalLine.Description := CopyStr(ClaimLine.description, 1, MaxStrLen(GenJournalLine.Description));
             GenJournalLine.Insert(true);
         until ClaimLine.Next() = 0;

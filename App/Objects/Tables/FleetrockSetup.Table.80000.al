@@ -116,7 +116,7 @@ table 80000 "EE Fleetrock Setup"
         field(40; "Additional Fee's G/L No."; Code[20])
         {
             DataClassification = CustomerContent;
-            TableRelation = "G/L Account"."No." where(Blocked = const(false), "Account Type" = const(Posting));
+            TableRelation = "G/L Account"."No." where(Blocked = const(false), "Account Type" = const(Posting), "Direct Posting" = const(true));
         }
         // field(41; "Administration G/L No."; Code[20])
         // {
@@ -189,6 +189,16 @@ table 80000 "EE Fleetrock Setup"
         {
             DataClassification = CustomerContent;
             TableRelation = "Gen. Journal Batch".Name where("Journal Template Name" = field("Claims Journal Template"));
+        }
+        field(115; "Claims Parts G/L No."; Code[20])
+        {
+            DataClassification = CustomerContent;
+            TableRelation = "G/L Account"."No." where(Blocked = const(false), "Account Type" = const(Posting), "Direct Posting" = const(true));
+        }
+        field(116; "Claims Labor G/L No."; Code[20])
+        {
+            DataClassification = CustomerContent;
+            TableRelation = "G/L Account"."No." where(Blocked = const(false), "Account Type" = const(Posting), "Direct Posting" = const(true));
         }
     }
 
