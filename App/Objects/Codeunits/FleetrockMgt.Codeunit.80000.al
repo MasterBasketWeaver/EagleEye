@@ -1384,9 +1384,9 @@ codeunit 80000 "EE Fleetrock Mgt."
             SalesHeaderStaging.Validate("Document No.", SalesHeader."No.");
             SalesHeaderStaging.Modify(true);
         end;
+
         SalesLine.SetRange("Document Type", SalesHeader."Document Type");
         SalesLine.SetRange("Document No.", SalesHeader."No.");
-
         if SalesLine.FindLast() then
             LineNo := SalesLine."Line No.";
         SalesLine.SetRange("EE Task/Part Id", GetFeesLineID());

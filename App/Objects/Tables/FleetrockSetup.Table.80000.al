@@ -176,6 +176,10 @@ table 80000 "EE Fleetrock Setup"
             DataClassification = CustomerContent;
             Caption = 'Import Repair Orders with Vendor Account';
         }
+        field(95; "Check Repair Order DateFormula"; DateFormula)
+        {
+            DataClassification = CustomerContent;
+        }
         field(100; "Import Vendor Details"; Boolean)
         {
             DataClassification = CustomerContent;

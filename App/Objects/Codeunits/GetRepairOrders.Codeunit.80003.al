@@ -13,7 +13,7 @@ codeunit 80003 "EE Get Repair Orders"
         OrderStatus: Enum "EE Repair Order Status";
         EventType: Enum "EE Event Type";
         JsonArry, VendorJsonArray : JsonArray;
-        StartDateTime: DateTime;
+
         URL: Text;
     begin
         if Rec."Parameter String" = 'invoiced' then begin
@@ -24,26 +24,36 @@ codeunit 80003 "EE Get Repair Orders"
             EventType := EventType::Started;
         end;
 
-        ImportEntry.SetRange("Document Type", ImportEntry."Document Type"::"Repair Order");
-        ImportEntry.SetRange("Event Type", EventType);
-        ImportEntry.SetRange(Success, true);
-        if ImportEntry.FindLast() then
-            StartDateTime := ImportEntry.SystemCreatedAt;
+        if not HasSetStartDateTime then begin
+            ImportEntry.SetRange("Document Type", ImportEntry."Document Type"::"Repair Order");
+            ImportEntry.SetRange("Event Type", EventType);
+            ImportEntry.SetRange(Success, true);
+            if ImportEntry.FindLast() then
+                StartDateTime := ImportEntry.SystemCreatedAt;
+        end;
 
-        if not FleetRockMgt.TryToGetRepairOrders(StartDateTime, OrderStatus, JsonArry, URL, false) then begin
+        if not FleetRockMgt.TryToGetRepairOrders(StartDateTime, OrderStatus, JsonArry, URL, false) then
             FleetRockMgt.InsertImportEntry(false, 0, ImportEntry."Document Type"::"Repair Order",
                 EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET');
-            exit;
-        end;
+
 
         FleetRockSetup.Get();
         if FleetRockSetup."Import Repair with Vendor" and (FleetRockSetup."Vendor API Key" <> '') then
-            if FleetRockMgt.TryToGetRepairOrders(StartDateTime, OrderStatus, VendorJsonArray, URL, true) then
+            if not FleetRockMgt.TryToGetRepairOrders(StartDateTime, OrderStatus, VendorJsonArray, URL, true) then
+                FleetRockMgt.InsertImportEntry(false, 0, ImportEntry."Document Type"::"Repair Order",
+                    EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET')
+            else
                 if (VendorJsonArray.Count() > 0) and (VendorJsonArray.Count() <> JsonArry.Count()) then
                     MergeJsonArrays(VendorJsonArray, JsonArry);
 
         if JsonArry.Count() <> 0 then
             ImportRepairOrders(JsonArry, OrderStatus, EventType, URL);
+    end;
+
+    procedure SetStartDateTime(var NewStartDateTime: DateTime)
+    begin
+        StartDateTime := NewStartDateTime;
+        HasSetStartDateTime := true;
     end;
 
 
@@ -104,11 +114,23 @@ codeunit 80003 "EE Get Repair Orders"
     local procedure ImportAsSalesInvoice(var FleetrockSetup: Record "EE Fleetrock Setup"; var OrderJsonObj: JsonObject; OrderStatus: Enum "EE Repair Order Status"; var ImportEntryNo: Integer; var LogEntry: Boolean): Boolean
     var
         SalesHeader: Record "Sales Header";
+        SalesInvHeader: Record "Sales Invoice Header";
         SalesHeaderStaging: Record "EE Sales Header Staging";
+        OrderId: Text;
         Success: Boolean;
     begin
         if OrderStatus = OrderStatus::invoiced then begin
             LogEntry := true;
+            if HasSetStartDateTime then begin
+                if not TryToGetOrderID(OrderJsonObj, OrderId) then
+                    exit(false);
+                SalesInvHeader.SetCurrentKey("EE Fleetrock ID");
+                SalesInvHeader.SetRange("EE Fleetrock ID", CopyStr(OrderId, 1, MaxStrLen(SalesInvHeader."EE Fleetrock ID")));
+                if not SalesInvHeader.IsEmpty() then begin
+                    LogEntry := false;
+                    exit(true);
+                end;
+            end;
             if FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, false) and SalesHeaderStaging.Get(ImportEntryNo) then begin
                 SalesHeader.SetCurrentKey("EE Fleetrock ID");
                 SalesHeader.SetRange("Document Type", SalesHeader."Document Type"::Invoice);
@@ -132,6 +154,16 @@ codeunit 80003 "EE Get Repair Orders"
                     Success := FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, true);
             end;
         exit(Success);
+    end;
+
+    [TryFunction]
+    local procedure TryToGetOrderID(var OrderJsonObj: JsonObject; var OrderId: Text)
+    begin
+        OrderId := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'id');
+        if OrderId = '' then begin
+            OrderJsonObj.WriteTo(OrderId);
+            Error('Repair Order ID is missing in the JSON object.\%1', OrderId);
+        end;
     end;
 
 
@@ -188,4 +220,6 @@ codeunit 80003 "EE Get Repair Orders"
         FleetRockMgt: Codeunit "EE Fleetrock Mgt.";
         GetPurchaseOrders: Codeunit "EE Get Purchase Orders";
         JsonMgt: Codeunit "EE Json Mgt.";
+        StartDateTime: DateTime;
+        HasSetStartDateTime: Boolean;
 }

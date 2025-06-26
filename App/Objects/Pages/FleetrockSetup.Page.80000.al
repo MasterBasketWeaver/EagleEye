@@ -4,6 +4,8 @@ page 80000 "EE Fleetrock Setup"
     ApplicationArea = all;
     UsageCategory = Administration;
     Caption = 'Fleetrock Setup';
+    Permissions = tabledata "Sales Invoice Header" = RIMD,
+    tabledata "Purch. Inv. Header" = RIMD;
 
     layout
     {
@@ -12,7 +14,8 @@ page 80000 "EE Fleetrock Setup"
 
             group("Purchase Orders")
             {
-                field("Purchase Item No."; Rec."Purchase Item No.")
+                field("Purchase Item No.";
+                Rec."Purchase Item No.")
                 {
                     ApplicationArea = all;
                     ShowMandatory = true;
@@ -71,6 +74,10 @@ page 80000 "EE Fleetrock Setup"
                     ApplicationArea = all;
                 }
                 field("Import Repair with Vendor"; Rec."Import Repair with Vendor")
+                {
+                    ApplicationArea = all;
+                }
+                field("Check Repair Order DateFormula"; Rec."Check Repair Order DateFormula")
                 {
                     ApplicationArea = all;
                 }
@@ -337,10 +344,10 @@ page 80000 "EE Fleetrock Setup"
                     TaskLineStaging: Record "EE Task Line Staging";
                     PartLineStaging: Record "EE Part Line Staging";
                     SalesHeader: Record "Sales Header";
-                    SalesShptHeader: Record "Sales Shipment Header";
+                    SalesLine: Record "Sales Line";
                     SalesInvHeader: Record "Sales Invoice Header";
                     PurchHeader: Record "Purchase Header";
-                    PurchRcptHeader: Record "Purch. Rcpt. Header";
+                    PurchLine: Record "Purchase Line";
                     PurchInvHeader: Record "Purch. Inv. Header";
                 begin
                     if IsProduction then
@@ -353,31 +360,29 @@ page 80000 "EE Fleetrock Setup"
                     SalesHeaderStaging.DeleteAll(false);
                     TaskLineStaging.DeleteAll(false);
                     PartLineStaging.DeleteAll(false);
-                    SalesHeader.SetRange("Document Type", SalesHeader."Document Type"::Invoice);
-                    SalesHeader.SetRange("Sell-to Customer No.", '');
-                    SalesHeader.DeleteAll(true);
-                    SalesHeader.Reset();
+
                     SalesHeader.SetFilter("EE Fleetrock ID", '<>%1', '');
-                    SalesHeader.DeleteAll(true);
+                    if SalesHeader.FindSet(true) then
+                        repeat
+                            SalesLine.SetRange("Document Type", SalesHeader."Document Type");
+                            SalesLine.SetRange("Document No.", SalesHeader."No.");
+                            SalesLine.DeleteAll(false);
+                        until SalesHeader.Next() = 0;
+                    SalesHeader.DeleteAll(false);
+
                     PurchHeader.SetFilter("EE Fleetrock ID", '<>%1', '');
-                    PurchHeader.DeleteAll(true);
+                    if PurchHeader.FindSet(true) then
+                        repeat
+                            PurchLine.SetRange("Document Type", PurchHeader."Document Type");
+                            PurchLine.SetRange("Document No.", PurchHeader."No.");
+                            PurchLine.DeleteAll(false);
+                        until PurchHeader.Next() = 0;
+                    PurchHeader.DeleteAll(false);
+
                     SalesInvHeader.SetFilter("EE Fleetrock ID", '<>%1', '');
-                    SalesShptHeader.SetCurrentKey("Order No.");
-                    if SalesInvHeader.FindSet() then
-                        repeat
-                            SalesShptHeader.SetRange("Order No.", SalesInvHeader."Order No.");
-                            SalesShptHeader.DeleteAll(true);
-                            SalesInvHeader."No. Printed" := 1;
-                            SalesInvHeader.Delete(true);
-                        until SalesInvHeader.Next() = 0;
+                    SalesInvHeader.ModifyAll("EE Fleetrock ID", '');
                     PurchInvHeader.SetFilter("EE Fleetrock ID", '<>%1', '');
-                    PurchRcptHeader.SetCurrentKey("Order No.");
-                    if PurchInvHeader.FindSet() then
-                        repeat
-                            PurchRcptHeader.SetRange("Order No.", PurchInvHeader."Order No.");
-                            PurchRcptHeader.DeleteAll(true);
-                            PurchInvHeader.Delete(true);
-                        until PurchInvHeader.Next() = 0;
+                    PurchInvHeader.ModifyAll("EE Fleetrock ID", '');
                 end;
             }
         }
