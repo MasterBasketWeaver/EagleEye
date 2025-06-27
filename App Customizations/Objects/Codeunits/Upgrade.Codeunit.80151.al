@@ -30,7 +30,7 @@ codeunit 80151 "EEC Upgrade"
         // CancelInvalidInvoices();
         // RefreshPostingNumbers();
         // RemoveInvalidEntries();
-        SetVendorPaymentMethod();
+        // SetVendorPaymentMethod();
     end;
 
 
