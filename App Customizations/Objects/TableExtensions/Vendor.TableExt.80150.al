@@ -13,5 +13,11 @@ tableextension 80150 "EEC Vendor2" extends Vendor
             Caption = 'Updated Payment Terms';
             Editable = false;
         }
+        field(80161; "EEC Updated Payment Method"; Boolean)
+        {
+            DataClassification = CustomerContent;
+            Caption = 'Updated Payment Method';
+            Editable = false;
+        }
     }
 }

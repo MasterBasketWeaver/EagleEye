@@ -30,6 +30,7 @@ codeunit 80151 "EEC Upgrade"
         // CancelInvalidInvoices();
         // RefreshPostingNumbers();
         // RemoveInvalidEntries();
+        SetVendorPaymentMethod();
     end;
 
 
@@ -169,5 +170,20 @@ codeunit 80151 "EEC Upgrade"
         if PurchPaySetup.Get() and (PurchPaySetup."EEC Default Payment Terms" <> '') then
             Vendor.SetFilter("Payment Terms Code", '<>%1', PurchPaySetup."EEC Default Payment Terms");
         Vendor.ModifyAll("EEC Updated Payment Terms", true);
+    end;
+
+    local procedure SetVendorPaymentMethod()
+    var
+        Vendor: Record Vendor;
+        PurchPaySetup: Record "Purchases & Payables Setup";
+    begin
+        Vendor.SetRange("EEC Updated Payment Method", true);
+        if not Vendor.IsEmpty() then
+            exit;
+        Vendor.SetFilter("Payment Method Code", '<>%1', '');
+        Vendor.SetRange("EEC Updated Payment Method");
+        if PurchPaySetup.Get() and (PurchPaySetup."EEC Default Payment Method" <> '') then
+            Vendor.SetFilter("Payment Method Code", '<>%1', PurchPaySetup."EEC Default Payment Method");
+        Vendor.ModifyAll("EEC Updated Payment Method", true);
     end;
 }
