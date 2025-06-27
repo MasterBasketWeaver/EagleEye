@@ -2,8 +2,8 @@ table 80300 "EEMCP MyCarrierPackets Setup"
 {
     Caption = 'MyCarrierPackets Setup';
     DataClassification = CustomerContent;
-    // DrillDownPageId = "EEMCP Fleetrock Setup";
-    // LookupPageId = "EEMCP Fleetrock Setup";
+    DrillDownPageId = "EEMCP My Carrier Packets Setup";
+    LookupPageId = "EEMCP My Carrier Packets Setup";
 
     fields
     {

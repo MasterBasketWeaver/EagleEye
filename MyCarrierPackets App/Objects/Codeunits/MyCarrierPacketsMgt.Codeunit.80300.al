@@ -2,22 +2,26 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
 {
     var
         MyCarrierPacketsSetup: Record "EEMCP MyCarrierPackets Setup";
-        FleetrockSetup: Record "EE Fleetrock Setup";
+        PurchPaySetup: Record "Purchases & Payables Setup";
+        SingleInstance: Codeunit "EEMCP Single Instance";
         RestAPIMgt: Codeunit "EEMCP REST API Mgt.";
         JsonMgt: Codeunit "EE Json Mgt.";
         FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
-        LoadedSetup, LoadedFleetrock : Boolean;
+        LoadedMCPSetup, LoadedPayableSetup : Boolean;
+
+        UnitedStatesLower: Label 'united states';
+
 
 
     local procedure GetAndCheckSetup()
     begin
-        if LoadedSetup then
+        if LoadedMCPSetup then
             exit;
         MyCarrierPacketsSetup.Get();
         MyCarrierPacketsSetup.TestField("Integration URL");
         MyCarrierPacketsSetup.TestField(Username);
         MyCarrierPacketsSetup.TestField(Password);
-        LoadedSetup := true;
+        LoadedMCPSetup := true;
     end;
 
     procedure CheckToGetAPIToken(): Text
@@ -359,14 +363,14 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
 
 
 
-    local procedure GetAndCheckFleetrockSetup()
+    local procedure GetAndCheckPurchPaySetup()
     begin
-        if LoadedFleetrock then
+        if LoadedPayableSetup then
             exit;
-        FleetrockSetup.Get();
-        FleetrockSetup.TestField("Vendor Posting Group");
-        FleetrockSetup.TestField("Payment Terms");
-        LoadedFleetrock := true;
+        PurchPaySetup.Get();
+        PurchPaySetup.TestField("EEC Default Payment Terms");
+        PurchPaySetup.TestField("EEC Default Vend. Post. Group");
+        LoadedPayableSetup := true;
     end;
 
     procedure CreateAndUpdateVendorFromCarrier(var Carrier: Record "EEMCP Carrier"; ForceUpdate: Boolean)
@@ -382,7 +386,7 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         CountryCode: Code[10];
         s: Text;
     begin
-        GetAndCheckFleetrockSetup();
+        GetAndCheckPurchPaySetup();
 
         if ForceUpdate then
             Carrier."Requires Update" := true;
@@ -390,7 +394,6 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
             GetCarrierData(Carrier);
         if not CarrierData.Get(Carrier."DOT No.") then
             Error('Carrier data not found for DOT No. %1', Carrier."DOT No.");
-
         if (Carrier."DOT No." = 0) and (Carrier."Docket No." = '') then
             Error('Carrier %1 missing both DOT No. and Docket No.', Carrier.SystemId);
 
@@ -413,10 +416,10 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
             Vendor.Validate("EEMCP Docket No.", Carrier."Docket No.");
         if (Vendor."EEMCP Dot No." = 0) and (Carrier."DOT No." <> 0) then
             Vendor.Validate("EEMCP Dot No.", Carrier."DOT No.");
-        Vendor.Validate("Vendor Posting Group", FleetrockSetup."Vendor Posting Group");
+        Vendor.Validate("Vendor Posting Group", PurchPaySetup."EEC Default Vend. Post. Group");
         Vendor.Validate("Tax Area Code", '');
         Vendor.Validate("Tax Liable", true);
-        Vendor.Validate("Payment Terms Code", FleetrockSetup."Payment Terms");
+        Vendor.Validate("Payment Terms Code", PurchPaySetup."EEC Default Payment Terms");
         Vendor."Name" := CopyStr(CarrierData.LegalName, 1, MaxStrLen(Vendor."Name"));
         Vendor."Name 2" := CopyStr(CarrierData.DBAName, 1, MaxStrLen(Vendor."Name 2"));
 
@@ -564,9 +567,4 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
     end;
 
 
-    var
-
-        SingleInstance: Codeunit "EEMCP Single Instance";
-
-        UnitedStatesLower: Label 'united states';
 }
