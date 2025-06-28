@@ -5,13 +5,26 @@ page 80000 "EE Fleetrock Setup"
     UsageCategory = Administration;
     Caption = 'Fleetrock Setup';
     Permissions = tabledata "Sales Invoice Header" = RIMD,
-    tabledata "Purch. Inv. Header" = RIMD;
+    tabledata "Sales Invoice Line" = RIMD,
+    tabledata "Sales Shipment Header" = RIMD,
+    tabledata "Sales Shipment Line" = RIMD,
+    tabledata "Purch. Inv. Header" = RIMD,
+    tabledata "Purch. Inv. Line" = RIMD,
+    tabledata "Purch. Rcpt. Header" = RIMD,
+    tabledata "Purch. Rcpt. Line" = RIMD,
+    tabledata "Vendor Ledger Entry" = RIMD,
+    tabledata "Detailed Vendor Ledg. Entry" = RIMD,
+    tabledata "G/L Entry" = RIMD,
+    tabledata "VAT Entry" = RIMD,
+    tabledata "Cust. Ledger Entry" = RIMD,
+    tabledata "Detailed Cust. Ledg. Entry" = RIMD,
+    tabledata "Bank Account Ledger Entry" = RIMD,
+    tabledata "G/L Entry - VAT Entry Link" = RIMD;
 
     layout
     {
         area(Content)
         {
-
             group("Purchase Orders")
             {
                 field("Purchase Item No.";
@@ -346,9 +359,23 @@ page 80000 "EE Fleetrock Setup"
                     SalesHeader: Record "Sales Header";
                     SalesLine: Record "Sales Line";
                     SalesInvHeader: Record "Sales Invoice Header";
+                    SalesInvLine: Record "Sales Invoice Line";
+                    SalesShptHeader: Record "Sales Shipment Header";
+                    SalesShptLine: Record "Sales Shipment Line";
                     PurchHeader: Record "Purchase Header";
                     PurchLine: Record "Purchase Line";
+                    PurchRcptHeader: Record "Purch. Rcpt. Header";
+                    PurchRcptLine: Record "Purch. Rcpt. Line";
                     PurchInvHeader: Record "Purch. Inv. Header";
+                    PurchInvLine: Record "Purch. Inv. Line";
+                    CustomerLedgerEntry: Record "Cust. Ledger Entry";
+                    VendorLedgerEntry: Record "Vendor Ledger Entry";
+                    DetailedVendorLedgEntry: Record "Detailed Vendor Ledg. Entry";
+                    DetailedCustLedgEntry: Record "Detailed Cust. Ledg. Entry";
+                    GLAccountEntry: Record "G/L Entry";
+                    BankAccountLedgerEntry: Record "Bank Account Ledger Entry";
+                    VATEntry: Record "VAT Entry";
+                    GLEntryVATEntryLink: Record "G/L Entry - VAT Entry Link";
                 begin
                     if IsProduction then
                         Error('Cannot clear logs in production environment.');
@@ -360,29 +387,26 @@ page 80000 "EE Fleetrock Setup"
                     SalesHeaderStaging.DeleteAll(false);
                     TaskLineStaging.DeleteAll(false);
                     PartLineStaging.DeleteAll(false);
-
-                    SalesHeader.SetFilter("EE Fleetrock ID", '<>%1', '');
-                    if SalesHeader.FindSet(true) then
-                        repeat
-                            SalesLine.SetRange("Document Type", SalesHeader."Document Type");
-                            SalesLine.SetRange("Document No.", SalesHeader."No.");
-                            SalesLine.DeleteAll(false);
-                        until SalesHeader.Next() = 0;
                     SalesHeader.DeleteAll(false);
-
-                    PurchHeader.SetFilter("EE Fleetrock ID", '<>%1', '');
-                    if PurchHeader.FindSet(true) then
-                        repeat
-                            PurchLine.SetRange("Document Type", PurchHeader."Document Type");
-                            PurchLine.SetRange("Document No.", PurchHeader."No.");
-                            PurchLine.DeleteAll(false);
-                        until PurchHeader.Next() = 0;
+                    SalesLine.DeleteAll(false);
+                    SalesInvHeader.DeleteAll(false);
+                    SalesInvLine.DeleteAll(false);
+                    SalesShptHeader.DeleteAll(false);
+                    SalesShptLine.DeleteAll(false);
                     PurchHeader.DeleteAll(false);
-
-                    SalesInvHeader.SetFilter("EE Fleetrock ID", '<>%1', '');
-                    SalesInvHeader.ModifyAll("EE Fleetrock ID", '');
-                    PurchInvHeader.SetFilter("EE Fleetrock ID", '<>%1', '');
-                    PurchInvHeader.ModifyAll("EE Fleetrock ID", '');
+                    PurchLine.DeleteAll(false);
+                    PurchRcptHeader.DeleteAll(false);
+                    PurchRcptLine.DeleteAll(false);
+                    PurchInvHeader.DeleteAll(false);
+                    PurchInvLine.DeleteAll(false);
+                    CustomerLedgerEntry.DeleteAll(false);
+                    VendorLedgerEntry.DeleteAll(false);
+                    DetailedVendorLedgEntry.DeleteAll(false);
+                    DetailedCustLedgEntry.DeleteAll(false);
+                    GLAccountEntry.DeleteAll(false);
+                    BankAccountLedgerEntry.DeleteAll(false);
+                    VATEntry.DeleteAll(false);
+                    GLEntryVATEntryLink.DeleteAll(false);
                 end;
             }
         }

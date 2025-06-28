@@ -123,7 +123,6 @@ codeunit 80001 "EE Get Purchase Orders"
     procedure UpdateAndPostPurchaseOrder(var FleetrockSetup: Record "EE Fleetrock Setup"; var PurchaseHeaderStaging: Record "EE Purch. Header Staging"): Boolean
     var
         PurchaseHeader: Record "Purchase Header";
-
         DocNo: Code[20];
         Success: Boolean;
     begin
@@ -145,18 +144,26 @@ codeunit 80001 "EE Get Purchase Orders"
         exit(Success);
     end;
 
+    local procedure TryToPostOrder(var PurchaseHeader: Record "Purchase Header"): Boolean
+    begin
+        if not CheckForNegativeLines(PurchaseHeader) then
+            exit(false);
+        Commit();
+        exit(Codeunit.Run(Codeunit::"Purch.-Post", PurchaseHeader));
+    end;
+
     [TryFunction]
-    local procedure TryToPostOrder(var PurchaseHeader: Record "Purchase Header")
+    local procedure CheckForNegativeLines(var PurchaseHeader: Record "Purchase Header")
     var
         PurchaseLine: Record "Purchase Line";
     begin
+        PurchaseLine.SetLoadFields("Document Type", "Document No.", Type, Quantity);
         PurchaseLine.SetRange("Document Type", PurchaseHeader."Document Type");
         PurchaseLine.SetRange("Document No.", PurchaseHeader."No.");
         PurchaseLine.SetRange(Type, PurchaseLine.Type::Item);
         PurchaseLine.SetFilter(Quantity, '<%1', 0);
         if PurchaseLine.FindFirst() then
             Error('Cannot post Purchase Order %1 because line %2 has a negative quantity: %3.', PurchaseHeader."No.", PurchaseLine."Line No.", PurchaseLine.Quantity);
-        Codeunit.Run(Codeunit::"Purch.-Post", PurchaseHeader);
     end;
 
     procedure CheckTagForImport(ImportTags: Text; Tags: Text): Boolean

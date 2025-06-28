@@ -94,12 +94,22 @@ codeunit 80003 "EE Get Repair Orders"
     local procedure ImportAsPurchaseOrder(var FleetrockSetup: Record "EE Fleetrock Setup"; var OrderJsonObj: JsonObject; OrderStatus: Enum "EE Repair Order Status"; var ImportEntryNo: Integer; var LogEntry: Boolean): Boolean
     var
         PurchaseHeader: Record "Purchase Header";
+        PurchInvHeader: Record "Purch. Inv. Header";
         PurchaseHeaderStaging: Record "EE Purch. Header Staging";
         SalesHeaderStaging: Record "EE Sales Header Staging";
+        OrderId: Text;
         Success: Boolean;
     begin
         if OrderStatus = OrderStatus::invoiced then begin
             LogEntry := true;
+            if not TryToGetOrderID(OrderJsonObj, OrderId, Enum::"EE Import Type"::"Purchase Order") then
+                exit(false);
+            PurchInvHeader.SetCurrentKey("EE Fleetrock ID");
+            PurchInvHeader.SetRange("EE Fleetrock ID", CopyStr(OrderId, 1, MaxStrLen(PurchInvHeader."EE Fleetrock ID")));
+            if not PurchInvHeader.IsEmpty() then begin
+                LogEntry := false;
+                exit(true);
+            end;
             if FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, false) and SalesHeaderStaging.Get(ImportEntryNo) then
                 if FleetRockMgt.TryToCreatePurchaseStagingFromRepairStaging(SalesHeaderStaging, PurchaseHeaderStaging) then
                     Success := GetPurchaseOrders.UpdateAndPostPurchaseOrder(FleetrockSetup, PurchaseHeaderStaging);
@@ -122,7 +132,7 @@ codeunit 80003 "EE Get Repair Orders"
         if OrderStatus = OrderStatus::invoiced then begin
             LogEntry := true;
             if HasSetStartDateTime then begin
-                if not TryToGetOrderID(OrderJsonObj, OrderId) then
+                if not TryToGetOrderID(OrderJsonObj, OrderId, Enum::"EE Import Type"::"Repair Order") then
                     exit(false);
                 SalesInvHeader.SetCurrentKey("EE Fleetrock ID");
                 SalesInvHeader.SetRange("EE Fleetrock ID", CopyStr(OrderId, 1, MaxStrLen(SalesInvHeader."EE Fleetrock ID")));
@@ -144,7 +154,8 @@ codeunit 80003 "EE Get Repair Orders"
                 if Success then
                     if FleetRockSetup."Auto-post Repair Orders" then begin
                         SalesHeader.Get(SalesHeader."Document Type"::Invoice, SalesHeaderStaging."Document No.");
-                        Success := TryToPostInvoice(SalesHeader);
+                        Commit();
+                        Success := Codeunit.Run(Codeunit::"Sales-Post", SalesHeader);
                     end;
             end;
         end else
@@ -157,21 +168,17 @@ codeunit 80003 "EE Get Repair Orders"
     end;
 
     [TryFunction]
-    local procedure TryToGetOrderID(var OrderJsonObj: JsonObject; var OrderId: Text)
+    local procedure TryToGetOrderID(var OrderJsonObj: JsonObject; var OrderId: Text; ImportType: Enum "EE Import Type")
     begin
         OrderId := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'id');
         if OrderId = '' then begin
             OrderJsonObj.WriteTo(OrderId);
-            Error('Repair Order ID is missing in the JSON object.\%1', OrderId);
+            Error('%1 ID is missing in the JSON object.\%2', ImportType, OrderId);
         end;
     end;
 
 
-    [TryFunction]
-    local procedure TryToPostInvoice(var SalesHeader: Record "Sales Header")
-    begin
-        Codeunit.Run(Codeunit::"Sales-Post", SalesHeader);
-    end;
+
 
     local procedure MergeJsonArrays(var VendorJsonArray: JsonArray; var CustomerVendorArray: JsonArray)
     var
