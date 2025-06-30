@@ -19,38 +19,7 @@ codeunit 80302 "EEMCP Install"
     end;
 
 
-    local procedure FixIncorrectPaymentTersm()
-    var
-        Vendor: Record Vendor;
-        ChangeLogeEntry, ChangeLogeEntry2 : Record "Change Log Entry";
-        Data: DataTransfer;
-    begin
-        ChangeLogeEntry.SetLoadFields("Table No.", "Date and Time", "Field No.", "Primary Key Field 1 Value", "Old Value");
-        ChangeLogeEntry.SetCurrentKey("Table No.", "Date and Time");
-        ChangeLogeEntry.SetRange("Table No.", Database::Vendor);
-        ChangeLogeEntry.SetFilter("Date and Time", '.=%1', CreateDateTime(DMY2Date(26, 6, 2026), 190000T));
-        ChangeLogeEntry.SetRange("Field No.", Vendor.FieldNo("Payment Terms Code"));
-        ChangeLogeEntry.SetRange("Old Value", '21 DAYS');
-        if not ChangeLogeEntry.FindSet() then
-            exit;
 
-        ChangeLogeEntry2.SetLoadFields("Table No.", "Date and Time", "Field No.", "Primary Key Field 1 Value", "New Value");
-        ChangeLogeEntry2.SetCurrentKey("Table No.", "Date and Time");
-        ChangeLogeEntry2.SetRange("Table No.", Database::Vendor);
-        ChangeLogeEntry2.SetRange("Field No.", Vendor.FieldNo("Payment Terms Code"));
-        ChangeLogeEntry2.SetFilter("New Value", '<>%1', '21 DAYS');
-        repeat
-            ChangeLogeEntry2.SetFilter("Date and Time", '>%1', ChangeLogeEntry."Date and Time");
-            ChangeLogeEntry2.SetRange("Primary Key Field 1 Value", ChangeLogeEntry."Primary Key Field 1 Value");
-            if ChangeLogeEntry2.IsEmpty() then begin
-                Vendor.Get(ChangeLogeEntry."Primary Key Field 1 Value");
-                if Vendor."Payment Terms Code" <> '21 DAYS' then begin
-                    Vendor.Validate("Payment Terms Code", '21 DAYS');
-                    Vendor.Modify(true);
-                end;
-            end;
-        until ChangeLogeEntry.Next() = 0;
-    end;
 
 
     procedure PopulateVendorBankAccounts()
