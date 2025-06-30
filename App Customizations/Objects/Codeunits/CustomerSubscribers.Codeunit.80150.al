@@ -79,6 +79,8 @@ codeunit 80150 "EEC Custom Subscribers"
     var
         PurchPayableSetup: Record "Purchases & Payables Setup";
     begin
+        if Vendor."EEC Updated Payment Method" then
+            exit;
         if PurchPayableSetup.Get() and (PurchPayableSetup."EEC ACH Payment Method" <> '') and (Vendor."Payment Method Code" <> PurchPayableSetup."EEC ACH Payment Method") then begin
             Vendor.Validate("Payment Method Code", PurchPayableSetup."EEC ACH Payment Method");
             Vendor.Modify(false);
@@ -89,6 +91,8 @@ codeunit 80150 "EEC Custom Subscribers"
     var
         PurchPayableSetup: Record "Purchases & Payables Setup";
     begin
+        if Vendor."EEC Updated Payment Method" then
+            exit;
         if PurchPayableSetup.Get() and (PurchPayableSetup."EEC Check Payment Method" <> '') and (Vendor."Payment Method Code" <> PurchPayableSetup."EEC Check Payment Method") then begin
             Vendor.Validate("Payment Method Code", PurchPayableSetup."EEC Check Payment Method");
             Vendor.Modify(false);
