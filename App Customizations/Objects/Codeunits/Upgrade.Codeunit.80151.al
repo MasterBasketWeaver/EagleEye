@@ -31,7 +31,30 @@ codeunit 80151 "EEC Upgrade"
         // RefreshPostingNumbers();
         // RemoveInvalidEntries();
         // SetVendorPaymentMethod();
+
+        PopulateDefaultPaymentTerms();
     end;
+
+
+    local procedure PopulateDefaultPaymentTerms()
+    var
+        Vendor: Record Vendor;
+        PurchPaySetup: Record "Purchases & Payables Setup";
+
+        DataTrans: DataTransfer;
+    begin
+        if CompanyName() <> 'Test - CTS' then
+            exit;
+        if not PurchPaySetup.Get() or (PurchPaySetup."EEC Default Payment Terms" = '') then
+            exit;
+
+        DataTrans.SetTables(Database::Vendor, Database::Vendor);
+        DataTrans.AddSourceFilter(Vendor.FieldNo("Payment Terms Code"), '<>%1', PurchPaySetup."EEC Default Payment Terms");
+        DataTrans.AddSourceFilter(Vendor.FieldNo("EEC Updated Payment Terms"), '%1', false);
+        DataTrans.AddConstantValue(PurchPaySetup."EEC Default Payment Terms", Vendor.FieldNo("Payment Terms Code"));
+        DataTrans.CopyFields();
+    end;
+
 
 
     local procedure RemoveInvalidEntries()
