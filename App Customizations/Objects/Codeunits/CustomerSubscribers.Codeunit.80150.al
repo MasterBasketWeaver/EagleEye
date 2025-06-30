@@ -274,7 +274,7 @@ codeunit 80150 "EEC Custom Subscribers"
             end;
         if Rec."Payment Method Code" = '' then
             if PurchPaySetup."EEC Default Payment Method" <> '' then begin
-                Rec.Validate("Payment Terms Code", PurchPaySetup."EEC Default Payment Method");
+                Rec.Validate("Payment Method Code", PurchPaySetup."EEC Default Payment Method");
                 Updated := true;
             end;
         if Updated then
