@@ -13,7 +13,6 @@ codeunit 80003 "EE Get Repair Orders"
         OrderStatus: Enum "EE Repair Order Status";
         EventType: Enum "EE Event Type";
         JsonArry, VendorJsonArray : JsonArray;
-
         URL: Text;
     begin
         if Rec."Parameter String" = 'invoiced' then begin
@@ -50,7 +49,7 @@ codeunit 80003 "EE Get Repair Orders"
             ImportRepairOrders(JsonArry, OrderStatus, EventType, URL);
     end;
 
-    procedure SetStartDateTime(var NewStartDateTime: DateTime)
+    procedure SetStartDateTime(NewStartDateTime: DateTime)
     begin
         StartDateTime := NewStartDateTime;
         HasSetStartDateTime := true;

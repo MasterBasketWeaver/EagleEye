@@ -180,6 +180,11 @@ table 80000 "EE Fleetrock Setup"
         {
             DataClassification = CustomerContent;
         }
+        field(96; "Check Purch. Order DateFormula"; DateFormula)
+        {
+            DataClassification = CustomerContent;
+            Caption = 'Check Purchase Order Date Formula';
+        }
         field(100; "Import Vendor Details"; Boolean)
         {
             DataClassification = CustomerContent;

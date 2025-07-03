@@ -11,7 +11,6 @@ codeunit 80001 "EE Get Purchase Orders"
         ImportEntry: Record "EE Import/Export Entry";
         EventType: Enum "EE Event Type";
         JsonArry: JsonArray;
-        StartDateTime: DateTime;
         URL: Text;
         Success, IsReceived, LogEntry : Boolean;
     begin
@@ -24,15 +23,15 @@ codeunit 80001 "EE Get Purchase Orders"
                 CheckToWaitForOtherJobQueue(Rec);
             end;
 
-            ImportEntry.SetRange("Document Type", ImportEntry."Document Type"::"Purchase Order");
-            ImportEntry.SetRange(Success, true);
-            ImportEntry.SetRange("Event Type", EventType);
-            if ImportEntry.FindLast() then
-                StartDateTime := ImportEntry.SystemCreatedAt;
+            if not HasSetStartDateTime then begin
+                ImportEntry.SetRange("Document Type", ImportEntry."Document Type"::"Purchase Order");
+                ImportEntry.SetRange(Success, true);
+                ImportEntry.SetRange("Event Type", EventType);
+                if ImportEntry.FindLast() then
+                    StartDateTime := ImportEntry.SystemCreatedAt;
+            end;
         end else begin
             URL := PassedURL;
-            // if not URL.Contains('event') then
-            //     Error('Invalid URL: %1', URL);
             if URL.Contains('event=Received') then begin
                 IsReceived := true;
                 EventType := EventType::Received;
@@ -47,6 +46,12 @@ codeunit 80001 "EE Get Purchase Orders"
         end;
         if JsonArry.Count() > 0 then
             ImportPurchaseOrders(JsonArry, EventType, URL, IsReceived);
+    end;
+
+    procedure SetStartDateTime(NewStartDateTime: DateTime)
+    begin
+        StartDateTime := NewStartDateTime;
+        HasSetStartDateTime := true;
     end;
 
     procedure ImportPurchaseOrders(var JsonArry: JsonArray; EventType: Enum "EE Event Type"; URL: Text; IsReceived: Boolean): Boolean
@@ -203,5 +208,7 @@ codeunit 80001 "EE Get Purchase Orders"
     var
         FleetRockMgt: Codeunit "EE Fleetrock Mgt.";
         JsonMgt: Codeunit "EE Json Mgt.";
+        StartDateTime: DateTime;
         PassedURL: Text;
+        HasSetStartDateTime: Boolean;
 }

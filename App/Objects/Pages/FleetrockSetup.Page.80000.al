@@ -47,6 +47,10 @@ page 80000 "EE Fleetrock Setup"
                     ApplicationArea = all;
                     ToolTip = 'If enabled, the vendor details will be imported from Fleetrock and used to create a vendor account in Business Central.';
                 }
+                field("Check Purch. Order DateFormula"; Rec."Check Purch. Order DateFormula")
+                {
+                    ApplicationArea = all;
+                }
             }
             group("Repair Orders")
             {

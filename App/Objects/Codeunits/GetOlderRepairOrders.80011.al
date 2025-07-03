@@ -10,15 +10,12 @@ codeunit 80011 "EE Get Older Repair Orders"
     var
         FleetrockSetup: Record "EE Fleetrock Setup";
         GetRepairOrders: Codeunit "EE Get Repair Orders";
-        StartDateTime: DateTime;
     begin
         FleetrockSetup.Get();
         FleetrockSetup.TestField("Check Repair Order DateFormula");
 
-        StartDateTime := CreateDateTime(CalcDate(FleetrockSetup."Check Repair Order DateFormula", Today()), 0T);
         Rec."Parameter String" := 'invoiced';
-
-        GetRepairOrders.SetStartDateTime(StartDateTime);
+        GetRepairOrders.SetStartDateTime(CreateDateTime(CalcDate(FleetrockSetup."Check Repair Order DateFormula", Today()), 0T));
         GetRepairOrders.Run(Rec);
     end;
 
