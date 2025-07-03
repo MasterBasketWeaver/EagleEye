@@ -378,37 +378,46 @@ codeunit 80000 "EE Fleetrock Mgt."
         Vendor2 := Vendor;
 
         Input := CopyStr(JsonMgt.GetJsonValueAsText(VendorObj, 'street_address_1'), 1, MaxStrLen(Vendor.Address));
-        if Vendor.Address <> Input then
-            Vendor.Validate(Address, Input);
+        if Input <> '' then
+            if Vendor.Address = '' then
+                Vendor.Validate(Address, Input);
         Input := CopyStr(JsonMgt.GetJsonValueAsText(VendorObj, 'street_address_2'), 1, MaxStrLen(Vendor."Address 2"));
-        if Vendor."Address 2" <> Input then
-            Vendor.Validate("Address 2", Input);
+        if Input <> '' then
+            if Vendor."Address 2" = '' then
+                Vendor.Validate("Address 2", Input);
         Input := CopyStr(JsonMgt.GetJsonValueAsText(VendorObj, 'city'), 1, MaxStrLen(Vendor."City"));
-        if Vendor."City" <> Input then
-            Vendor.Validate("City", Input);
+        if Input <> '' then
+            if Vendor."City" = '' then
+                Vendor.Validate("City", Input);
         Input := CopyStr(JsonMgt.GetJsonValueAsText(VendorObj, 'state'), 1, MaxStrLen(Vendor.County));
-        if Vendor."County" <> Input then
-            Vendor.Validate(County, Input);
+        if Input <> '' then
+            if Vendor."County" = '' then
+                Vendor.Validate(County, Input);
         Input := CopyStr(JsonMgt.GetJsonValueAsText(VendorObj, 'country'), 1, MaxStrLen(Vendor."Country/Region Code"));
-        if Vendor."Country/Region Code" <> Input then
-            Vendor."Country/Region Code" := Input;
+        if Input <> '' then
+            if Vendor."Country/Region Code" = '' then
+                Vendor."Country/Region Code" := Input;
         Input := CopyStr(JsonMgt.GetJsonValueAsText(VendorObj, 'zip_code'), 1, MaxStrLen(Vendor."Post Code"));
-        if Vendor."Post Code" <> Input then
-            Vendor.Validate("Post Code", Input);
+        if Input <> '' then
+            if Vendor."Post Code" = '' then
+                Vendor.Validate("Post Code", Input);
         Input := CopyStr(JsonMgt.GetJsonValueAsText(VendorObj, 'email'), 1, MaxStrLen(Vendor."E-Mail"));
-        if Vendor."E-Mail" <> Input then
-            Vendor.Validate("E-Mail", Input);
+        if Input <> '' then
+            if Vendor."E-Mail" = '' then
+                Vendor.Validate("E-Mail", Input);
 
         PhoneNo := CopyStr(JsonMgt.GetJsonValueAsText(VendorObj, 'phone'), 1, MaxStrLen(Vendor."Phone No."));
-        if not TryToSetVendorNo(Vendor, PhoneNo) then
-            Vendor."Phone No." := PhoneNo;
+        if (PhoneNo <> '') and (Vendor."Phone No." = '') then
+            if not TryToSetVendorNo(Vendor, PhoneNo) then
+                Vendor."Phone No." := PhoneNo;
         PaymentTermDays := Round(JsonMgt.GetJsonValueAsDecimal(VendorObj, 'payment_term_days'), 1);
         if PaymentTermDays = 0 then
             PaymentTermsCode := FleetrockSetup."Payment Terms"
         else
             PaymentTermsCode := GetPaymentTerms(PaymentTermDays);
-        if Vendor."Payment Terms Code" <> PaymentTermsCode then
-            Vendor.Validate("Payment Terms Code", PaymentTermsCode);
+        if Vendor."Payment Terms Code" = '' then
+            if Vendor."Payment Terms Code" <> PaymentTermsCode then
+                Vendor.Validate("Payment Terms Code", PaymentTermsCode);
 
         exit((Vendor.Address <> Vendor2.Address)
             or (Vendor2."Address 2" <> Vendor."Address 2")
