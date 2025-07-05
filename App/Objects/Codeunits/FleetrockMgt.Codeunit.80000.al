@@ -740,6 +740,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         T: JsonToken;
         LineEntryNo: Integer;
     begin
+        PurchHeaderStaging.LockTable(true);
         if PurchHeaderStaging.FindLast() then
             EntryNo := PurchHeaderStaging."Entry No.";
         EntryNo += 1;
@@ -764,7 +765,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchHeaderStaging.grand_total := JsonMgt.GetJsonValueAsDecimal(OrderJsonObj, 'grand_total');
         PurchHeaderStaging.Insert(true);
 
-        PurchLineStaging.LockTable();
+        PurchLineStaging.LockTable(true);
         if PurchLineStaging.FindLast() then
             LineEntryNo := PurchLineStaging."Entry No."
         else
@@ -999,7 +1000,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         APIToken, VendorAPIToken : Text;
         LineEntryNo, PartEntryNo : Integer;
     begin
-        SalesHeaderStaging.LockTable();
+        SalesHeaderStaging.LockTable(true);
         if SalesHeaderStaging.FindLast() then
             EntryNo := SalesHeaderStaging."Entry No.";
         EntryNo += 1;
@@ -1021,12 +1022,12 @@ codeunit 80000 "EE Fleetrock Mgt."
         TaskLines := T.AsArray();
         if TaskLines.Count() = 0 then
             exit;
-        TaskLineStaging.LockTable();
+        TaskLineStaging.LockTable(true);
         if TaskLineStaging.FindLast() then
             LineEntryNo := TaskLineStaging."Entry No."
         else
             LineEntryNo := 0;
-        PartLineStaging.LockTable();
+        PartLineStaging.LockTable(true);
         if PartLineStaging.FindLast() then
             PartEntryNo := PartLineStaging."Entry No.";
         foreach T in TaskLines do begin
@@ -1772,6 +1773,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         TaskLineStaging: Record "EE Task Line Staging";
         EntryNo: Integer;
     begin
+        PurchHeaderStaging2.LockTable(true);
         if PurchHeaderStaging2.FindLast() then
             EntryNo := PurchHeaderStaging2."Entry No.";
         EntryNo += 1;
@@ -1796,6 +1798,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         SalesHeaderStaging."Purch. Staging Entry No." := PurchHeaderStaging."Entry No.";
         SalesHeaderStaging.Modify(true);
 
+        PurchLineStaging.LockTable(true);
         if PurchLineStaging.FindLast() then
             EntryNo := PurchLineStaging."Entry No."
         else
@@ -1967,7 +1970,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         APIToken, VendorAPIToken : Text;
         LineEntryNo: Integer;
     begin
-        ClaimHeader.LockTable();
+        ClaimHeader.LockTable(true);
         if ClaimHeader.FindLast() then
             EntryNo := ClaimHeader."Entry No.";
         EntryNo += 1;
@@ -1983,7 +1986,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         TaskLines := T.AsArray();
         if TaskLines.Count() = 0 then
             exit;
-        ClaimLine.LockTable();
+        ClaimLine.LockTable(true);
         if ClaimLine.FindLast() then
             LineEntryNo := ClaimLine."Entry No.";
         foreach T in TaskLines do begin
@@ -2139,7 +2142,7 @@ codeunit 80000 "EE Fleetrock Mgt."
 
         JsonBody.WriteTo(s);
         ImportEntry.Reset();
-        ImportEntry.LockTable();
+        ImportEntry.LockTable(true);
         if ImportEntry.FindLast() then
             EntryNo := ImportEntry."Entry No.";
         EntryNo += 1;
