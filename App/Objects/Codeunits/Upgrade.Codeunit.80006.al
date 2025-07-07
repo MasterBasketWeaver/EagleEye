@@ -2,8 +2,8 @@ codeunit 80006 "EE Upgrade"
 {
     Subtype = Upgrade;
     Permissions = tabledata "EE Import/Export Entry" = RIMD,
-    tabledata "EE Sales Header Staging" = RM,
-    tabledata "EE Purch. Header Staging" = RM;
+    tabledata "EE Sales Header Staging" = RMD,
+    tabledata "EE Purch. Header Staging" = RMD;
 
 
     trigger OnUpgradePerCompany()
@@ -15,6 +15,26 @@ codeunit 80006 "EE Upgrade"
     begin
         // ClearGLSetups();
         // PopulateDocumentNos();
+        // ClearInvalidEntries();
+    end;
+
+    local procedure ClearInvalidEntries()
+    var
+        FleetrockEntry: Record "EE Import/Export Entry";
+        StagedPurchHeader: Record "EE Purch. Header Staging";
+    begin
+        if CompanyName <> 'Test - Diesel Repair Shop' then
+            exit;
+        FleetrockEntry.SetRange("Entry No.", 12898, 12997);
+        FleetrockEntry.SetRange("Document Type", FleetrockEntry."Document Type"::"Purchase Order");
+        FleetrockEntry.SetRange(Success, false);
+        FleetrockEntry.SetRange("Document No.", '');
+        if FleetrockEntry.FindSet() then
+            repeat
+                if StagedPurchHeader.Get(FleetrockEntry."Import Entry No.") then
+                    StagedPurchHeader.Delete(true);
+                FleetrockEntry.Delete(true);
+            until FleetrockEntry.Next() = 0;
     end;
 
     local procedure PopulateDocumentNos()

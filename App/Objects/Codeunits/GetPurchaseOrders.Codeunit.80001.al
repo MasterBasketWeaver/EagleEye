@@ -58,7 +58,6 @@ codeunit 80001 "EE Get Purchase Orders"
     var
         PurchaseHeader: Record "Purchase Header";
         ImportEntry: Record "EE Import/Export Entry";
-        PurchaseHeaderStaging: Record "EE Purch. Header Staging";
         FleetRockSetup: Record "EE Fleetrock Setup";
         OrderJsonObj: JsonObject;
         T: JsonToken;
@@ -84,8 +83,7 @@ codeunit 80001 "EE Get Purchase Orders"
                     end;
                 end else begin
                     LogEntry := true;
-                    if FleetRockMgt.TryToInsertPOStagingRecords(OrderJsonObj, ImportEntryNo, false) and PurchaseHeaderStaging.Get(ImportEntryNo) then
-                        Success := UpdateAndPostPurchaseOrder(FleetrockSetup, PurchaseHeaderStaging);
+                    Success := ImportClosedPurchaseOrder(FleetRockSetup, OrderJsonObj, ImportEntryNo, LogEntry);
                 end;
                 if LogEntry then
                     FleetRockMgt.InsertImportEntry(Success and (GetLastErrorText() = ''), ImportEntryNo,
@@ -94,6 +92,39 @@ codeunit 80001 "EE Get Purchase Orders"
             end;
         end;
     end;
+
+    local procedure ImportClosedPurchaseOrder(var FleetRockSetup: Record "EE Fleetrock Setup"; var OrderJsonObj: JsonObject; var ImportEntryNo: Integer; var LogEntry: Boolean): Boolean
+    var
+        PurchInvHeader: Record "Purch. Inv. Header";
+        PurchaseHeaderStaging: Record "EE Purch. Header Staging";
+        OrderId: Text;
+    begin
+        if HasSetStartDateTime then begin
+            if not TryToGetOrderID(OrderJsonObj, OrderId, Enum::"EE Import Type"::"Purchase Order") then
+                exit(false);
+            PurchInvHeader.SetCurrentKey("EE Fleetrock ID");
+            PurchInvHeader.SetRange("EE Fleetrock ID", CopyStr(OrderId, 1, MaxStrLen(PurchInvHeader."EE Fleetrock ID")));
+            if not PurchInvHeader.IsEmpty() then begin
+                LogEntry := false;
+                exit(true)
+            end;
+        end;
+        if FleetRockMgt.TryToInsertPOStagingRecords(OrderJsonObj, ImportEntryNo, false) and PurchaseHeaderStaging.Get(ImportEntryNo) then
+            exit(UpdateAndPostPurchaseOrder(FleetrockSetup, PurchaseHeaderStaging));
+        exit(false);
+    end;
+
+    [TryFunction]
+    local procedure TryToGetOrderID(var OrderJsonObj: JsonObject; var OrderId: Text; ImportType: Enum "EE Import Type")
+    begin
+        OrderId := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'id');
+        if OrderId = '' then begin
+            OrderJsonObj.WriteTo(OrderId);
+            Error('%1 ID is missing in the JSON object.\%2', ImportType, OrderId);
+        end;
+    end;
+
+
 
     local procedure CheckToWaitForOtherJobQueue(var Rec: Record "Job Queue Entry")
     var
