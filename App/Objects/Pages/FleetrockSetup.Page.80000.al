@@ -19,7 +19,9 @@ page 80000 "EE Fleetrock Setup"
     tabledata "Cust. Ledger Entry" = RIMD,
     tabledata "Detailed Cust. Ledg. Entry" = RIMD,
     tabledata "Bank Account Ledger Entry" = RIMD,
-    tabledata "G/L Entry - VAT Entry Link" = RIMD;
+    tabledata "G/L Entry - VAT Entry Link" = RIMD,
+    tabledata "Value Entry" = RIMD;
+
 
     layout
     {
@@ -380,6 +382,7 @@ page 80000 "EE Fleetrock Setup"
                     BankAccountLedgerEntry: Record "Bank Account Ledger Entry";
                     VATEntry: Record "VAT Entry";
                     GLEntryVATEntryLink: Record "G/L Entry - VAT Entry Link";
+                    ValueEntry: Record "Value Entry";
                 begin
                     if IsProduction then
                         Error('Cannot clear logs in production environment.');
@@ -411,6 +414,7 @@ page 80000 "EE Fleetrock Setup"
                     BankAccountLedgerEntry.DeleteAll(false);
                     VATEntry.DeleteAll(false);
                     GLEntryVATEntryLink.DeleteAll(false);
+                    ValueEntry.DeleteAll(false);
                 end;
             }
         }
