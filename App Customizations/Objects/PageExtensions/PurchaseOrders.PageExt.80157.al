@@ -8,6 +8,7 @@ pageextension 80157 "EEC Purchase Order List" extends "Purchase Order List"
             {
                 ApplicationArea = all;
                 Image = Delete;
+                Caption = 'Delete Invalid Orders';
 
                 trigger OnAction()
                 var
@@ -17,7 +18,7 @@ pageextension 80157 "EEC Purchase Order List" extends "Purchase Order List"
                         exit;
                     PurchHeader.SetRange("Document Type", Rec."Document Type"::Order);
                     PurchHeader.SetRange("Buy-from Vendor No.", '');
-                    PurchHeader.Delete(true);
+                    PurchHeader.DeleteAll(true);
                 end;
             }
         }
