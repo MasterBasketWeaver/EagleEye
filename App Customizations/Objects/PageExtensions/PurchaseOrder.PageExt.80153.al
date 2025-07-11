@@ -1,4 +1,4 @@
-pageextension 80153 "EEC Purchase Order2" extends "Purchase Order"
+pageextension 80153 "EEC Purchase Order" extends "Purchase Order"
 {
     layout
     {
