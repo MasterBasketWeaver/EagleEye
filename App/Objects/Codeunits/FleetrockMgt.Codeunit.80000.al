@@ -30,14 +30,21 @@ codeunit 80000 "EE Fleetrock Mgt."
 
     local procedure GetAndCheckSetup(UseVendorKey: Boolean)
     begin
+        if UseVendorKey then begin
+            if LoadedVendorSetup then
+                exit
+        end else if LoadedSetup then
+                exit;
         FleetrockSetup.Get();
         FleetrockSetup.TestField("Integration URL");
         if UseVendorKey then begin
             FleetrockSetup.TestField("Vendor Username");
             FleetrockSetup.TestField("Vendor API Key");
+            LoadedVendorSetup := true;
         end else begin
             FleetrockSetup.TestField("Username");
             FleetrockSetup.TestField("API Key");
+            LoadedSetup := true;
         end;
     end;
 
@@ -355,6 +362,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             exit(Vendor."No.");
         end;
 
+        GetAndCheckSetup();
         if not FleetrockSetup."Import Vendor Details" then
             if ThrowError then
                 Error('Vendor %1 not found.', SupplierName)
@@ -2170,4 +2178,5 @@ codeunit 80000 "EE Fleetrock Mgt."
         RestAPIMgt: Codeunit "EE REST API Mgt.";
         JsonMgt: Codeunit "EE Json Mgt.";
         SingleInstance: Codeunit "EE Single Instace";
+        LoadedSetup, LoadedVendorSetup : Boolean;
 }
