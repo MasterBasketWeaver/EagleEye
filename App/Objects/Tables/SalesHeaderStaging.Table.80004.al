@@ -343,6 +343,7 @@ table 80004 "EE Sales Header Staging"
 
     trigger OnDelete()
     var
+        PurchHeaderStaging: Record "EE Purch. Header Staging";
         PartLineStaging: Record "EE Part Line Staging";
         TaskLineStaging: Record "EE Task Line Staging";
     begin
@@ -350,6 +351,9 @@ table 80004 "EE Sales Header Staging"
         PartLineStaging.DeleteAll(true);
         TaskLineStaging.SetRange("Header Entry No.", Rec."Entry No.");
         TaskLineStaging.DeleteAll(true);
+        if Rec."Purch. Staging Entry No." <> 0 then
+            if PurchHeaderStaging.Get(Rec."Purch. Staging Entry No.") then
+                PurchHeaderStaging.Delete(true);
     end;
 
     procedure FormatDateValues()
