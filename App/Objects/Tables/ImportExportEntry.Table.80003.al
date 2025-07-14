@@ -85,6 +85,22 @@ table 80003 "EE Import/Export Entry"
         }
     }
 
+    trigger OnDelete()
+    var
+        PurchHeaderStaging: Record "EE Purch. Header Staging";
+        SalesHeaderStaging: Record "EE Sales Header Staging";
+    begin
+        if "Import Entry No." <> 0 then
+            case Rec."Document Type" of
+                Rec."Document Type"::"Purchase Order":
+                    if PurchHeaderStaging.Get(Rec."Import Entry No.") then
+                        PurchHeaderStaging.Delete(true);
+                Rec."Document Type"::"Repair Order":
+                    if SalesHeaderStaging.Get(Rec."Import Entry No.") then
+                        SalesHeaderStaging.Delete(true);
+            end;
+    end;
+
     procedure DisplayErrorMessage()
     var
         Lines: List of [Text];
