@@ -68,7 +68,7 @@ codeunit 80003 "EE Get Repair Orders"
     begin
         FleetRockSetup.Get();
         if FleetRockSetup."Import Repairs as Purchases" then begin
-            FleetRockMgt.CheckPurchaseOrderSetup();
+            FleetRockMgt.CheckPurchaseOrderSetup(FleetRockSetup);
             ImportType := ImportType::"Purchase Order";
         end else
             ImportType := ImportType::"Repair Order";

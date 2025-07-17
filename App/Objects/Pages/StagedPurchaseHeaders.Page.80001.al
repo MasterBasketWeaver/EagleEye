@@ -204,7 +204,9 @@ page 80001 "EE Staged Purchased Headers"
                 var
 
                     PurchaseHeader: Record "Purchase Header";
+                    GetPurchaseOrders: Codeunit "EE Get Purchase Orders";
                 begin
+
                     FleetrockMgt.CreatePurchaseOrder(Rec);
                     PurchaseHeader.SetRange("Document Type", PurchaseHeader."Document Type"::Order);
                     PurchaseHeader.SetRange("EE Fleetrock ID", Rec.id);
@@ -223,15 +225,20 @@ page 80001 "EE Staged Purchased Headers"
 
                 trigger OnAction()
                 var
+                    FleetrockSetup: Record "EE Fleetrock Setup";
                     GetDocNo: Page "EE Get Doc. No.";
                     DocNo: Text;
                 begin
+                    FleetrockSetup.Get();
                     GetDocNo.LookupMode(true);
                     if GetDocNo.RunModal() <> Action::LookupOK then
                         exit;
                     DocNo := GetDocNo.GetDocNo();
                     if DocNo <> '' then
-                        FleetrockMgt.GetAndImportPurchaseOrder(DocNo);
+                        if FleetrockSetup."Import Repairs as Purchases" then
+                            FleetrockMgt.GetAndImportRepairOrder(DocNo, false)
+                        else
+                            FleetrockMgt.GetAndImportPurchaseOrder(DocNo);
                 end;
             }
         }
