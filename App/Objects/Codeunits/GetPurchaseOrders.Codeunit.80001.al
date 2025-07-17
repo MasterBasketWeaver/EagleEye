@@ -175,13 +175,15 @@ codeunit 80001 "EE Get Purchase Orders"
                 PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseHeaderStaging."Document No.");
                 PurchaseHeader.Receive := true;
                 PurchaseHeader.Invoice := true;
-                Success := TryToPostOrder(PurchaseHeader);
+                Success := PostOrder(PurchaseHeader, PurchaseHeaderStaging);
             end;
         exit(Success);
     end;
 
-    local procedure TryToPostOrder(var PurchaseHeader: Record "Purchase Header"): Boolean
+    local procedure PostOrder(var PurchaseHeader: Record "Purchase Header"; var PurchaseHeaderStaging: Record "EE Purch. Header Staging"): Boolean
     begin
+        if not CheckDateValues(PurchaseHeader, PurchaseHeaderStaging) then
+            exit(false);
         if not CheckForNegativeLines(PurchaseHeader) then
             exit(false);
         Commit();
@@ -200,6 +202,18 @@ codeunit 80001 "EE Get Purchase Orders"
         PurchaseLine.SetFilter(Quantity, '<%1', 0);
         if PurchaseLine.FindFirst() then
             Error('Cannot post Purchase Order %1 because line %2 has a negative quantity: %3.', PurchaseHeader."No.", PurchaseLine."Line No.", PurchaseLine.Quantity);
+    end;
+
+    [TryFunction]
+    local procedure CheckDateValues(var PurchaseHeader: Record "Purchase Header"; var PurchaseHeaderStaging: Record "EE Purch. Header Staging")
+    var
+        PurchaseLine: Record "Purchase Line";
+    begin
+        PurchaseHeaderStaging.TestField(Closed);
+        if PurchaseHeader."Document Date" <> DT2Date(PurchaseHeaderStaging.Closed) then
+            PurchaseHeader.Validate("Document Date", DT2Date(PurchaseHeaderStaging.Closed));
+        if PurchaseHeader."Posting Date" <> DT2Date(PurchaseHeaderStaging.Closed) then
+            PurchaseHeader.Validate("Posting Date", DT2Date(PurchaseHeaderStaging.Closed));
     end;
 
     procedure CheckTagForImport(ImportTags: Text; Tags: Text): Boolean

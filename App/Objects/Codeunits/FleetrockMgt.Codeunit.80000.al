@@ -129,8 +129,13 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
 
-
     procedure CheckPurchaseOrderSetup()
+    begin
+        GetAndCheckSetup();
+        CheckPurchaseOrderSetup(FleetrockSetup);
+    end;
+
+    procedure CheckPurchaseOrderSetup(var FleetrockSetup: Record "EE Fleetrock Setup")
     begin
         FleetrockSetup.TestField("Purchase Item No.");
         FleetrockSetup.TestField("Vendor Posting Group");
@@ -177,7 +182,11 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchaseHeader.Init();
         PurchaseHeader.SetHideValidationDialog(true);
         PurchaseHeader.Validate("Document Type", Enum::"Purchase Document Type"::Order);
-        PurchaseHeader.Validate("Posting Date", DT2Date(PurchHeaderStaging.Received));
+        if PurchHeaderStaging.Closed <> 0DT then
+            PurchaseHeader.Validate("Posting Date", DT2Date(PurchHeaderStaging.Closed))
+        else
+            PurchaseHeader.Validate("Posting Date", DT2Date(PurchHeaderStaging.Received));
+        PurchaseHeader.Validate("Document Date", PurchaseHeader."Posting Date");
         PurchaseHeader.Insert(true);
         DocNo := PurchaseHeader."No.";
 
@@ -1118,8 +1127,13 @@ codeunit 80000 "EE Fleetrock Mgt."
     end;
 
 
+    procedure CheckRepairOrderSetup()
+    begin
+        GetAndCheckSetup();
+        CheckRepairOrderSetup(FleetrockSetup);
+    end;
 
-    local procedure CheckRepairOrderSetup()
+    procedure CheckRepairOrderSetup(var FleetrockSetup: Record "EE Fleetrock Setup")
     begin
         FleetrockSetup.TestField("External Labor Item No.");
         FleetrockSetup.TestField("External Parts Item No.");
@@ -1501,9 +1515,14 @@ codeunit 80000 "EE Fleetrock Mgt."
         CheckPurchaseOrderSetup();
         GetVendorNo(PurchaseHeaderStaging);
         PurchaseHeader.SetHideValidationDialog(true);
-        ClosedDate := DT2Date(PurchaseHeaderStaging.Closed);
-        if ClosedDate <> 0D then
+        if PurchaseHeaderStaging.Closed <> 0DT then
+            ClosedDate := DT2Date(PurchaseHeaderStaging.Closed)
+        else
+            ClosedDate := DT2Date(PurchaseHeaderStaging.Received);
+        if ClosedDate <> 0D then begin
             PurchaseHeader.Validate("Posting Date", ClosedDate);
+            PurchaseHeader.Validate("Document Date", ClosedDate);
+        end;
         if PurchaseHeaderStaging.invoice_number <> '' then
             if PurchaseHeaderStaging.invoice_number <> PurchaseHeader."Vendor Invoice No." then
                 PurchaseHeader.Validate("Vendor Invoice No.", PurchaseHeaderStaging.invoice_number);
