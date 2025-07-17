@@ -186,6 +186,8 @@ codeunit 80001 "EE Get Purchase Orders"
             exit(false);
         if not CheckForNegativeLines(PurchaseHeader) then
             exit(false);
+        if not CheckAmount(PurchaseHeader, PurchaseHeaderStaging) then
+            exit(false);
         Commit();
         exit(Codeunit.Run(Codeunit::"Purch.-Post", PurchaseHeader));
     end;
@@ -206,14 +208,26 @@ codeunit 80001 "EE Get Purchase Orders"
 
     [TryFunction]
     local procedure CheckDateValues(var PurchaseHeader: Record "Purchase Header"; var PurchaseHeaderStaging: Record "EE Purch. Header Staging")
-    var
-        PurchaseLine: Record "Purchase Line";
     begin
         PurchaseHeaderStaging.TestField(Closed);
         if PurchaseHeader."Document Date" <> DT2Date(PurchaseHeaderStaging.Closed) then
             PurchaseHeader.Validate("Document Date", DT2Date(PurchaseHeaderStaging.Closed));
         if PurchaseHeader."Posting Date" <> DT2Date(PurchaseHeaderStaging.Closed) then
             PurchaseHeader.Validate("Posting Date", DT2Date(PurchaseHeaderStaging.Closed));
+    end;
+
+    [TryFunction]
+    local procedure CheckAmount(var PurchaseHeader: Record "Purchase Header"; var PurchaseHeaderStaging: Record "EE Purch. Header Staging")
+    begin
+        PurchaseHeader.CalcFields("Amount Including VAT");
+        if PurchaseHeader."Amount Including VAT" = PurchaseHeaderStaging.grand_total then
+            exit;
+        if Abs(Round(PurchaseHeader."Amount Including VAT", 0.01) - Round(PurchaseHeaderStaging.grand_total, 0.01)) <= 0.01 then begin
+            FleetRockMgt.FixPurchaseOrderRounding(PurchaseHeader, PurchaseHeaderStaging);
+            CheckAmount(PurchaseHeader, PurchaseHeaderStaging);
+            exit;
+        end;
+        Error('Total amount of %1 for Purchase Order %2 does not match the Grand Total %3 for related the staging record %4.', PurchaseHeader."Amount Including VAT", PurchaseHeader."No.", PurchaseHeaderStaging.grand_total, PurchaseHeaderStaging."Entry No.");
     end;
 
     procedure CheckTagForImport(ImportTags: Text; Tags: Text): Boolean
