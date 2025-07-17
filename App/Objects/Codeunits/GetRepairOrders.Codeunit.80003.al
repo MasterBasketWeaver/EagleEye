@@ -109,6 +109,21 @@ codeunit 80003 "EE Get Repair Orders"
                 LogEntry := false;
                 exit(true);
             end;
+            PurchaseHeader.SetRange("Document Type", PurchaseHeader."Document Type"::Order);
+            PurchaseHeader.SetRange("EE Fleetrock ID", CopyStr(OrderId, 1, MaxStrLen(PurchaseHeader."EE Fleetrock ID")));
+            if PurchaseHeader.FindFirst() then begin
+                PurchaseHeaderStaging.SetRange(id, PurchaseHeader."EE Fleetrock ID");
+                PurchaseHeaderStaging.SetRange("Document No.", PurchaseHeader."No.");
+                if PurchaseHeaderStaging.FindLast() then begin
+                    PurchaseHeader.CalcFields("Amount Including VAT");
+                    if Abs(Round(PurchaseHeader."Amount Including VAT", 0.01) - Round(PurchaseHeaderStaging.grand_total, 0.01)) <= 0.01 then begin
+                        LogEntry := false;
+                        exit(true);
+                    end;
+                end;
+                PurchaseHeaderStaging.Reset();
+            end;
+            PurchaseHeader.Reset();
             if FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, false) and SalesHeaderStaging.Get(ImportEntryNo) then
                 if FleetRockMgt.TryToCreatePurchaseStagingFromRepairStaging(SalesHeaderStaging, PurchaseHeaderStaging) then
                     Success := GetPurchaseOrders.UpdateAndPostPurchaseOrder(FleetrockSetup, PurchaseHeaderStaging);
