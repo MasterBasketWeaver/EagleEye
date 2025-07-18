@@ -78,6 +78,11 @@ table 80002 "EE Purch. Line Staging"
             DataClassification = CustomerContent;
             Editable = false;
         }
+        field(51; "Added (Local Time)"; DateTime)
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
     }
 
     keys
@@ -99,9 +104,12 @@ table 80002 "EE Purch. Line Staging"
         TypeHelper: Codeunit "Type Helper";
         TimezoneOffset: Duration;
     begin
+        if not TypeHelper.GetUserTimezoneOffset(TimezoneOffset) then
+            TimezoneOffset := 0;
+
         Rec.Added := 0DT;
         if Rec.date_added <> '' then
             if Evaluate(Rec.Added, Rec.date_added) then
-                Rec.Added := Rec.Added + TimezoneOffset;
+                Rec."Added (Local Time)" := Rec.Added + TimezoneOffset;
     end;
 }

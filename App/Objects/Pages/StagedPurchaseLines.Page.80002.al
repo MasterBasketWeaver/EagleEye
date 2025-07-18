@@ -71,6 +71,10 @@ page 80002 "EE Staged Purchased Lines"
                 {
                     ApplicationArea = all;
                 }
+                field("Added (Local Time)"; Rec."Added (Local Time)")
+                {
+                    ApplicationArea = all;
+                }
                 field(Imported; Rec.SystemCreatedAt)
                 {
                     ApplicationArea = all;

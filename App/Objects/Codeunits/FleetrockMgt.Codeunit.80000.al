@@ -944,10 +944,14 @@ codeunit 80000 "EE Fleetrock Mgt."
             URL := StrSubstNo('%1/API/GetRO?username=%2&ID=%3&token=%4', FleetrockSetup."Integration URL", FleetrockSetup.Username, ID, APIToken);
         JsonArray := RestAPIMgt.GetResponseAsJsonArray(URL, 'repair_orders');
 
+
         foreach JTkn in JsonArray do begin
             JObjt := JTkn.AsObject();
             if JsonMgt.GetJsonValueAsText(JObjt, 'id') = ID then begin
                 JsonArray2.Add(JObjt);
+                if not IsInternalCustomer(JsonMgt.GetJsonValueAsText(JObjt, 'customer_name')) then
+                    if not Confirm('Order %1 has been found but is not from an internal customer. Do you want to continue?', false, ID) then
+                        exit;
                 GetRepairOrdersCU.ImportRepairOrders(JsonArray2, Enum::"EE Repair Order Status"::Invoiced, Enum::"EE Event Type"::"Manual Import", URL);
                 exit;
             end;
@@ -1117,6 +1121,17 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
 
+    procedure IsInternalCustomer(CustomerName: Text): Boolean;
+    begin
+        if CustomerName = '' then
+            exit(false);
+        GetAndCheckSetup();
+        if FleetrockSetup."Import Repairs as Purchases" then
+            exit(true);
+        if FleetrockSetup."Internal Customer Names" = '' then
+            exit(false);
+        exit(IsInternalCustomer(FleetrockSetup."Internal Customer Names", CustomerName));
+    end;
 
     local procedure IsInternalCustomer(InternalNames: Text; OrderName: Text): Boolean
     var
@@ -1548,10 +1563,8 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchLineStaging.SetRange("Header Entry No.", PurchaseHeaderStaging."Entry No.");
         if not PurchLineStaging.FindSet() then
             exit;
-
-        PurchaseLine.SetRange("EE Part Id");
         repeat
-            PurchaseLine.SetRange("EE Staging Line Entry No.", PurchLineStaging."Entry No.");
+            PurchaseLine.SetRange("EE Part Id", PurchLineStaging.part_id);
             if not PurchaseLine.FindFirst() then begin
                 LineNo += 10000;
                 AddPurchaseLine(PurchaseLine, PurchLineStaging, PurchaseHeader."No.", LineNo);
@@ -1648,6 +1661,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         end else
             if PurchaseLine.FindFirst() then
                 PurchaseLine.Delete(true);
+        PurchaseLine.SetRange("EE Part Id");
     end;
 
     local procedure AddPurchaseLine(var PurchaseLine: Record "Purchase Line"; var PurchLineStaging: Record "EE Purch. Line Staging"; DocNo: Code[20]; LineNo: Integer)
@@ -1663,6 +1677,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchaseLine.Validate("Tax Group Code", FleetrockSetup."Non-Taxable Tax Group Code");
         PurchaseLine.Validate("EE Part Id", PurchLineStaging.part_id);
         PurchaseLine."EE Staging Line Entry No." := PurchLineStaging."Entry No."; //can't use validate as entry no will be zero for extra lines to handle taxes and other changes
+
         PurchaseLine.Insert(true);
     end;
 
@@ -1891,13 +1906,14 @@ codeunit 80000 "EE Fleetrock Mgt."
                 PurchLineStaging."Entry No." := EntryNo;
                 PurchLineStaging."Header Entry No." := PurchHeaderStaging."Entry No.";
                 PurchLineStaging."Header Id" := PurchHeaderStaging.id;
-                PurchLineStaging.part_id := CopyStr(TaskLineStaging.labor_cause_code, 1, MaxStrLen(PurchLineStaging.part_id));
+                PurchLineStaging.part_id := TaskLineStaging.task_id;
                 PurchLineStaging.part_number := TaskLineStaging.labor_type;
                 PurchLineStaging.part_description := 'Labor';
                 PurchLineStaging.part_quantity := TaskLineStaging.labor_hours;
                 PurchLineStaging.unit_price := TaskLineStaging.labor_hourly_rate;
                 PurchLineStaging.part_system_code := TaskLineStaging.labor_system_code;
                 PurchLineStaging.line_total := TaskLineStaging.labor_hours * TaskLineStaging.labor_hourly_rate;
+                PurchLineStaging.date_added := TaskLineStaging.date_added;
                 PurchLineStaging.Insert(true);
 
                 PartLineStaging.SetRange("Task Entry No.", TaskLineStaging."Entry No.");
@@ -1909,13 +1925,14 @@ codeunit 80000 "EE Fleetrock Mgt."
                         PurchLineStaging."Entry No." := EntryNo;
                         PurchLineStaging."Header Entry No." := PurchHeaderStaging."Entry No.";
                         PurchLineStaging."Header Id" := PurchHeaderStaging.id;
-                        PurchLineStaging.part_id := PartLineStaging.part_id;
+                        PurchLineStaging.part_id := PartLineStaging.task_part_id;
                         PurchLineStaging.part_number := PartLineStaging.part_number;
                         PurchLineStaging.part_description := PartLineStaging.part_description;
                         PurchLineStaging.part_quantity := PartLineStaging.part_quantity;
                         PurchLineStaging.unit_price := PartLineStaging.part_price;
                         PurchLineStaging.part_system_code := PartLineStaging.part_system_code;
                         PurchLineStaging.line_total := PartLineStaging.part_price * PartLineStaging.part_quantity;
+                        PurchLineStaging.date_added := PartLineStaging.date_added;
                         PurchLineStaging.Insert(true);
                     until PartLineStaging.Next() = 0;
             until TaskLineStaging.Next() = 0;

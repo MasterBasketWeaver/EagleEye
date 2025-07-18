@@ -143,6 +143,10 @@ codeunit 80003 "EE Get Repair Orders"
         OrderId: Text;
         Success: Boolean;
     begin
+        if not FleetRockMgt.IsInternalCustomer(JsonMgt.GetJsonValueAsText(OrderJsonObj, 'customer_name')) then begin
+            LogEntry := false;
+            exit(true);
+        end;
         if OrderStatus = OrderStatus::invoiced then begin
             LogEntry := true;
             if HasSetStartDateTime then begin
