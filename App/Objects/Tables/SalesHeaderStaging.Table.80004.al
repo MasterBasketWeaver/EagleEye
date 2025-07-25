@@ -218,12 +218,12 @@ table 80004 "EE Sales Header Staging"
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(50; remit_to; Text[50])
+        field(50; remit_to; Text[100])
         {
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(51; remit_to_company_id; Text[50])
+        field(51; remit_to_company_id; Text[100])
         {
             DataClassification = CustomerContent;
             Editable = false;

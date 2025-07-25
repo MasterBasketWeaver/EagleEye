@@ -101,6 +101,7 @@ table 80001 "EE Purch. Header Staging"
             DataClassification = CustomerContent;
             Editable = false;
         }
+
         field(50; Created; DateTime)
         {
             DataClassification = CustomerContent;
@@ -125,6 +126,16 @@ table 80001 "EE Purch. Header Staging"
         {
             FieldClass = FlowField;
             CalcFormula = count("EE Purch. Line Staging" where("Header id" = field(id), "Header Entry No." = field("Entry No.")));
+            Editable = false;
+        }
+        field(60; remit_to; Text[100])
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
+        field(61; remit_to_company_id; Text[100])
+        {
+            DataClassification = CustomerContent;
             Editable = false;
         }
         field(100; "Import Error"; Boolean)
