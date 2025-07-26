@@ -356,6 +356,8 @@ page 80000 "EE Fleetrock Setup"
 
                 trigger OnAction()
                 var
+                    Vendor: Record Vendor;
+                    Customer: Record Customer;
                     ImportExportEntry: Record "EE Import/Export Entry";
                     PurchHeaderStaging: Record "EE Purch. Header Staging";
                     PurchLineStaging: Record "EE Purch. Line Staging";
@@ -415,6 +417,8 @@ page 80000 "EE Fleetrock Setup"
                     VATEntry.DeleteAll(false);
                     GLEntryVATEntryLink.DeleteAll(false);
                     ValueEntry.DeleteAll(false);
+                    Vendor.DeleteAll(true);
+                    Customer.DeleteAll(true);
                 end;
             }
         }

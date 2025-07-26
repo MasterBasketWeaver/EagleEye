@@ -66,6 +66,14 @@ page 80001 "EE Staged Purchased Headers"
                 {
                     ApplicationArea = All;
                 }
+                field(remit_to; Rec.remit_to)
+                {
+                    ApplicationArea = all;
+                }
+                field(remit_to_company_id; Rec.remit_to_company_id)
+                {
+                    ApplicationArea = all;
+                }
                 field(tag; Rec.tag)
                 {
                     ApplicationArea = All;

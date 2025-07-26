@@ -171,7 +171,7 @@ codeunit 80000 "EE Fleetrock Mgt."
     var
         PurchaseHeader: Record "Purchase Header";
         Vendor: Record Vendor;
-        VendorNo: Code[20];
+        VendorNo, RemitVendorNo : Code[20];
     begin
         CheckIfAlreadyImported(PurchHeaderStaging.id, PurchaseHeader);
         if PurchaseHeader."No." <> '' then begin
@@ -191,13 +191,13 @@ codeunit 80000 "EE Fleetrock Mgt."
         DocNo := PurchaseHeader."No.";
 
         ClearLastError();
-        if not TryToGetVendorNo(PurchHeaderStaging, VendorNo) then begin
+        if not TryToGetVendorNo(PurchHeaderStaging, VendorNo, false) then begin
             if Vendor.Get(VendorNo) then
                 Vendor.Delete(true);
             Error(GetLastErrorText());
         end;
-
         PurchaseHeader.Validate("Buy-from Vendor No.", VendorNo);
+
         if PurchaseHeader."Payment Terms Code" = '' then
             if PurchHeaderStaging.payment_term_days = 0 then
                 PurchaseHeader.Validate("Payment Terms Code", FleetrockSetup."Payment Terms")
@@ -206,6 +206,18 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchaseHeader.Validate("EE Fleetrock ID", PurchHeaderStaging.id);
         if PurchHeaderStaging.invoice_number <> '' then
             PurchaseHeader.Validate("Vendor Invoice No.", PurchHeaderStaging.invoice_number);
+
+
+        if PurchHeaderStaging.remit_to <> '' then begin
+            ClearLastError();
+            if not TryToGetVendorNo(PurchHeaderStaging, RemitVendorNo, true) then begin
+                if Vendor.Get(RemitVendorNo) then
+                    Vendor.Delete(true);
+                Error(GetLastErrorText());
+            end else
+                PurchaseHeader.Validate("Pay-to Vendor No.", RemitVendorNo);
+        end;
+
         PurchaseHeader.Modify(true);
         CreatePurchaseLines(PurchHeaderStaging, DocNo);
     end;
@@ -306,28 +318,23 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
     [TryFunction]
-    local procedure TryToGetVendorNo(var PurchHeaderStaging: Record "EE Purch. Header Staging"; var VendorNo: Code[20])
+    local procedure TryToGetVendorNo(var PurchHeaderStaging: Record "EE Purch. Header Staging"; var VendorNo: Code[20]; RemitTo: Boolean)
     begin
-        VendorNo := GetVendorNo(PurchHeaderStaging);
+        VendorNo := GetVendorNo(PurchHeaderStaging, RemitTo);
     end;
 
-    local procedure GetVendorNo(var PurchHeaderStaging: Record "EE Purch. Header Staging"): Code[20]
+    local procedure GetVendorNo(var PurchHeaderStaging: Record "EE Purch. Header Staging"; RemitTo: Boolean): Code[20]
     var
         VendorNo: Code[20];
     begin
         SingleInstance.SetSkipVendorUpdate(true);
-        VendorNo := GetVendorNoAndUpdate(PurchHeaderStaging);
+        VendorNo := GetVendorNoAndUpdate(PurchHeaderStaging, RemitTo);
         SingleInstance.SetSkipVendorUpdate(false);
         exit(VendorNo);
     end;
 
 
-    local procedure GetVendorNoAndUpdate(var PurchHeaderStaging: Record "EE Purch. Header Staging"): Code[20]
-    begin
-        if PurchHeaderStaging.supplier_name = '' then
-            Error('supplier_name must be specified.');
-        exit(GetVendorNoAndUpdate(PurchHeaderStaging, PurchHeaderStaging.supplier_name, true));
-    end;
+
 
     local procedure GetVendorNoAndUpdate(SupplierName: Text): Code[20]
     var
@@ -337,10 +344,26 @@ codeunit 80000 "EE Fleetrock Mgt."
             Error('supplier_name must be specified.');
         if FleetrockSetup."Import Vendor Details" then
             Error('Cannot get vendor details without related Purchase Staging Header if Vendor insert is enabled.\%1', SupplierName);
-        exit(GetVendorNoAndUpdate(PurchHeaderStaging, SupplierName, false));
+        exit(GetVendorNoAndUpdate(PurchHeaderStaging, SupplierName, false, false));
     end;
 
-    local procedure GetVendorNoAndUpdate(var PurchHeaderStaging: Record "EE Purch. Header Staging"; SupplierName: Text; ThrowError: Boolean): Code[20]
+    local procedure GetVendorNoAndUpdate(var PurchHeaderStaging: Record "EE Purch. Header Staging"; RemitTo: Boolean): Code[20]
+    var
+        VendorName: Text;
+    begin
+        if RemitTo then begin
+            if PurchHeaderStaging.remit_to = '' then
+                Error('remit_to must be specified.');
+            VendorName := PurchHeaderStaging.remit_to;
+        end else begin
+            if PurchHeaderStaging.supplier_name = '' then
+                Error('supplier_name must be specified.');
+            VendorName := PurchHeaderStaging.supplier_name;
+        end;
+        exit(GetVendorNoAndUpdate(PurchHeaderStaging, VendorName, true, RemitTo));
+    end;
+
+    local procedure GetVendorNoAndUpdate(var PurchHeaderStaging: Record "EE Purch. Header Staging"; SupplierName: Text; ThrowError: Boolean; RemitTo: Boolean): Code[20]
     var
         Vendor: Record Vendor;
         VendorObj: JsonObject;
@@ -354,7 +377,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             MissingSource := true;
         end;
         if Vendor.FindFirst() then begin
-            if GetVendorDetails(SupplierName, VendorObj) then
+            if GetVendorDetails(SupplierName, VendorObj, RemitTo) then
                 if UpdateVendorFromJson(Vendor, VendorObj) then
                     Update := true;
             if Vendor."Tax Area Code" = '' then begin
@@ -378,8 +401,8 @@ codeunit 80000 "EE Fleetrock Mgt."
             else
                 exit('');
 
-        InitVendor(PurchHeaderStaging, Vendor);
-        if GetVendorDetails(SupplierName, VendorObj) then
+        InitVendor(PurchHeaderStaging, Vendor, SupplierName);
+        if GetVendorDetails(SupplierName, VendorObj, RemitTo) then
             UpdateVendorFromJson(Vendor, VendorObj);
         Vendor.Modify(true);
         exit(Vendor."No.");
@@ -453,14 +476,14 @@ codeunit 80000 "EE Fleetrock Mgt."
         Vendor.Validate("Phone No.", PhoneNo);
     end;
 
-    local procedure InitVendor(var PurchHeaderStaging: Record "EE Purch. Header Staging"; var Vendor: Record Vendor)
+    local procedure InitVendor(var PurchHeaderStaging: Record "EE Purch. Header Staging"; var Vendor: Record Vendor; VendorName: Text)
     begin
         PurchHeaderStaging.TestField("Entry No.");
         Vendor.Init();
         Vendor.Insert(true);
-        Vendor.Validate(Name, PurchHeaderStaging.supplier_name);
+        Vendor.Validate(Name, VendorName);
         Vendor.Validate("EE Source Type", Vendor."EE Source Type"::Fleetrock);
-        Vendor.Validate("EE Source No.", PurchHeaderStaging.supplier_name);
+        Vendor.Validate("EE Source No.", VendorName);
         Vendor.Validate("Vendor Posting Group", FleetrockSetup."Vendor Posting Group");
         Vendor.Validate("Tax Liable", true);
         Vendor.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
@@ -469,11 +492,13 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
 
-    local procedure GetVendorDetails(SupplierName: Text; var VendorObj: JsonObject): Boolean
+    local procedure GetVendorDetails(SupplierName: Text; var VendorObj: JsonObject; RemitTo: Boolean): Boolean
     var
         VendorArray: JsonArray;
         T: JsonToken;
     begin
+        if RemitTo then
+            exit(GetVendorAsUserDetails(SupplierName, VendorObj, true));
         CheckToGetAPIToken();
         VendorArray := RestAPIMgt.GetResponseAsJsonArray(StrSubstNo('%1/API/GetSuppliers?username=%2&token=%3', FleetrockSetup."Integration URL", FleetrockSetup.Username, CheckToGetAPIToken()), 'suppliers');
         foreach T in VendorArray do begin
@@ -483,10 +508,16 @@ codeunit 80000 "EE Fleetrock Mgt."
         end;
     end;
 
-    local procedure GetVendorAsUserDetails(SupplierName: Text): Boolean
+    local procedure GetVendorAsUserDetails(SupplierName: Text; RemitTo: Boolean): Boolean
+    var
+        VendorObj: JsonObject;
+    begin
+        exit(GetVendorAsUserDetails(SupplierName, VendorObj, RemitTo));
+    end;
+
+    local procedure GetVendorAsUserDetails(SupplierName: Text; var VendorObj: JsonObject; RemitTo: Boolean): Boolean
     var
         VendorArray: JsonArray;
-        VendorObj: JsonObject;
         T: JsonToken;
     begin
         CheckToGetAPIToken();
@@ -494,8 +525,12 @@ codeunit 80000 "EE Fleetrock Mgt."
         foreach T in VendorArray do begin
             VendorObj := T.AsObject();
             if JsonMgt.GetJsonValueAsText(VendorObj, 'role') = 'vendor' then
-                if JsonMgt.GetJsonValueAsText(VendorObj, 'username') = SupplierName then
-                    exit(true);
+                if RemitTo then begin
+                    if JsonMgt.GetJsonValueAsText(VendorObj, 'company_name') = SupplierName then
+                        exit(true)
+                end else
+                    if JsonMgt.GetJsonValueAsText(VendorObj, 'username') = SupplierName then
+                        exit(true);
         end;
     end;
 
@@ -516,7 +551,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             exit(false);
         end;
 
-        if GetVendorAsUserDetails(Vendor."No.") then
+        if GetVendorAsUserDetails(Vendor."No.", false) then
             URL := StrSubstNo('%1/API/UpdateUser?token=%2', FleetrockSetup."Integration URL", APIToken);
         if not RestAPIMgt.TryToGetResponseAsJsonArray(URL, 'response', 'POST', JsonBody, ResponseArray) then begin
             InsertImportEntry(false, 0, Enum::"EE Import Type"::Vendor, EventType, Enum::"EE Direction"::Export,
@@ -1526,7 +1561,9 @@ codeunit 80000 "EE Fleetrock Mgt."
     begin
         GetAndCheckSetup();
         CheckPurchaseOrderSetup();
-        GetVendorNo(PurchaseHeaderStaging);
+        GetVendorNo(PurchaseHeaderStaging, false);
+        if PurchaseHeaderStaging.remit_to <> '' then
+            GetVendorNo(PurchaseHeaderStaging, true);
         PurchaseHeader.SetHideValidationDialog(true);
         if PurchaseHeaderStaging.Closed <> 0DT then
             ClosedDate := DT2Date(PurchaseHeaderStaging.Closed)
@@ -1880,6 +1917,8 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchHeaderStaging.date_closed := SalesHeaderStaging.date_invoiced;
         PurchHeaderStaging.date_opened := SalesHeaderStaging.date_started;
         PurchHeaderStaging.date_received := SalesHeaderStaging.date_invoiced;
+        PurchHeaderStaging.remit_to := SalesHeaderStaging.remit_to;
+        PurchHeaderStaging.remit_to_company_id := SalesHeaderStaging.remit_to_company_id;
         PurchHeaderStaging.Insert(true);
 
         SalesHeaderStaging."Purch. Staging Entry No." := PurchHeaderStaging."Entry No.";
