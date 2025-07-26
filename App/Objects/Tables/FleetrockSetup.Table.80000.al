@@ -95,7 +95,11 @@ table 80000 "EE Fleetrock Setup"
             DataClassification = CustomerContent;
             TableRelation = "Item"."No.";
         }
-        field(24; "Internal Customer Names"; Text[1024])
+        field(24; "Valid Customer Names"; Text[1024])
+        {
+            DataClassification = CustomerContent;
+        }
+        field(25; "Valid Vendor Names"; Text[1024])
         {
             DataClassification = CustomerContent;
         }

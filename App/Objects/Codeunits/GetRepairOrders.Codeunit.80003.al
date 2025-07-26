@@ -61,7 +61,6 @@ codeunit 80003 "EE Get Repair Orders"
         FleetRockSetup: Record "EE Fleetrock Setup";
         OrderJsonObj: JsonObject;
         T: JsonToken;
-        Tags: Text;
         ImportType: Enum "EE Import Type";
         ImportEntryNo: Integer;
         Success, LogEntry : Boolean;
@@ -74,8 +73,7 @@ codeunit 80003 "EE Get Repair Orders"
             ImportType := ImportType::"Repair Order";
         foreach T in JsonArry do begin
             OrderJsonObj := T.AsObject();
-            Tags := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'tag');
-            if GetPurchaseOrders.CheckTagForImport(FleetRockSetup."Import Tags", Tags) then begin
+            if FleetRockMgt.IsValidVendor(JsonMgt.GetJsonValueAsText(OrderJsonObj, 'vendor_name')) then begin
                 ImportEntryNo := 0;
                 Success := false;
                 LogEntry := false;
@@ -85,8 +83,6 @@ codeunit 80003 "EE Get Repair Orders"
                 else
                     if OrderStatus = OrderStatus::invoiced then
                         Success := ImportAsPurchaseOrder(FleetRockSetup, OrderJsonObj, ImportEntryNo, LogEntry);
-
-
                 if LogEntry then
                     FleetRockMgt.InsertImportEntry(Success and (GetLastErrorText() = ''), ImportEntryNo, ImportType, EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET');
             end;
@@ -102,6 +98,8 @@ codeunit 80003 "EE Get Repair Orders"
         OrderId: Text;
         Success: Boolean;
     begin
+        if not FleetRockMgt.IsValidCustomer(JsonMgt.GetJsonValueAsText(OrderJsonObj, 'customer_name')) then
+            exit(true);
         LogEntry := true;
         if not TryToGetOrderID(OrderJsonObj, OrderId, Enum::"EE Import Type"::"Purchase Order") then
             exit(false);

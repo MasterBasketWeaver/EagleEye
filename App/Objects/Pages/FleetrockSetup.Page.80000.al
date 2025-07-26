@@ -29,6 +29,7 @@ page 80000 "EE Fleetrock Setup"
         {
             group("Purchase Orders")
             {
+
                 field("Purchase Item No.";
                 Rec."Purchase Item No.")
                 {
@@ -56,9 +57,15 @@ page 80000 "EE Fleetrock Setup"
             }
             group("Repair Orders")
             {
-                field("Internal Customer Name"; Rec."Internal Customer Names")
+                field("Valid Vendor Names"; Rec."Valid Vendor Names")
                 {
                     ApplicationArea = all;
+                    ToolTip = 'Prevent repair orders from being imported if the vendor name does not match one of the valid names.';
+                }
+                field("Valid Customer Name"; Rec."Valid Customer Names")
+                {
+                    ApplicationArea = all;
+                    ToolTip = 'Prevent repair orders from being imported as purchase orders if the customer name does not match one of the valid names.';
                 }
                 field("Internal Labor Item No."; Rec."Internal Labor Item No.")
                 {
