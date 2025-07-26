@@ -80,17 +80,20 @@ codeunit 80003 "EE Get Repair Orders"
                 Success := false;
                 LogEntry := false;
                 ClearLastError();
-                if FleetRockSetup."Import Repairs as Purchases" then
-                    Success := ImportAsPurchaseOrder(FleetRockSetup, OrderJsonObj, OrderStatus, ImportEntryNo, LogEntry)
+                if not FleetRockSetup."Import Repairs as Purchases" then
+                    Success := ImportAsSalesInvoice(FleetRockSetup, OrderJsonObj, OrderStatus, ImportEntryNo, LogEntry)
                 else
-                    Success := ImportAsSalesInvoice(FleetRockSetup, OrderJsonObj, OrderStatus, ImportEntryNo, LogEntry);
+                    if OrderStatus = OrderStatus::invoiced then
+                        Success := ImportAsPurchaseOrder(FleetRockSetup, OrderJsonObj, ImportEntryNo, LogEntry);
+
+
                 if LogEntry then
                     FleetRockMgt.InsertImportEntry(Success and (GetLastErrorText() = ''), ImportEntryNo, ImportType, EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET');
             end;
         end;
     end;
 
-    local procedure ImportAsPurchaseOrder(var FleetrockSetup: Record "EE Fleetrock Setup"; var OrderJsonObj: JsonObject; OrderStatus: Enum "EE Repair Order Status"; var ImportEntryNo: Integer; var LogEntry: Boolean): Boolean
+    local procedure ImportAsPurchaseOrder(var FleetrockSetup: Record "EE Fleetrock Setup"; var OrderJsonObj: JsonObject; var ImportEntryNo: Integer; var LogEntry: Boolean): Boolean
     var
         PurchaseHeader: Record "Purchase Header";
         PurchInvHeader: Record "Purch. Inv. Header";
@@ -99,38 +102,38 @@ codeunit 80003 "EE Get Repair Orders"
         OrderId: Text;
         Success: Boolean;
     begin
-        if OrderStatus = OrderStatus::invoiced then begin
-            LogEntry := true;
-            if not TryToGetOrderID(OrderJsonObj, OrderId, Enum::"EE Import Type"::"Purchase Order") then
-                exit(false);
-            PurchInvHeader.SetCurrentKey("EE Fleetrock ID");
-            PurchInvHeader.SetRange("EE Fleetrock ID", CopyStr(OrderId, 1, MaxStrLen(PurchInvHeader."EE Fleetrock ID")));
-            if not PurchInvHeader.IsEmpty() then begin
-                LogEntry := false;
-                exit(true);
-            end;
-            PurchaseHeader.SetRange("Document Type", PurchaseHeader."Document Type"::Order);
-            PurchaseHeader.SetRange("EE Fleetrock ID", CopyStr(OrderId, 1, MaxStrLen(PurchaseHeader."EE Fleetrock ID")));
-            if PurchaseHeader.FindFirst() then begin
-                PurchaseHeaderStaging.SetRange(id, PurchaseHeader."EE Fleetrock ID");
-                PurchaseHeaderStaging.SetRange("Document No.", PurchaseHeader."No.");
-                if PurchaseHeaderStaging.FindLast() then begin
-                    PurchaseHeader.CalcFields("Amount Including VAT");
-                    if Abs(Round(PurchaseHeader."Amount Including VAT", 0.01) - Round(PurchaseHeaderStaging.grand_total, 0.01)) <= 0.01 then begin
-                        LogEntry := false;
-                        exit(true);
-                    end;
+        LogEntry := true;
+        if not TryToGetOrderID(OrderJsonObj, OrderId, Enum::"EE Import Type"::"Purchase Order") then
+            exit(false);
+        PurchInvHeader.SetCurrentKey("EE Fleetrock ID");
+        PurchInvHeader.SetRange("EE Fleetrock ID", CopyStr(OrderId, 1, MaxStrLen(PurchInvHeader."EE Fleetrock ID")));
+        if not PurchInvHeader.IsEmpty() then begin
+            LogEntry := false;
+            exit(true);
+        end;
+        PurchaseHeader.SetRange("Document Type", PurchaseHeader."Document Type"::Order);
+        PurchaseHeader.SetRange("EE Fleetrock ID", CopyStr(OrderId, 1, MaxStrLen(PurchaseHeader."EE Fleetrock ID")));
+        if PurchaseHeader.FindFirst() then begin
+            PurchaseHeaderStaging.SetRange(id, PurchaseHeader."EE Fleetrock ID");
+            PurchaseHeaderStaging.SetRange("Document No.", PurchaseHeader."No.");
+            if PurchaseHeaderStaging.FindLast() then begin
+                PurchaseHeader.CalcFields("Amount Including VAT");
+                if Abs(Round(PurchaseHeader."Amount Including VAT", 0.01) - Round(PurchaseHeaderStaging.grand_total, 0.01)) <= 0.01 then begin
+                    LogEntry := false;
+                    exit(true);
                 end;
-                PurchaseHeaderStaging.Reset();
             end;
-            PurchaseHeader.Reset();
-            if FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, false) and SalesHeaderStaging.Get(ImportEntryNo) then
-                if FleetRockMgt.TryToCreatePurchaseStagingFromRepairStaging(SalesHeaderStaging, PurchaseHeaderStaging) then
-                    Success := GetPurchaseOrders.UpdateAndPostPurchaseOrder(FleetrockSetup, PurchaseHeaderStaging);
-            if PurchaseHeaderStaging."Document No." <> '' then begin
-                SalesHeaderStaging."Purch. Document No." := PurchaseHeaderStaging."Document No.";
-                SalesHeaderStaging.Modify(true);
+            PurchaseHeaderStaging.Reset();
+        end;
+        PurchaseHeader.Reset();
+        if FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, false) and SalesHeaderStaging.Get(ImportEntryNo) then
+            if FleetRockMgt.TryToCreatePurchaseStagingFromRepairStaging(SalesHeaderStaging, PurchaseHeaderStaging) then begin
+                Success := GetPurchaseOrders.UpdateAndPostPurchaseOrder(FleetrockSetup, PurchaseHeaderStaging);
+                ImportEntryNo := PurchaseHeaderStaging."Entry No.";
             end;
+        if PurchaseHeaderStaging."Document No." <> '' then begin
+            SalesHeaderStaging."Purch. Document No." := PurchaseHeaderStaging."Document No.";
+            SalesHeaderStaging.Modify(true);
         end;
         exit(Success);
     end;
@@ -143,7 +146,7 @@ codeunit 80003 "EE Get Repair Orders"
         OrderId: Text;
         Success: Boolean;
     begin
-        if not FleetRockMgt.IsInternalCustomer(JsonMgt.GetJsonValueAsText(OrderJsonObj, 'customer_name')) then begin
+        if not FleetRockMgt.IsValidCustomer(JsonMgt.GetJsonValueAsText(OrderJsonObj, 'customer_name')) then begin
             LogEntry := false;
             exit(true);
         end;

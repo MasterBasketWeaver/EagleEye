@@ -949,7 +949,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             JObjt := JTkn.AsObject();
             if JsonMgt.GetJsonValueAsText(JObjt, 'id') = ID then begin
                 JsonArray2.Add(JObjt);
-                if not IsInternalCustomer(JsonMgt.GetJsonValueAsText(JObjt, 'customer_name')) then
+                if not IsValidCustomer(JsonMgt.GetJsonValueAsText(JObjt, 'customer_name')) then
                     if not Confirm('Order %1 has been found but is not from an internal customer. Do you want to continue?', false, ID) then
                         exit;
                 GetRepairOrdersCU.ImportRepairOrders(JsonArray2, Enum::"EE Repair Order Status"::Invoiced, Enum::"EE Event Type"::"Manual Import", URL);
@@ -1121,15 +1121,13 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
 
-    procedure IsInternalCustomer(CustomerName: Text): Boolean;
+    procedure IsValidCustomer(CustomerName: Text): Boolean;
     begin
         if CustomerName = '' then
             exit(false);
         GetAndCheckSetup();
-        if FleetrockSetup."Import Repairs as Purchases" then
+        if FleetrockSetup."Import Repairs as Purchases" or (FleetrockSetup."Internal Customer Names" = '') then
             exit(true);
-        if FleetrockSetup."Internal Customer Names" = '' then
-            exit(false);
         exit(IsInternalCustomer(FleetrockSetup."Internal Customer Names", CustomerName));
     end;
 
