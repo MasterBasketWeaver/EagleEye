@@ -73,7 +73,7 @@ codeunit 80003 "EE Get Repair Orders"
             ImportType := ImportType::"Repair Order";
         foreach T in JsonArry do begin
             OrderJsonObj := T.AsObject();
-            if FleetRockMgt.IsValidVendor(JsonMgt.GetJsonValueAsText(OrderJsonObj, 'vendor_name')) then begin
+            if FleetRockMgt.IsValidVendor(JsonMgt.GetJsonValueAsText(OrderJsonObj, 'vendor_company_id')) then begin
                 ImportEntryNo := 0;
                 Success := false;
                 LogEntry := false;

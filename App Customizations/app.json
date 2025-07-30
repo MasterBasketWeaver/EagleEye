@@ -24,6 +24,13 @@
       "publisher": "BryanA BC Developments Inc.",
       "version": "25.0.1.0"
     }
+    ,
+    {
+      "id": "e7e4551c-46e4-40a0-98aa-d33dc1d10bde",
+      "name": "Multi-Entity Management (NA)",
+      "publisher": "Binary Stream Software Inc.",
+      "version": "1.0.0.0"
+    }
   ],
   "idRanges": [
     {
