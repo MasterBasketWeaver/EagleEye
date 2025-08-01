@@ -1066,11 +1066,7 @@ codeunit 80000 "EE Fleetrock Mgt."
 
         PopulateStagingTable(RecVar, OrderJsonObj, Database::"EE Sales Header Staging", SalesHeaderStaging.FieldNo(id));
         SalesHeaderStaging := RecVar;
-        if FleetrockSetup."Internal Customer Names" <> '' then
-            if FleetrockSetup."Internal Customer Names".Contains('|') then
-                SalesHeaderStaging."Internal Customer" := IsInternalCustomer(FleetrockSetup."Internal Customer Names", SalesHeaderStaging.customer_name)
-            else
-                SalesHeaderStaging."Internal Customer" := SalesHeaderStaging.customer_name = FleetrockSetup."Internal Customer Names";
+        SalesHeaderStaging."Internal Customer" := IsValidCustomer(SalesHeaderStaging.customer_name);
         SalesHeaderStaging.Insert(true);
 
         if not OrderJsonObj.Get('tasks', T) then
@@ -1161,12 +1157,23 @@ codeunit 80000 "EE Fleetrock Mgt."
         if CustomerName = '' then
             exit(false);
         GetAndCheckSetup();
-        if FleetrockSetup."Import Repairs as Purchases" or (FleetrockSetup."Internal Customer Names" = '') then
+        if FleetrockSetup."Import Repairs as Purchases" or (FleetrockSetup."Valid Customer Names" = '') then
             exit(true);
-        exit(IsInternalCustomer(FleetrockSetup."Internal Customer Names", CustomerName));
+        exit(CheckListForName(FleetrockSetup."Valid Customer Names", CustomerName));
     end;
 
-    local procedure IsInternalCustomer(InternalNames: Text; OrderName: Text): Boolean
+
+    procedure IsValidVendor(VendorName: Text): Boolean;
+    begin
+        if VendorName = '' then
+            exit(false);
+        GetAndCheckSetup();
+        if FleetrockSetup."Valid Vendor Names" = '' then
+            exit(true);
+        exit(CheckListForName(FleetrockSetup."Valid Vendor Names", VendorName));
+    end;
+
+    local procedure CheckListForName(InternalNames: Text; OrderName: Text): Boolean
     var
         CustomerNames: List of [Text];
     begin
@@ -1185,7 +1192,7 @@ codeunit 80000 "EE Fleetrock Mgt."
     begin
         FleetrockSetup.TestField("External Labor Item No.");
         FleetrockSetup.TestField("External Parts Item No.");
-        if FleetrockSetup."Internal Customer Names" <> '' then begin
+        if FleetrockSetup."Valid Customer Names" <> '' then begin
             FleetrockSetup.TestField("Internal Labor Item No.");
             FleetrockSetup.TestField("Internal Parts Item No.");
         end;
