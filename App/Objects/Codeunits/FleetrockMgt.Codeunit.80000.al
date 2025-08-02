@@ -743,7 +743,10 @@ codeunit 80000 "EE Fleetrock Mgt."
     begin
         Customer.Init();
         Customer.Insert(true);
-        Customer.Validate(Name, SalesHeaderStaging.customer_name);
+        if SalesHeaderStaging.customer_name <> '' then
+            Customer.Validate(Name, SalesHeaderStaging.customer_name)
+        else
+            Customer.Validate(Name, SourceNo);
         Customer.Validate("EE Source Type", Customer."EE Source Type"::Fleetrock);
         Customer.Validate("EE Source No.", SourceNo);
         Customer.Validate("Payment Terms Code", FleetrockSetup."Payment Terms");
@@ -1002,7 +1005,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             JObjt := JTkn.AsObject();
             if JsonMgt.GetJsonValueAsText(JObjt, 'id') = ID then begin
                 JsonArray2.Add(JObjt);
-                if not IsValidCustomer(JsonMgt.GetJsonValueAsText(JObjt, 'customer_name')) then
+                if GetRepairOrdersCU.IsValidToImport(JObjt) then
                     if not Confirm('Order %1 has been found but is not from an internal customer. Do you want to continue?', false, ID) then
                         exit;
                 GetRepairOrdersCU.ImportRepairOrders(JsonArray2, Enum::"EE Repair Order Status"::Invoiced, Enum::"EE Event Type"::"Manual Import", URL);

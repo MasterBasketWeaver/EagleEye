@@ -73,9 +73,7 @@ codeunit 80003 "EE Get Repair Orders"
             ImportType := ImportType::"Repair Order";
         foreach T in JsonArry do begin
             OrderJsonObj := T.AsObject();
-            if (FleetRockSetup."Import Repairs as Purchases" and FleetRockMgt.IsValidCustomer(JsonMgt.GetJsonValueAsText(OrderJsonObj, 'customer_name')))
-                or (not FleetRockSetup."Import Repairs as Purchases" and FleetRockMgt.IsValidVendor(JsonMgt.GetJsonValueAsText(OrderJsonObj, 'vendor_company_id')))
-            then begin
+            if IsValidToImport(FleetRockSetup, OrderJsonObj) then begin
                 ImportEntryNo := 0;
                 Success := false;
                 LogEntry := false;
@@ -90,6 +88,25 @@ codeunit 80003 "EE Get Repair Orders"
             end;
         end;
     end;
+
+
+    procedure IsValidToImport(var OrderJsonObj: JsonObject): Boolean
+    var
+        FleetrockSetup: Record "EE Fleetrock Setup";
+    begin
+        FleetrockSetup.Get();
+        exit(IsValidToImport(FleetrockSetup, OrderJsonObj));
+    end;
+
+    procedure IsValidToImport(var FleetrockSetup: Record "EE Fleetrock Setup"; var OrderJsonObj: JsonObject): Boolean
+    begin
+        if FleetRockSetup."Import Repairs as Purchases" then
+            exit(FleetRockMgt.IsValidCustomer(JsonMgt.GetJsonValueAsText(OrderJsonObj, 'customer_name')));
+        if FleetRockMgt.IsValidVendor(JsonMgt.GetJsonValueAsText(OrderJsonObj, 'vendor_company_id')) then
+            exit(true);
+        exit(FleetRockMgt.IsValidVendor(JsonMgt.GetJsonValueAsText(OrderJsonObj, 'vendor_name')));
+    end;
+
 
     local procedure ImportAsPurchaseOrder(var FleetrockSetup: Record "EE Fleetrock Setup"; var OrderJsonObj: JsonObject; var ImportEntryNo: Integer; var LogEntry: Boolean): Boolean
     var
