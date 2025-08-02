@@ -989,7 +989,6 @@ codeunit 80000 "EE Fleetrock Mgt."
             URL := StrSubstNo('%1/API/GetRO?username=%2&ID=%3&token=%4', FleetrockSetup."Integration URL", FleetrockSetup.Username, ID, APIToken);
         JsonArray := RestAPIMgt.GetResponseAsJsonArray(URL, 'repair_orders');
 
-
         foreach JTkn in JsonArray do begin
             JObjt := JTkn.AsObject();
             if JsonMgt.GetJsonValueAsText(JObjt, 'id') = ID then begin
@@ -1167,7 +1166,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         if CustomerName = '' then
             exit(false);
         GetAndCheckSetup();
-        if FleetrockSetup."Import Repairs as Purchases" or (FleetrockSetup."Valid Customer Names" = '') then
+        if FleetrockSetup."Valid Customer Names" = '' then
             exit(true);
         exit(CheckListForName(FleetrockSetup."Valid Customer Names", CustomerName));
     end;
@@ -2314,6 +2313,6 @@ codeunit 80000 "EE Fleetrock Mgt."
         FleetrockSetup: Record "EE Fleetrock Setup";
         RestAPIMgt: Codeunit "EE REST API Mgt.";
         JsonMgt: Codeunit "EE Json Mgt.";
-        SingleInstance: Codeunit "EE Single Instace";
+        SingleInstance: Codeunit "EE Single Instance";
         LoadedSetup, LoadedVendorSetup : Boolean;
 }
