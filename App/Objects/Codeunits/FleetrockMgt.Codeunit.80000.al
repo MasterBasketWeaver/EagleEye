@@ -631,12 +631,12 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
     [TryFunction]
-    local procedure TryToGetCustomerNo(var SalesHeaderStaging: Record "EE Sales Header Staging"; var CustomerNo: Code[20])
+    local procedure TryToGetCustomerNo(var SalesHeaderStaging: Record "EE Sales Header Staging"; var CustomerNo: Code[20]; RemitTo: Boolean)
     begin
-        CustomerNo := GetCustomerNo(SalesHeaderStaging);
+        CustomerNo := GetCustomerNo(SalesHeaderStaging, RemitTo);
     end;
 
-    local procedure GetCustomerNo(var SalesHeaderStaging: Record "EE Sales Header Staging"): Code[20]
+    local procedure GetCustomerNo(var SalesHeaderStaging: Record "EE Sales Header Staging"; RemitTo: Boolean): Code[20]
     var
         Customer: Record Customer;
         CustomerObj: JsonObject;
@@ -645,14 +645,24 @@ codeunit 80000 "EE Fleetrock Mgt."
         PaymentTermDays: Integer;
         IsSourceCompany: Boolean;
     begin
-        if SalesHeaderStaging.customer_company_id <> '' then
-            SourceNo := SalesHeaderStaging.customer_company_id
+        if RemitTo then
+            if SalesHeaderStaging.remit_to_company_id <> '' then
+                SourceNo := SalesHeaderStaging.remit_to_company_id
+            else
+                if SalesHeaderStaging.remit_to <> '' then begin
+                    SourceNo := SalesHeaderStaging.remit_to;
+                    IsSourceCompany := true;
+                end else
+                    Error('remit_to or remit_to_company_id must be specified.')
         else
-            if SalesHeaderStaging.customer_name <> '' then begin
-                SourceNo := SalesHeaderStaging.customer_name;
-                IsSourceCompany := true;
-            end else
-                Error('customer_name or customer_company_id must be specified.');
+            if SalesHeaderStaging.customer_company_id <> '' then
+                SourceNo := SalesHeaderStaging.customer_company_id
+            else
+                if SalesHeaderStaging.customer_name <> '' then begin
+                    SourceNo := SalesHeaderStaging.customer_name;
+                    IsSourceCompany := true;
+                end else
+                    Error('customer_name or customer_company_id must be specified.');
         Customer.SetRange("EE Source Type", Customer."EE Source Type"::Fleetrock);
         Customer.SetRange("EE Source No.", SourceNo);
         if Customer.FindFirst() then begin
@@ -760,9 +770,8 @@ codeunit 80000 "EE Fleetrock Mgt."
             SourceType := 'company_id';
         foreach T in CustomerArray do begin
             CustomerObj := T.AsObject();
-            if CustomerObj.Get(SourceType, T) then
-                if T.AsValue().AsText() = SourceValue then
-                    exit(true);
+            if JsonMgt.GetJsonValueAsText(CustomerObj, SourceType) = SourceValue then
+                exit(true);
         end;
         exit(false);
     end;
@@ -1257,13 +1266,25 @@ codeunit 80000 "EE Fleetrock Mgt."
         DocNo := SalesHeader."No.";
 
         ClearLastError();
-        if not TryToGetCustomerNo(SalesHeaderStaging, CustomerNo) then begin
+        if not TryToGetCustomerNo(SalesHeaderStaging, CustomerNo, false) then begin
             if Customer.Get(CustomerNo) then
                 Customer.Delete(true);
             Error(GetLastErrorText());
         end;
         Customer.Get(CustomerNo);
         SalesHeader.Validate("Sell-to Customer No.", Customer."No.");
+
+        if SalesHeaderStaging.remit_to <> '' then begin
+            ClearLastError();
+            if not TryToGetCustomerNo(SalesHeaderStaging, CustomerNo, true) then begin
+                if Customer.Get(CustomerNo) then
+                    Customer.Delete(true);
+                Error(GetLastErrorText());
+            end;
+            Customer.Get(CustomerNo);
+            SalesHeader.Validate("Bill-to Customer No.", Customer."No.");
+        end;
+
         if Customer."Payment Terms Code" = '' then
             SalesHeader.Validate("Payment Terms Code", FleetrockSetup."Payment Terms")
         else
@@ -1471,7 +1492,9 @@ codeunit 80000 "EE Fleetrock Mgt."
     begin
         GetAndCheckSetup();
         CheckRepairOrderSetup();
-        GetCustomerNo(SalesHeaderStaging);
+        GetCustomerNo(SalesHeaderStaging, false);
+        if SalesHeaderStaging.remit_to <> '' then
+            GetCustomerNo(SalesHeaderStaging, true);
         SalesHeader.Get(SalesHeader."Document Type"::Invoice, DocNo);
         SalesHeader.SetHideValidationDialog(true);
         SalesHeader.Validate("Posting Date", DT2Date(SalesHeaderStaging."Invoiced At"));
