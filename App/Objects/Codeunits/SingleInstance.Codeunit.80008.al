@@ -1,4 +1,4 @@
-codeunit 80008 "EE Single Instace"
+codeunit 80008 "EE Single Instance"
 {
     SingleInstance = true;
 

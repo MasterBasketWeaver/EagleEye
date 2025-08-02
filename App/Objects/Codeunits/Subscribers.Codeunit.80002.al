@@ -43,5 +43,5 @@ codeunit 80002 "EE Subscribers"
 
     var
         FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
-        SingleInstance: Codeunit "EE Single Instace";
+        SingleInstance: Codeunit "EE Single Instance";
 }
