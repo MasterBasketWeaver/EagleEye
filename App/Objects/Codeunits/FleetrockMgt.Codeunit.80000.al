@@ -377,9 +377,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             MissingSource := true;
         end;
         if Vendor.FindFirst() then begin
-            if GetVendorDetails(SupplierName, VendorObj, RemitTo) then
-                if UpdateVendorFromJson(Vendor, VendorObj) then
-                    Update := true;
+            Update := UpdateVendor(Vendor, SupplierName, RemitTo);
             if Vendor."Tax Area Code" = '' then begin
                 Vendor.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
                 Update := true;
@@ -402,11 +400,20 @@ codeunit 80000 "EE Fleetrock Mgt."
                 exit('');
 
         InitVendor(PurchHeaderStaging, Vendor, SupplierName);
-        if GetVendorDetails(SupplierName, VendorObj, RemitTo) then
-            UpdateVendorFromJson(Vendor, VendorObj);
+        UpdateVendor(Vendor, SupplierName, RemitTo);
         Vendor.Modify(true);
         exit(Vendor."No.");
     end;
+
+
+    procedure UpdateVendor(var Vendor: Record Vendor; SupplierName: Text; RemitTo: Boolean): Boolean
+    var
+        VendorObj: JsonObject;
+    begin
+        if GetVendorDetails(SupplierName, VendorObj, RemitTo) then
+            exit(UpdateVendorFromJson(Vendor, VendorObj));
+    end;
+
 
     local procedure UpdateVendorFromJson(var Vendor: Record Vendor; var VendorObj: JsonObject): Boolean
     var
@@ -506,6 +513,9 @@ codeunit 80000 "EE Fleetrock Mgt."
             if JsonMgt.GetJsonValueAsText(VendorObj, 'name') = SupplierName then
                 exit(true);
         end;
+        if GetVendorAsUserDetails(SupplierName, VendorObj, false) then
+            exit(true);
+        exit(GetVendorAsUserDetails(SupplierName, VendorObj, true));
     end;
 
     local procedure GetVendorAsUserDetails(SupplierName: Text; RemitTo: Boolean): Boolean
