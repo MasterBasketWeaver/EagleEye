@@ -673,13 +673,14 @@ codeunit 80000 "EE Fleetrock Mgt."
         end;
 
         if not GetCustomerDetails(SourceNo, IsSourceCompany, CustomerObj) then begin
-            InitCustomer(SalesHeaderStaging, Customer, SourceNo);
+            InitCustomer(SalesHeaderStaging, Customer, SourceNo, RemitTo);
             Customer.Modify(true);
             exit(Customer."No.");
         end;
 
-        InitCustomer(SalesHeaderStaging, Customer, SourceNo);
-        UpdateCustomerFromJson(Customer, CustomerObj);
+        InitCustomer(SalesHeaderStaging, Customer, SourceNo, RemitTo);
+        if GetCustomerDetails(SourceNo, IsSourceCompany, CustomerObj) then
+            UpdateCustomerFromJson(Customer, CustomerObj);
         Customer.Modify(true);
         exit(Customer."No.");
     end;
@@ -687,7 +688,7 @@ codeunit 80000 "EE Fleetrock Mgt."
     local procedure UpdateCustomerFromJson(var Customer: Record Customer; var CustomerObj: JsonObject): Boolean
     var
         Customer2: Record Customer;
-        Name, PhoneNo, Input : Text;
+        PhoneNo, Input : Text;
         PaymentTermsCode: Code[10];
         PaymentTermDays: Integer;
     begin
@@ -712,14 +713,18 @@ codeunit 80000 "EE Fleetrock Mgt."
             Customer.Validate("Post Code", Input);
 
         PhoneNo := CopyStr(JsonMgt.GetJsonValueAsText(CustomerObj, 'phone'), 1, MaxStrLen(Customer."Phone No."));
-        if not TryToSetCustomerNo(Customer, PhoneNo) then
+        if not TryToSetCustomerPhoneNo(Customer, PhoneNo) then
             Customer."Phone No." := PhoneNo;
-        Name := CopyStr(StrSubstNo('%1 %2', JsonMgt.GetJsonValueAsText(CustomerObj, 'first_name'), JsonMgt.GetJsonValueAsText(CustomerObj, 'last_name')).Trim(), 1, MaxStrLen(Customer.Name));
-        if Customer.Name <> Name then
-            Customer.Validate(Name, Name);
-        Input := CopyStr(JsonMgt.GetJsonValueAsText(CustomerObj, 'company_name'), 1, MaxStrLen(Customer."Name 2"));
-        if Customer."Name 2" <> Input then
-            Customer.Validate("Name 2", Input);
+
+        Input := CopyStr(JsonMgt.GetJsonValueAsText(CustomerObj, 'company_name'), 1, MaxStrLen(Customer.Name));
+        if Input <> '' then
+            if Customer."Name" <> Input then
+                Customer.Validate("Name", Input);
+        Input := CopyStr(StrSubstNo('%1 %2', JsonMgt.GetJsonValueAsText(CustomerObj, 'first_name'), JsonMgt.GetJsonValueAsText(CustomerObj, 'last_name')).Trim(), 1, MaxStrLen(Customer."Name 2"));
+        if Input <> '' then
+            if Customer."Name 2" <> Input then
+                Customer.Validate("Name 2", Input);
+
 
         exit((Customer.Address <> Customer2.Address)
             or (Customer2."City" <> Customer."City")
@@ -734,19 +739,19 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
     [TryFunction]
-    local procedure TryToSetCustomerNo(var Customer: Record Customer; PhoneNo: Text)
+    local procedure TryToSetCustomerPhoneNo(var Customer: Record Customer; PhoneNo: Text)
     begin
         Customer.Validate("Phone No.", PhoneNo);
     end;
 
-    local procedure InitCustomer(var SalesHeaderStaging: Record "EE Sales Header Staging"; var Customer: Record Customer; SourceNo: Text)
+    local procedure InitCustomer(var SalesHeaderStaging: Record "EE Sales Header Staging"; var Customer: Record Customer; SourceNo: Text; RemitTo: Boolean)
     begin
         Customer.Init();
         Customer.Insert(true);
-        if SalesHeaderStaging.customer_name <> '' then
-            Customer.Validate(Name, SalesHeaderStaging.customer_name)
+        if RemitTo or (SalesHeaderStaging.customer_name = '') then
+            Customer.Validate(Name, SourceNo)
         else
-            Customer.Validate(Name, SourceNo);
+            Customer.Validate(Name, SalesHeaderStaging.customer_name);
         Customer.Validate("EE Source Type", Customer."EE Source Type"::Fleetrock);
         Customer.Validate("EE Source No.", SourceNo);
         Customer.Validate("Payment Terms Code", FleetrockSetup."Payment Terms");
