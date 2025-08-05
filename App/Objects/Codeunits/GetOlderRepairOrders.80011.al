@@ -14,6 +14,8 @@ codeunit 80011 "EE Get Older Repair Orders"
         FleetrockSetup.Get();
         FleetrockSetup.TestField("Check Repair Order DateFormula");
 
+        GetRepairOrders.SetStartDateTime(CreateDateTime(CalcDate(FleetrockSetup."Check Repair Order DateFormula", Today()), 0T));
+        GetRepairOrders.Run(Rec);
         Rec."Parameter String" := 'invoiced';
         GetRepairOrders.SetStartDateTime(CreateDateTime(CalcDate(FleetrockSetup."Check Repair Order DateFormula", Today()), 0T));
         GetRepairOrders.Run(Rec);
