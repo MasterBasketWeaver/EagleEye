@@ -20,7 +20,8 @@ page 80000 "EE Fleetrock Setup"
     tabledata "Detailed Cust. Ledg. Entry" = RIMD,
     tabledata "Bank Account Ledger Entry" = RIMD,
     tabledata "G/L Entry - VAT Entry Link" = RIMD,
-    tabledata "Value Entry" = RIMD;
+    tabledata "Value Entry" = RIMD,
+    tabledata "Item Ledger Entry" = RIMD;
 
 
     layout
