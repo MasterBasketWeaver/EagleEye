@@ -170,6 +170,7 @@ codeunit 80000 "EE Fleetrock Mgt."
     procedure TryToCreatePurchaseOrder(var PurchHeaderStaging: Record "EE Purch. Header Staging"; var DocNo: Code[20])
     var
         PurchaseHeader: Record "Purchase Header";
+        PurchInvHeader: Record "Purch. Inv. Header";
         Vendor: Record Vendor;
         VendorNo, RemitVendorNo : Code[20];
     begin
@@ -204,9 +205,6 @@ codeunit 80000 "EE Fleetrock Mgt."
             else
                 PurchaseHeader.Validate("Payment Terms Code", GetPaymentTerms(PurchHeaderStaging.payment_term_days));
         PurchaseHeader.Validate("EE Fleetrock ID", PurchHeaderStaging.id);
-        if PurchHeaderStaging.invoice_number <> '' then
-            PurchaseHeader.Validate("Vendor Invoice No.", PurchHeaderStaging.invoice_number);
-
 
         if PurchHeaderStaging.remit_to <> '' then begin
             ClearLastError();
@@ -217,6 +215,9 @@ codeunit 80000 "EE Fleetrock Mgt."
             end else
                 PurchaseHeader.Validate("Pay-to Vendor No.", RemitVendorNo);
         end;
+
+        if PurchHeaderStaging.invoice_number <> '' then
+            SetVendorInvoiceNo(PurchaseHeader, PurchHeaderStaging.invoice_number);
 
         PurchaseHeader.Modify(true);
         CreatePurchaseLines(PurchHeaderStaging, DocNo);
@@ -277,21 +278,12 @@ codeunit 80000 "EE Fleetrock Mgt."
             exit(false);
         SalesHeader.SetCurrentKey("EE Fleetrock ID");
         SalesHeader.SetRange("Document Type", SalesHeader."Document Type"::Invoice);
-        SalesHeader.SetRange("EE Fleetrock ID", ImportId);
+        SalesHeader.SetRange("EE Fleetrock ID", CopyStr(ImportId, 1, MaxStrLen(SalesHeader."EE Fleetrock ID")));
         if SalesHeader.FindFirst() then
             Error('Fleetrock Sales Order %1 has already been imported as order %2.', ImportId, SalesHeader."No.");
-        SalesInvHeader.SetCurrentKey("EE Fleetrock ID");
-        SalesInvHeader.SetRange("EE Fleetrock ID", ImportId);
-        SalesInvHeader.SetRange(Cancelled, false);
-        if SalesInvHeader.FindFirst() then
-            Error('Fleetrock Sales Order %1 has already been imported as order %2, and posted as invoice %3.', ImportId, SalesInvHeader."Order No.", SalesInvHeader."No.");
+        CheckIfSalesInvAlreadyImported(ImportId, true);
         exit(false);
     end;
-
-
-
-
-
 
 
     [TryFunction]
@@ -304,16 +296,58 @@ codeunit 80000 "EE Fleetrock Mgt."
     var
         PurchInvHeader: Record "Purch. Inv. Header";
     begin
-        PurchInvHeader.SetCurrentKey("EE Fleetrock ID");
-        PurchInvHeader.SetRange("EE Fleetrock ID", ImportId);
-        PurchInvHeader.SetRange(Cancelled, false);
-        if PurchInvHeader.FindFirst() then
-            Error('Fleetrock Purchase Order %1 has already been imported as order %2, and posted as invoice %3.', ImportId, PurchInvHeader."Order No.", PurchInvHeader."No.");
+        if ImportId = '' then
+            exit(false);
+        CheckIfPurchaseInvAlreadyImported(ImportId, true);
         PurchaseHeader.SetCurrentKey("EE Fleetrock ID");
         PurchaseHeader.SetRange("Document Type", PurchaseHeader."Document Type"::Order);
         PurchaseHeader.SetRange("EE Fleetrock ID", ImportId);
         if PurchaseHeader.FindFirst() then;
     end;
+
+
+
+
+
+    procedure CheckIfSalesInvAlreadyImported(ImportId: Text; ThrowError: Boolean): Boolean
+    var
+        SalesInvHeader: Record "Sales Invoice Header";
+    begin
+        if ImportId = '' then
+            exit(false);
+        SalesInvHeader.SetCurrentKey("EE Fleetrock ID");
+        SalesInvHeader.SetRange("EE Fleetrock ID", CopyStr(ImportId, 1, MaxStrLen(SalesInvHeader."EE Fleetrock ID")));
+        SalesInvHeader.SetRange(Cancelled, false);
+        SalesInvHeader.SetFilter(Amount, '<>%1', 0);
+        if SalesInvHeader.FindFirst() then
+            if ThrowError then
+                Error('Fleetrock Sales Order %1 has already been imported as order %2, and posted as invoice %3.', ImportId, SalesInvHeader."Order No.", SalesInvHeader."No.")
+            else
+                exit(true);
+        exit(false);
+    end;
+
+    procedure CheckIfPurchaseInvAlreadyImported(ImportId: Text; ThrowError: Boolean): Boolean
+    var
+        PurchaseInvHeader: Record "Purch. Inv. Header";
+    begin
+        if ImportId = '' then
+            exit(false);
+        PurchaseInvHeader.SetCurrentKey("EE Fleetrock ID");
+        PurchaseInvHeader.SetRange("EE Fleetrock ID", CopyStr(ImportId, 1, MaxStrLen(PurchaseInvHeader."EE Fleetrock ID")));
+        PurchaseInvHeader.SetRange(Cancelled, false);
+        PurchaseInvHeader.SetFilter(Amount, '<>%1', 0);
+        if PurchaseInvHeader.FindFirst() then
+            if ThrowError then
+                Error('Fleetrock Purchase Order %1 has already been imported as order %2, and posted as invoice %3.', ImportId, PurchaseInvHeader."Order No.", PurchaseInvHeader."No.")
+            else
+                exit(true);
+        exit(false);
+    end;
+
+
+
+
 
 
 
@@ -1010,7 +1044,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             JObjt := JTkn.AsObject();
             if JsonMgt.GetJsonValueAsText(JObjt, 'id') = ID then begin
                 JsonArray2.Add(JObjt);
-                if GetRepairOrdersCU.IsValidToImport(JObjt) then
+                if not GetRepairOrdersCU.IsValidToImport(JObjt) then
                     if not Confirm('Order %1 has been found but is not from an internal customer. Do you want to continue?', false, ID) then
                         exit;
                 GetRepairOrdersCU.ImportRepairOrders(JsonArray2, Enum::"EE Repair Order Status"::Invoiced, Enum::"EE Event Type"::"Manual Import", URL);
@@ -1204,6 +1238,10 @@ codeunit 80000 "EE Fleetrock Mgt."
         CustomerNames: List of [Text];
     begin
         CustomerNames := InternalNames.Split('|');
+
+        // if not Confirm('%1, %2 -> %3, %4', false, InternalNames, OrderName, CustomerNames.Count, CustomerNames.Contains(OrderName)) then
+        //     Error('');
+
         exit(CustomerNames.Contains(OrderName));
     end;
 
@@ -1604,14 +1642,25 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchaseLine: Record "Purchase Line";
         PurchLineStaging: Record "EE Purch. Line Staging";
         ClosedDate: Date;
+        RemitVendorNo: Code[20];
         LineNo: Integer;
     begin
         GetAndCheckSetup();
         CheckPurchaseOrderSetup();
         GetVendorNo(PurchaseHeaderStaging, false);
-        if PurchaseHeaderStaging.remit_to <> '' then
-            GetVendorNo(PurchaseHeaderStaging, true);
+
         PurchaseHeader.SetHideValidationDialog(true);
+        if PurchaseHeaderStaging.remit_to <> '' then begin
+            RemitVendorNo := GetVendorNo(PurchaseHeaderStaging, true);
+            if RemitVendorNo <> PurchaseHeader."Pay-to Vendor No." then
+                if RemitVendorNo <> '' then
+                    PurchaseHeader.Validate("Pay-to Vendor No.", RemitVendorNo)
+                else
+                    PurchaseHeader.Validate("Pay-to Vendor No.", PurchaseHeader."Buy-from Vendor No.");
+        end else
+            if PurchaseHeader."Pay-to Vendor No." <> PurchaseHeader."Buy-from Vendor No." then
+                PurchaseHeader.Validate("Pay-to Vendor No.", PurchaseHeader."Buy-from Vendor No.");
+
         if PurchaseHeaderStaging.Closed <> 0DT then
             ClosedDate := DT2Date(PurchaseHeaderStaging.Closed)
         else
@@ -1622,7 +1671,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         end;
         if PurchaseHeaderStaging.invoice_number <> '' then
             if PurchaseHeaderStaging.invoice_number <> PurchaseHeader."Vendor Invoice No." then
-                PurchaseHeader.Validate("Vendor Invoice No.", PurchaseHeaderStaging.invoice_number);
+                SetVendorInvoiceNo(PurchaseHeader, PurchaseHeaderStaging.invoice_number);
         PurchaseHeader.Modify(true);
 
 
@@ -1663,6 +1712,22 @@ codeunit 80000 "EE Fleetrock Mgt."
                 if PurchLineStaging.IsEmpty() then
                     PurchaseLine.Delete(true);
             until PurchaseLine.Next() = 0;
+    end;
+
+    local procedure SetVendorInvoiceNo(var PurchaseHeader: Record "Purchase Header"; InvoiceNo: Text)
+    var
+        VendorLedgerEntry: Record "Vendor Ledger Entry";
+        VendorMgt: Codeunit "Vendor Mgt.";
+        Parts: List of [Text];
+    begin
+        VendorMgt.SetFilterForExternalDocNo(VendorLedgerEntry, Enum::"Gen. Journal Document Type"::Invoice, InvoiceNo, PurchaseHeader."Pay-to Vendor No.", PurchaseHeader."Document Date");
+        if not VendorLedgerEntry.IsEmpty() then
+            if InvoiceNo.Contains('-') then begin
+                Parts := InvoiceNo.Split('-');
+                InvoiceNo := IncStr(Parts.Get(Parts.Count()));
+            end else
+                InvoiceNo := StrSubstNo('%1-2', InvoiceNo);
+        PurchaseHeader.Validate("Vendor Invoice No.", CopyStr(InvoiceNo, 1, MaxStrLen(PurchaseHeader."Vendor Invoice No.")));
     end;
 
     procedure FixPurchaseOrderRounding(var PurchaseHeader: Record "Purchase Header"; var PurchaseHeaderStaging: Record "EE Purch. Header Staging")
@@ -2249,7 +2314,11 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
 
-    procedure InsertImportEntry(Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type"; Direction: Enum "EE Direction"; ErrorMsg: Text; URL: Text; Method: Text)
+    procedure InsertImportEntry(Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type";
+                                                                                    Direction: Enum "EE Direction";
+                                                                                    ErrorMsg: Text;
+                                                                                    URL: Text;
+                                                                                    Method: Text)
     var
         JsonBody: JsonObject;
         EntryNo: Integer;
@@ -2257,14 +2326,22 @@ codeunit 80000 "EE Fleetrock Mgt."
         InsertImportEntry(EntryNo, Success, ImportEntryNo, Type, EventType, Direction, ErrorMsg, URL, Method, JsonBody, '');
     end;
 
-    procedure InsertImportEntry(Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type"; Direction: Enum "EE Direction"; ErrorMsg: Text; URL: Text; Method: Text; var JsonBody: JsonObject)
+    procedure InsertImportEntry(Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type";
+                                                                                    Direction: Enum "EE Direction";
+                                                                                    ErrorMsg: Text;
+                                                                                    URL: Text;
+                                                                                    Method: Text; var JsonBody: JsonObject)
     var
         EntryNo: Integer;
     begin
         InsertImportEntry(EntryNo, Success, ImportEntryNo, Type, EventType, Direction, ErrorMsg, URL, Method, JsonBody, '');
     end;
 
-    procedure InsertImportEntry(Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type"; Direction: Enum "EE Direction"; ErrorMsg: Text; URL: Text; Method: Text; var JsonBody: JsonObject; DocNo: Code[20])
+    procedure InsertImportEntry(Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type";
+                                                                                    Direction: Enum "EE Direction";
+                                                                                    ErrorMsg: Text;
+                                                                                    URL: Text;
+                                                                                    Method: Text; var JsonBody: JsonObject; DocNo: Code[20])
     var
         EntryNo: Integer;
     begin
@@ -2279,7 +2356,11 @@ codeunit 80000 "EE Fleetrock Mgt."
     //     InsertImportEntry(EntryNo, Success, ImportEntryNo, Type, EventType, Direction, ErrorMsg, URL, Method, JsonBody);
     // end;
 
-    procedure InsertImportEntry(var EntryNo: Integer; Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type"; Direction: Enum "EE Direction"; ErrorMsg: Text; URL: Text; Method: Text; var JsonBody: JsonObject; DocNo: Code[20])
+    procedure InsertImportEntry(var EntryNo: Integer; Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type";
+                                                                                                          Direction: Enum "EE Direction";
+                                                                                                          ErrorMsg: Text;
+                                                                                                          URL: Text;
+                                                                                                          Method: Text; var JsonBody: JsonObject; DocNo: Code[20])
     var
         ImportEntry: Record "EE Import/Export Entry";
         PurchHeaderStaging: Record "EE Purch. Header Staging";

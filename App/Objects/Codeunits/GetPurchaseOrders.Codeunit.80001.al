@@ -95,16 +95,13 @@ codeunit 80001 "EE Get Purchase Orders"
 
     local procedure ImportClosedPurchaseOrder(var FleetRockSetup: Record "EE Fleetrock Setup"; var OrderJsonObj: JsonObject; var ImportEntryNo: Integer; var LogEntry: Boolean): Boolean
     var
-        PurchInvHeader: Record "Purch. Inv. Header";
         PurchaseHeaderStaging: Record "EE Purch. Header Staging";
         OrderId: Text;
     begin
         if HasSetStartDateTime then begin
             if not TryToGetOrderID(OrderJsonObj, OrderId, Enum::"EE Import Type"::"Purchase Order") then
                 exit(false);
-            PurchInvHeader.SetCurrentKey("EE Fleetrock ID");
-            PurchInvHeader.SetRange("EE Fleetrock ID", CopyStr(OrderId, 1, MaxStrLen(PurchInvHeader."EE Fleetrock ID")));
-            if not PurchInvHeader.IsEmpty() then begin
+            if FleetRockMgt.CheckIfPurchaseInvAlreadyImported(OrderId, false) then begin
                 LogEntry := false;
                 exit(true)
             end;
