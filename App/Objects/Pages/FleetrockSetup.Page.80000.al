@@ -390,6 +390,7 @@ page 80000 "EE Fleetrock Setup"
                     GLAccountEntry: Record "G/L Entry";
                     BankAccountLedgerEntry: Record "Bank Account Ledger Entry";
                     VATEntry: Record "VAT Entry";
+                    ItemLedgerEntry: Record "Item Ledger Entry";
                     GLEntryVATEntryLink: Record "G/L Entry - VAT Entry Link";
                     ValueEntry: Record "Value Entry";
                 begin
@@ -424,6 +425,7 @@ page 80000 "EE Fleetrock Setup"
                     VATEntry.DeleteAll(false);
                     GLEntryVATEntryLink.DeleteAll(false);
                     ValueEntry.DeleteAll(false);
+                    ItemLedgerEntry.DeleteAll(false);
                     Vendor.DeleteAll(true);
                     Customer.DeleteAll(true);
                 end;
