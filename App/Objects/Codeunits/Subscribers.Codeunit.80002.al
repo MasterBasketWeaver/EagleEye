@@ -41,7 +41,38 @@ codeunit 80002 "EE Subscribers"
         end;
     end;
 
+
+
+
+
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Correct Posted Purch. Invoice", OnAfterCreateCorrectivePurchCrMemo, '', false, false)]
+    local procedure CorrectPostedPurchInvoiceOnAfterCreateCorrectivePurchCrMemo(var PurchaseHeader: Record "Purchase Header")
     var
-        FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
+        PurchaseLine: Record "Purchase Line";
+        TaxAreaCode: Code[20];
+    begin
+        if PurchaseHeader."Tax Area Code" <> '' then
+            exit;
+        PurchaseLine.SetRange("Document Type", PurchaseHeader."Document Type");
+        PurchaseLine.SetRange("Document No.", PurchaseHeader."No.");
+        PurchaseLine.SetFilter(Type, '<>%1', PurchaseLine.Type::" ");
+        PurchaseLine.SetFilter("Tax Area Code", '<>%1', '');
+        if not PurchaseLine.FindFirst() then
+            exit;
+        TaxAreaCode := PurchaseLine."Tax Area Code";
+        PurchaseLine.SetFilter("Line No.", '<>%1', PurchaseLine."Line No.");
+        PurchaseLine.SetFilter("Tax Area Code", '<>%1', TaxAreaCode);
+        if not PurchaseLine.IsEmpty() then
+            exit;
+        PurchaseHeader.SetHideValidationDialog(true);
+        PurchaseHeader.Validate("Tax Area Code", TaxAreaCode);
+        PurchaseHeader.Modify(true);
+    end;
+
+
+
+
+
+    var
         SingleInstance: Codeunit "EE Single Instance";
 }
