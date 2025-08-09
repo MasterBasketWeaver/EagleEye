@@ -1238,10 +1238,6 @@ codeunit 80000 "EE Fleetrock Mgt."
         CustomerNames: List of [Text];
     begin
         CustomerNames := InternalNames.Split('|');
-
-        // if not Confirm('%1, %2 -> %3, %4', false, InternalNames, OrderName, CustomerNames.Count, CustomerNames.Contains(OrderName)) then
-        //     Error('');
-
         exit(CustomerNames.Contains(OrderName));
     end;
 

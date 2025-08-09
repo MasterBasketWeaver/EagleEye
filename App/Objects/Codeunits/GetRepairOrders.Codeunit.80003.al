@@ -45,7 +45,7 @@ codeunit 80003 "EE Get Repair Orders"
                 if (VendorJsonArray.Count() > 0) and (VendorJsonArray.Count() <> JsonArry.Count()) then
                     MergeJsonArrays(VendorJsonArray, JsonArry);
 
-        if JsonArry.Count() <> 0 then
+        if JsonArry.Count() > 0 then
             ImportRepairOrders(JsonArry, OrderStatus, EventType, URL);
     end;
 
@@ -116,8 +116,6 @@ codeunit 80003 "EE Get Repair Orders"
         OrderId: Text;
         Success: Boolean;
     begin
-        if not FleetRockMgt.IsValidCustomer(JsonMgt.GetJsonValueAsText(OrderJsonObj, 'customer_name')) then
-            exit(true);
         LogEntry := true;
         if not TryToGetOrderID(OrderJsonObj, OrderId, Enum::"EE Import Type"::"Purchase Order") then
             exit(false);
@@ -159,10 +157,6 @@ codeunit 80003 "EE Get Repair Orders"
         OrderId: Text;
         Success: Boolean;
     begin
-        if not FleetRockMgt.IsValidCustomer(JsonMgt.GetJsonValueAsText(OrderJsonObj, 'customer_name')) then begin
-            LogEntry := false;
-            exit(true);
-        end;
         if OrderStatus = OrderStatus::invoiced then begin
             LogEntry := true;
             if HasSetStartDateTime then begin
