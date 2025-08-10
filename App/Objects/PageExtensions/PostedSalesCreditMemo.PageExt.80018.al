@@ -55,9 +55,10 @@ pageextension 80018 "EE Posted Sales Credit Memo" extends "Posted Sales Credit M
                         exit;
                     ImportedCount := ExcelBuffer.Count();
 
-                    Window.Open('Cancelling...\#1###');
+                    Window.Open('Cancelling...\#1###\#2###');
                     repeat
-                        Window.Update(1, StrSubstNo('%1 of %2, %3', ExcelBuffer."Row No." - 1, ImportedCount, ExcelBuffer."Cell Value as Text"));
+                        Window.Update(1, StrSubstNo('%1 of %2', ExcelBuffer."Row No." - 1, ImportedCount));
+                        Window.Update(2, ExcelBuffer."Cell Value as Text");
                         SalesInvHeader.SetRange("EE Fleetrock ID", ExcelBuffer."Cell Value as Text");
                         SalesInvHeader.SetRange(Cancelled, false);
                         SalesInvHeader.SetFilter(Amount, '<>%1', 0);
