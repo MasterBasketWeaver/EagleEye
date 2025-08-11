@@ -12,7 +12,7 @@ codeunit 80010 "EE Get Claims"
         EventType: Enum "EE Event Type";
         JsonArry: JsonArray;
         StartDateTime: DateTime;
-        URL: Text;
+        URL, Username : Text;
     begin
         EventType := Enum::"EE Event Type"::Closed;
         ImportEntry.SetRange("Document Type", ImportEntry."Document Type"::Claim);
@@ -21,18 +21,18 @@ codeunit 80010 "EE Get Claims"
         if ImportEntry.FindLast() then
             StartDateTime := ImportEntry.SystemCreatedAt;
 
-        if not FleetRockMgt.TryToGetClaims(StartDateTime, EventType, JsonArry, URL, false) then begin
+        if not FleetRockMgt.TryToGetClaims(StartDateTime, EventType, JsonArry, URL, false, Username) then begin
             FleetRockMgt.InsertImportEntry(false, 0, ImportEntry."Document Type"::Claim,
-                EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET');
+                EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET', Username);
             exit;
         end;
 
         if JsonArry.Count() <> 0 then
-            ImportClaims(JsonArry, EventType, URL, StartDateTime);
+            ImportClaims(JsonArry, EventType, URL, StartDateTime, Username);
     end;
 
 
-    local procedure ImportClaims(var JsonArry: JsonArray; EventType: Enum "EE Event Type"; URL: Text; StartDateTime: DateTime): Boolean
+    local procedure ImportClaims(var JsonArry: JsonArray; EventType: Enum "EE Event Type"; URL: Text; StartDateTime: DateTime; Username: Text): Boolean
     var
         OrderJsonObj: JsonObject;
         T: JsonToken;
@@ -43,7 +43,8 @@ codeunit 80010 "EE Get Claims"
             if JsonMgt.GetJsonValueAsDateTime(OrderJsonObj, 'date_closed') >= StartDateTime then begin
                 ImportEntryNo := 0;
                 ClearLastError();
-                FleetRockMgt.InsertImportEntry(ImportAsSalesInvoice(OrderJsonObj, ImportEntryNo) and (GetLastErrorText() = ''), ImportEntryNo, Enum::"EE Import Type"::Claim, EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET');
+                FleetRockMgt.InsertImportEntry(ImportAsSalesInvoice(OrderJsonObj, ImportEntryNo) and (GetLastErrorText() = ''), ImportEntryNo, Enum::"EE Import Type"::Claim,
+                    EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET', Username);
             end;
         end;
     end;
@@ -55,6 +56,8 @@ codeunit 80010 "EE Get Claims"
         GenJnlLine: Record "Gen. Journal Line";
         ClaimHeader: Record "EE Claim Header";
         Success: Boolean;
+
+        c1: Codeunit 241;
     begin
         if FleetRockMgt.TryToInsertClaimStagingRecords(OrderJsonObj, ImportEntryNo) and ClaimHeader.Get(ImportEntryNo) then begin
             Success := true;
@@ -63,10 +66,10 @@ codeunit 80010 "EE Get Claims"
     end;
 
 
-    [TryFunction]
-    local procedure TryToPostInvoice(var SalesHeader: Record "Sales Header")
+    local procedure TryToPostInvoice(var SalesHeader: Record "Sales Header"): Boolean
     begin
-        Codeunit.Run(Codeunit::"Sales-Post", SalesHeader);
+        Commit();
+        exit(Codeunit.Run(Codeunit::"Sales-Post", SalesHeader));
     end;
 
 

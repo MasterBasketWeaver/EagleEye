@@ -97,17 +97,17 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
     [TryFunction]
-    procedure TryToInsertPOStagingRecords(var OrderJsonObj: JsonObject; var ImportEntryNo: Integer; CreateOrder: Boolean)
+    procedure TryToInsertPOStagingRecords(var OrderJsonObj: JsonObject; var ImportEntryNo: Integer; CreateOrder: Boolean; Username: Text)
     begin
-        ImportEntryNo := InsertPOStagingRecords(OrderJsonObj, CreateOrder);
+        ImportEntryNo := InsertPOStagingRecords(OrderJsonObj, CreateOrder, Username);
     end;
 
-    procedure InsertPOStagingRecords(var OrderJsonObj: JsonObject; CreateOrder: Boolean): Integer
+    procedure InsertPOStagingRecords(var OrderJsonObj: JsonObject; CreateOrder: Boolean; Username: Text): Integer
     var
         PurchHeaderStaging: Record "EE Purch. Header Staging";
         EntryNo: Integer;
     begin
-        if not TryToInsertPurchStaging(OrderJsonObj, EntryNo) then begin
+        if not TryToInsertPurchStaging(OrderJsonObj, EntryNo, Username) then begin
             if not PurchHeaderStaging.Get(EntryNo) then begin
                 PurchHeaderStaging.Init();
                 PurchHeaderStaging."Entry No." := EntryNo;
@@ -591,7 +591,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         URL := StrSubstNo('%1/API/AddUser?token=%2', FleetrockSetup."Integration URL", APIToken);
         if not TryToCreateAddUserJsonBody(Vendor, FleetrockSetup.Username, JsonBody) then begin
             InsertImportEntry(false, 0, Enum::"EE Import Type"::Vendor, EventType, Enum::"EE Direction"::Export,
-                GetLastErrorText(), URL, 'POST', JsonBody, Vendor."No.");
+                GetLastErrorText(), URL, 'POST', FleetrockSetup.Username, JsonBody, Vendor."No.");
             exit(false);
         end;
 
@@ -599,7 +599,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             URL := StrSubstNo('%1/API/UpdateUser?token=%2', FleetrockSetup."Integration URL", APIToken);
         if not RestAPIMgt.TryToGetResponseAsJsonArray(URL, 'response', 'POST', JsonBody, ResponseArray) then begin
             InsertImportEntry(false, 0, Enum::"EE Import Type"::Vendor, EventType, Enum::"EE Direction"::Export,
-                GetLastErrorText(), URL, 'POST', JsonBody, Vendor."No.");
+                GetLastErrorText(), URL, 'POST', FleetrockSetup.Username, JsonBody, Vendor."No.");
             exit(false);
         end;
         if (ResponseArray.Count() = 0) then
@@ -607,13 +607,13 @@ codeunit 80000 "EE Fleetrock Mgt."
         if not ResponseArray.Get(0, JTkn) then begin
             ResponseArray.WriteTo(s);
             InsertImportEntry(false, 0, Enum::"EE Import Type"::Vendor, EventType, Enum::"EE Direction"::Export,
-                'Failed to load results token from response array: ' + s, URL, 'POST', JsonBody, Vendor."No.");
+                'Failed to load results token from response array: ' + s, URL, 'POST', FleetrockSetup.Username, JsonBody, Vendor."No.");
             exit(false);
         end;
         ClearLastError();
         Success := TryToHandleRepairUpdateResponse(JTkn, Vendor."No.", StrSubstNo('Failed to %1 User ', EventType) + '%1:\%2');
         InsertImportEntry(Success and (GetLastErrorText() = ''), 0, Enum::"EE Import Type"::Vendor, EventType,
-            Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', JsonBody, Vendor."No.");
+            Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', FleetrockSetup.Username, JsonBody, Vendor."No.");
         exit(Success);
     end;
 
@@ -844,7 +844,7 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
     [TryFunction]
-    local procedure TryToInsertPurchStaging(var OrderJsonObj: JsonObject; var EntryNo: Integer)
+    local procedure TryToInsertPurchStaging(var OrderJsonObj: JsonObject; var EntryNo: Integer; UserName: Text)
     var
         PurchHeaderStaging: Record "EE Purch. Header Staging";
         PurchLineStaging: Record "EE Purch. Line Staging";
@@ -876,6 +876,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchHeaderStaging.shipping_total := JsonMgt.GetJsonValueAsDecimal(OrderJsonObj, 'shipping_total');
         PurchHeaderStaging.other_total := JsonMgt.GetJsonValueAsDecimal(OrderJsonObj, 'other_total');
         PurchHeaderStaging.grand_total := JsonMgt.GetJsonValueAsDecimal(OrderJsonObj, 'grand_total');
+        PurchHeaderStaging."Source Account" := CopyStr(UserName, 1, MaxStrLen(PurchHeaderStaging."Source Account"));
         PurchHeaderStaging.Insert(true);
 
         PurchLineStaging.LockTable(true);
@@ -965,7 +966,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             JObjt := JTkn.AsObject();
             if JsonMgt.GetJsonValueAsText(JObjt, 'id') = DocId then begin
                 JsonArray2.Add(JObjt);
-                GetPurchOrdersCU.ImportPurchaseOrders(JsonArray2, Enum::"EE Event Type"::"Manual Import", URL, false);
+                GetPurchOrdersCU.ImportPurchaseOrders(JsonArray2, Enum::"EE Event Type"::"Manual Import", URL, false, FleetrockSetup.Username);
                 exit;
             end;
         end;
@@ -976,13 +977,13 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
     [TryFunction]
-    procedure TryToGetPurchaseOrders(StartDateTime: DateTime; var PurchOrdersJsonArray: JsonArray; var URL: Text; EventType: Enum "EE Event Type")
+    procedure TryToGetPurchaseOrders(StartDateTime: DateTime; var PurchOrdersJsonArray: JsonArray; var URL: Text; EventType: Enum "EE Event Type"; var Username: Text)
     begin
-        PurchOrdersJsonArray := GetPurchaseOrders(StartDateTime, URL, EventType);
+        PurchOrdersJsonArray := GetPurchaseOrders(StartDateTime, URL, EventType, Username);
     end;
 
 
-    procedure GetPurchaseOrders(StartDateTime: DateTime; var URL: Text; EventType: Enum "EE Event Type"): JsonArray
+    procedure GetPurchaseOrders(StartDateTime: DateTime; var URL: Text; EventType: Enum "EE Event Type"; var Username: Text): JsonArray
     var
         APIToken: Text;
         EndDateTime: DateTime;
@@ -992,6 +993,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             URL := StrSubstNo('%1/API/GetPO?username=%2&event=%3&token=%4&start=%5&end=%6', FleetrockSetup."Integration URL",
                 FleetrockSetup.Username, EventType, APIToken, Format(StartDateTime, 0, 9), Format(EndDateTime, 0, 9));
         end;
+        Username := FleetrockSetup.Username;
         exit(RestAPIMgt.GetResponseAsJsonArray(URL, 'purchase_orders'));
     end;
 
@@ -1030,14 +1032,17 @@ codeunit 80000 "EE Fleetrock Mgt."
         JTkn: JsonToken;
         JObjt: JsonObject;
         StartDateTime, EndDateTime : DateTime;
-        APIToken, URL : Text;
+        APIToken, URL, Username : Text;
     begin
         StartDateTime := CurrentDateTime();
         GetEventParameters(APIToken, StartDateTime, EndDateTime, UseVendorcAccount);
-        if UseVendorcAccount then
-            URL := StrSubstNo('%1/API/GetRO?username=%2&ID=%3&token=%4', FleetrockSetup."Integration URL", FleetrockSetup."Vendor Username", ID, APIToken)
-        else
+        if UseVendorcAccount then begin
+            URL := StrSubstNo('%1/API/GetRO?username=%2&ID=%3&token=%4', FleetrockSetup."Integration URL", FleetrockSetup."Vendor Username", ID, APIToken);
+            Username := FleetrockSetup."Vendor Username";
+        end else begin
             URL := StrSubstNo('%1/API/GetRO?username=%2&ID=%3&token=%4', FleetrockSetup."Integration URL", FleetrockSetup.Username, ID, APIToken);
+            Username := FleetrockSetup.Username;
+        end;
         JsonArray := RestAPIMgt.GetResponseAsJsonArray(URL, 'repair_orders');
 
         foreach JTkn in JsonArray do begin
@@ -1047,7 +1052,7 @@ codeunit 80000 "EE Fleetrock Mgt."
                 if not GetRepairOrdersCU.IsValidToImport(JObjt) then
                     if not Confirm('Order %1 has been found but is not from an internal customer. Do you want to continue?', false, ID) then
                         exit;
-                GetRepairOrdersCU.ImportRepairOrders(JsonArray2, Enum::"EE Repair Order Status"::Invoiced, Enum::"EE Event Type"::"Manual Import", URL);
+                GetRepairOrdersCU.ImportRepairOrders(JsonArray2, Enum::"EE Repair Order Status"::Invoiced, Enum::"EE Event Type"::"Manual Import", URL, Username);
                 exit;
             end;
         end;
@@ -1072,17 +1077,17 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
     [TryFunction]
-    procedure TryToInsertROStagingRecords(var OrderJsonObj: JsonObject; var ImportEntryNo: Integer; CreateInvoice: Boolean)
+    procedure TryToInsertROStagingRecords(var OrderJsonObj: JsonObject; var ImportEntryNo: Integer; CreateInvoice: Boolean; Username: Text)
     begin
-        ImportEntryNo := InsertROStagingRecords(OrderJsonObj, CreateInvoice);
+        ImportEntryNo := InsertROStagingRecords(OrderJsonObj, CreateInvoice, Username);
     end;
 
-    procedure InsertROStagingRecords(var OrderJsonObj: JsonObject; CreateInvoice: Boolean): Integer
+    procedure InsertROStagingRecords(var OrderJsonObj: JsonObject; CreateInvoice: Boolean; Username: Text): Integer
     var
         SalesHeaderStaging: Record "EE Sales Header Staging";
         EntryNo: Integer;
     begin
-        if not TryToInsertSalesStaging(OrderJsonObj, EntryNo) then begin
+        if not TryToInsertSalesStaging(OrderJsonObj, EntryNo, Username) then begin
             if not SalesHeaderStaging.Get(EntryNo) then begin
                 SalesHeaderStaging.Init();
                 SalesHeaderStaging."Entry No." := EntryNo;
@@ -1103,7 +1108,7 @@ codeunit 80000 "EE Fleetrock Mgt."
     end;
 
     [TryFunction]
-    local procedure TryToInsertSalesStaging(var OrderJsonObj: JsonObject; var EntryNo: Integer)
+    local procedure TryToInsertSalesStaging(var OrderJsonObj: JsonObject; var EntryNo: Integer; Username: Text)
     var
         SalesHeaderStaging: Record "EE Sales Header Staging";
         TaskLineStaging: Record "EE Task Line Staging";
@@ -1127,6 +1132,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         PopulateStagingTable(RecVar, OrderJsonObj, Database::"EE Sales Header Staging", SalesHeaderStaging.FieldNo(id));
         SalesHeaderStaging := RecVar;
         SalesHeaderStaging."Internal Customer" := IsValidCustomer(SalesHeaderStaging.customer_name);
+        SalesHeaderStaging."Source Account" := CopyStr(Username, 1, MaxStrLen(SalesHeaderStaging."Source Account"));
         SalesHeaderStaging.Insert(true);
 
         if not OrderJsonObj.Get('tasks', T) then
@@ -1929,7 +1935,7 @@ codeunit 80000 "EE Fleetrock Mgt."
     begin
         if SalesInvHeader."EE Sent Payment" and (SalesInvHeader."EE Sent Payment DateTime" <> 0DT) then begin
             InsertImportEntry(false, 0, Enum::"EE Import Type"::"Repair Order", Enum::"EE Event Type"::Paid,
-                Enum::"EE Direction"::Export, StrSubstNo('Invoice %1 already sent payment at %2', SalesInvHeader."No.", SalesInvHeader."EE Sent Payment DateTime"), URL, 'POST', JsonBody);
+                Enum::"EE Direction"::Export, StrSubstNo('Invoice %1 already sent payment at %2', SalesInvHeader."No.", SalesInvHeader."EE Sent Payment DateTime"), URL, 'POST', FleetrockSetup.Username, JsonBody);
             exit;
         end;
         APIToken := CheckToGetAPIToken();
@@ -1937,7 +1943,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         JsonBody := CreateUpdateRepairOrderJsonBody(FleetrockSetup.Username, OrderId, PaidDateTime);
         if not RestAPIMgt.TryToGetResponseAsJsonArray(URL, 'response', 'POST', JsonBody, ResponseArray) then begin
             InsertImportEntry(false, 0, Enum::"EE Import Type"::"Repair Order", Enum::"EE Event Type"::Paid,
-                Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', JsonBody);
+                Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', FleetrockSetup.Username, JsonBody);
             exit;
         end;
         if (ResponseArray.Count() = 0) then
@@ -1945,13 +1951,13 @@ codeunit 80000 "EE Fleetrock Mgt."
         if not ResponseArray.Get(0, T) then begin
             ResponseArray.WriteTo(s);
             InsertImportEntry(false, 0, Enum::"EE Import Type"::"Repair Order", Enum::"EE Event Type"::Paid,
-               Enum::"EE Direction"::Export, 'Failed to load results token from response array: ' + s, URL, 'POST', JsonBody);
+               Enum::"EE Direction"::Export, 'Failed to load results token from response array: ' + s, URL, 'POST', FleetrockSetup.Username, JsonBody);
             exit;
         end;
         ClearLastError();
         Success := TryToHandleRepairUpdateResponse(T, OrderId, 'Failed to update Repair Order %1:\%2');
         InsertImportEntry(Success and (GetLastErrorText() = ''), 0, Enum::"EE Import Type"::"Repair Order",
-            Enum::"EE Event Type"::Paid, Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', JsonBody);
+            Enum::"EE Event Type"::Paid, Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', FleetrockSetup.Username, JsonBody);
         SalesInvHeader."EE Sent Payment" := Success;
         SalesInvHeader."EE Sent Payment DateTime" := CurrentDateTime();
         SalesInvHeader.Modify(true);
@@ -2027,6 +2033,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchHeaderStaging.date_received := SalesHeaderStaging.date_invoiced;
         PurchHeaderStaging.remit_to := SalesHeaderStaging.remit_to;
         PurchHeaderStaging.remit_to_company_id := SalesHeaderStaging.remit_to_company_id;
+        PurchHeaderStaging."Source Account" := SalesHeaderStaging."Source Account";
         PurchHeaderStaging.Insert(true);
 
         SalesHeaderStaging."Purch. Staging Entry No." := PurchHeaderStaging."Entry No.";
@@ -2107,23 +2114,23 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
     [TryFunction]
-    procedure TryToGetClaims(StartDateTime: DateTime; Status: Enum "EE Event Type"; var ClaimsJsonArray: JsonArray; var URL: Text; UseVendorcAccount: Boolean)
+    procedure TryToGetClaims(StartDateTime: DateTime; Status: Enum "EE Event Type"; var ClaimsJsonArray: JsonArray; var URL: Text; UseVendorcAccount: Boolean; var Username: Text)
     begin
-        ClaimsJsonArray := GetClaims(StartDateTime, Status, URL, UseVendorcAccount);
+        ClaimsJsonArray := GetClaims(StartDateTime, Status, URL, UseVendorcAccount, Username);
     end;
 
-    procedure GetClaims(StartDateTime: DateTime; Status: Enum "EE Event Type"; var URL: Text; UseVendorcAccount: Boolean): JsonArray
+    procedure GetClaims(StartDateTime: DateTime; Status: Enum "EE Event Type"; var URL: Text; UseVendorcAccount: Boolean; var Username: Text): JsonArray
     var
-        APIToken, UserName : Text;
+        APIToken: Text;
         EndDateTime: DateTime;
     begin
         GetEventParameters(APIToken, StartDateTime, EndDateTime, UseVendorcAccount);
         CheckClaimSetup();
         if UseVendorcAccount then
-            UserName := FleetrockSetup."Vendor Username"
+            Username := FleetrockSetup."Vendor Username"
         else
-            UserName := FleetrockSetup.Username;
-        URL := StrSubstNo('%1/API/GetClaims?username=%2&Status=%3&token=%4', FleetrockSetup."Integration URL", UserName, Status, APIToken);
+            Username := FleetrockSetup.Username;
+        URL := StrSubstNo('%1/API/GetClaims?username=%2&Status=%3&token=%4', FleetrockSetup."Integration URL", Username, Status, APIToken);
         exit(RestAPIMgt.GetResponseAsJsonArray(URL, 'claims'));
     end;
 
@@ -2314,49 +2321,43 @@ codeunit 80000 "EE Fleetrock Mgt."
                                                                                     Direction: Enum "EE Direction";
                                                                                     ErrorMsg: Text;
                                                                                     URL: Text;
-                                                                                    Method: Text)
+                                                                                    Method: Text; UserName: Text)
     var
         JsonBody: JsonObject;
         EntryNo: Integer;
     begin
-        InsertImportEntry(EntryNo, Success, ImportEntryNo, Type, EventType, Direction, ErrorMsg, URL, Method, JsonBody, '');
+        InsertImportEntry(EntryNo, Success, ImportEntryNo, Type, EventType, Direction, ErrorMsg, URL, Method, JsonBody, '', UserName);
     end;
 
     procedure InsertImportEntry(Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type";
                                                                                     Direction: Enum "EE Direction";
                                                                                     ErrorMsg: Text;
                                                                                     URL: Text;
-                                                                                    Method: Text; var JsonBody: JsonObject)
+                                                                                    Method: Text; UserName: Text; var JsonBody: JsonObject)
     var
         EntryNo: Integer;
     begin
-        InsertImportEntry(EntryNo, Success, ImportEntryNo, Type, EventType, Direction, ErrorMsg, URL, Method, JsonBody, '');
+        InsertImportEntry(EntryNo, Success, ImportEntryNo, Type, EventType, Direction, ErrorMsg, URL, Method, JsonBody, '', UserName);
     end;
 
     procedure InsertImportEntry(Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type";
                                                                                     Direction: Enum "EE Direction";
                                                                                     ErrorMsg: Text;
                                                                                     URL: Text;
-                                                                                    Method: Text; var JsonBody: JsonObject; DocNo: Code[20])
+                                                                                    Method: Text; UserName: Text; var JsonBody: JsonObject; DocNo: Code[20])
     var
         EntryNo: Integer;
     begin
-        InsertImportEntry(EntryNo, Success, ImportEntryNo, Type, EventType, Direction, ErrorMsg, URL, Method, JsonBody, DocNo);
+        InsertImportEntry(EntryNo, Success, ImportEntryNo, Type, EventType, Direction, ErrorMsg, URL, Method, JsonBody, DocNo, UserName);
     end;
 
 
-    // procedure InsertImportEntry(var EntryNo: Integer; Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type"; Direction: Enum "EE Direction"; ErrorMsg: Text; URL: Text; Method: Text)
-    // var
-    //     JsonBody: JsonObject;
-    // begin
-    //     InsertImportEntry(EntryNo, Success, ImportEntryNo, Type, EventType, Direction, ErrorMsg, URL, Method, JsonBody);
-    // end;
 
     procedure InsertImportEntry(var EntryNo: Integer; Success: Boolean; ImportEntryNo: Integer; Type: Enum "EE Import Type"; EventType: Enum "EE Event Type";
                                                                                                           Direction: Enum "EE Direction";
                                                                                                           ErrorMsg: Text;
                                                                                                           URL: Text;
-                                                                                                          Method: Text; var JsonBody: JsonObject; DocNo: Code[20])
+                                                                                                          Method: Text; var JsonBody: JsonObject; DocNo: Code[20]; Username: Text)
     var
         ImportEntry: Record "EE Import/Export Entry";
         PurchHeaderStaging: Record "EE Purch. Header Staging";
@@ -2390,10 +2391,10 @@ codeunit 80000 "EE Fleetrock Mgt."
                     SalesHeaderStaging.Delete(true);
                 exit;
             end;
+            ImportEntry.Reset();
         end;
 
         JsonBody.WriteTo(s);
-        ImportEntry.Reset();
         ImportEntry.LockTable(true);
         if ImportEntry.FindLast() then
             EntryNo := ImportEntry."Entry No.";
@@ -2405,6 +2406,15 @@ codeunit 80000 "EE Fleetrock Mgt."
         ImportEntry."Error Message" := ErrorMsg;
         ImportEntry."Error Stack" := CopyStr(GetLastErrorCallStack(), 1, MaxStrLen(ImportEntry."Error Stack"));
         ImportEntry."Import Entry No." := ImportEntryNo;
+        if ImportEntry."Import Entry No." <> 0 then
+            case Type of
+                Type::"Purchase Order":
+                    if PurchHeaderStaging.Get(ImportEntryNo) then
+                        ImportEntry."Fleetrock ID" := PurchHeaderStaging.id;
+                Type::"Repair Order":
+                    if SalesHeaderStaging.Get(ImportEntryNo) then
+                        ImportEntry."Fleetrock ID" := SalesHeaderStaging.id;
+            end;
         if DocNo <> '' then
             ImportEntry."Document No." := DocNo;
         ImportEntry."Event Type" := EventType;
@@ -2412,6 +2422,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         ImportEntry.Method := CopyStr(Method, 1, MaxStrLen(ImportEntry.Method));
         ImportEntry."Request Body" := CopyStr(s, 1, MaxStrLen(ImportEntry."Request Body"));
         ImportEntry.Direction := Direction;
+        ImportEntry."Source Account" := Username;
 
         ImportEntry.Insert(true);
     end;

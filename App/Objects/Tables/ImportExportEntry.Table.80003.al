@@ -75,6 +75,16 @@ table 80003 "EE Import/Export Entry"
             DataClassification = CustomerContent;
             Editable = false;
         }
+        field(20; "Fleetrock ID"; Text[20])
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
+        field(140; "Source Account"; Text[100])
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
     }
 
     keys

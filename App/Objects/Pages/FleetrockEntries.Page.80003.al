@@ -20,6 +20,10 @@ page 80003 "EE Fleetrock Entries"
                 {
                     ApplicationArea = All;
                 }
+                field("Source Account"; Rec."Source Account")
+                {
+                    ApplicationArea = all;
+                }
                 field(Direction; Rec.Direction)
                 {
                     ApplicationArea = all;
@@ -29,6 +33,25 @@ page 80003 "EE Fleetrock Entries"
                     ApplicationArea = All;
                 }
                 field("Document No."; Rec."Document No.")
+                {
+                    ApplicationArea = all;
+
+                    trigger OnDrillDown()
+                    var
+                        SalesHeaderStaging: Record "EE Sales Header Staging";
+                        PurchHeaderStaging: Record "EE Purch. Header Staging";
+                    begin
+                        case Rec."Document Type" of
+                            Rec."Document Type"::"Purchase Order":
+                                if PurchHeaderStaging.Get(Rec."Import Entry No.") then
+                                    PurchHeaderStaging.DocumentDrillDown();
+                            Rec."Document Type"::"Repair Order":
+                                if SalesHeaderStaging.Get(Rec."Import Entry No.") then
+                                    SalesHeaderStaging.DocumentDrillDown();
+                        end;
+                    end;
+                }
+                field("Fleetrock ID"; Rec."Fleetrock ID")
                 {
                     ApplicationArea = all;
                 }
