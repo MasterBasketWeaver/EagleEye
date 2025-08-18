@@ -2,7 +2,10 @@ codeunit 80302 "EEMCP Install"
 {
     Subtype = Install;
     Permissions = tabledata "Vendor Bank Account" = RIMD,
-    tabledata "Vendor Ledger Entry" = RIMD;
+    tabledata "Vendor Ledger Entry" = RIMD,
+    tabledata "Sales Cr.Memo Header" = RIMD,
+    tabledata "Sales Invoice Header" = RIMD,
+    tabledata "Cancelled Document" = RIMD;
 
     trigger OnInstallAppPerCompany()
     begin
@@ -11,14 +14,32 @@ codeunit 80302 "EEMCP Install"
 
     procedure InstallData()
     begin
-        if CompanyName() <> 'Test - CTS' then
-            exit;
-
-        // ClearVendorBankAccounts();
-        // PopulateVendorBankAccounts();
+        PopulateCrMemoFleetrockIDs();
     end;
 
 
+
+    local procedure PopulateCrMemoFleetrockIDs()
+    var
+        SalesInvHeader: Record "Sales Invoice Header";
+        SalesCrMemoHeader: Record "Sales Cr.Memo Header";
+        CancelledDocument: Record "Cancelled Document";
+    begin
+        SalesCrMemoHeader.SetRange("EE Fleetrock ID", '');
+        if not SalesCrMemoHeader.FindSet() then
+            exit;
+
+        CancelledDocument.SetRange("Source ID", Database::"Sales Invoice Header");
+        repeat
+            CancelledDocument.SetRange("Cancelled By Doc. No.", SalesCrMemoHeader."No.");
+            if CancelledDocument.FindFirst() then
+                if SalesInvHeader.Get(CancelledDocument."Cancelled Doc. No.") then
+                    if SalesInvHeader."EE Fleetrock ID" <> '' then begin
+                        SalesCrMemoHeader."EE Fleetrock ID" := SalesInvHeader."EE Fleetrock ID";
+                        SalesCrMemoHeader.Modify(false);
+                    end;
+        until SalesCrMemoHeader.Next() = 0;
+    end;
 
 
 
