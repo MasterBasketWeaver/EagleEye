@@ -14,7 +14,7 @@ codeunit 80302 "EEMCP Install"
 
     procedure InstallData()
     begin
-        PopulateCrMemoFleetrockIDs();
+        // PopulateCrMemoFleetrockIDs();
     end;
 
 
