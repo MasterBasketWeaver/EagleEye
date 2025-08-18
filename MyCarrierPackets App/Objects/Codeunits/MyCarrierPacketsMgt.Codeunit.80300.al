@@ -129,6 +129,7 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         JsonTkn: JsonToken;
         URL, s : Text;
         TotalPages, PageSize, i : Integer;
+        RunUpdate: Boolean;
     begin
         GetAndCheckSetup();
         URL := StrSubstNo('%1/api/v1/Carrier/MonitoredCarrierData?pageNumber=%2&pageSize=%3', MyCarrierPacketsSetup."Integration URL", 1, 1);
@@ -150,14 +151,15 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         Carrier.SetCurrentKey("Requires Update");
         Carrier.SetRange("Requires Update", true);
         if MyCarrierPacketsSetup."Monitored Carrier Cutoff" <> 0DT then
-            Carrier.SetFilter("Last Modifued At", '>=%1', MyCarrierPacketsSetup."Monitored Carrier Cutoff");
+            Carrier.SetFilter("Last Modified At", '>=%1', MyCarrierPacketsSetup."Monitored Carrier Cutoff");
         if Carrier.FindSet(true) then
             repeat
                 Carrier."Last Attempted Update" := CurrentDateTime();
-                if TryToGetCarrierData(Carrier, Headers) then begin
+                if TryToGetCarrierData(Carrier, Headers, RunUpdate) then begin
                     Carrier."Error Message" := '';
                     Carrier."Error Stack" := '';
-                    CreateAndUpdateVendorFromCarrier(Carrier, false);
+                    if RunUpdate then
+                        CreateAndUpdateVendorFromCarrier(Carrier, false);
                 end else begin
                     Carrier."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(Carrier."Error Message"));
                     Carrier."Error Stack" := CopyStr(GetLastErrorCallStack, 1, MaxStrLen(Carrier."Error Stack"));
@@ -246,26 +248,25 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         JsonTkn: JsonToken;
         DocketNumber: Text;
         DOTNumber: Integer;
-        LastModified: DateTime;
+    // LastModified: DateTime;
     begin
         foreach JsonTkn in CarrierJsonArray do begin
             CarrierJsonObj := JsonTkn.AsObject();
             DOTNumber := JsonMgt.GetJsonValueAsInteger(CarrierJsonObj, 'DOTNumber');
-            LastModified := JsonMgt.GetJsonValueAsDateTime(CarrierJsonObj, 'LastModifiedDate');
-            if (DOTNumber <> 0) and (LastModified <> 0DT) then
+            // LastModified := JsonMgt.GetJsonValueAsDateTime(CarrierJsonObj, 'LastModifiedDate');
+            // if (DOTNumber <> 0) and (LastModified <> 0DT) then
+            if DOTNumber <> 0 then
                 if not Carrier.Get(DOTNumber) then begin
                     Carrier.Init();
                     Carrier."DOT No." := DOTNumber;
                     Carrier."Docket No." := CopyStr(JsonMgt.GetJsonValueAsText(CarrierJsonObj, 'DocketNumber'), 1, MaxStrLen(Carrier."Docket No."));
-                    Carrier."Last Modifued At" := LastModified;
+                    Carrier."Last Modified At" := JsonMgt.GetJsonValueAsDateTime(CarrierJsonObj, 'LastModifiedDate');
                     Carrier."Requires Update" := true;
                     Carrier.Insert(false);
-                end else
-                    if LastModified > Carrier."Last Modifued At" then begin
-                        Carrier."Last Modifued At" := LastModified;
-                        Carrier."Requires Update" := true;
-                        Carrier.Modify(false);
-                    end;
+                end else begin
+                    Carrier."Requires Update" := true;
+                    Carrier.Modify(false);
+                end;
         end;
         Commit();
     end;
@@ -282,23 +283,28 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
 
 
     [TryFunction]
-    local procedure TryToGetCarrierData(var Carrier: Record "EEMCP Carrier"; var Headers: HttpHeaders)
+    local procedure TryToGetCarrierData(var Carrier: Record "EEMCP Carrier"; var Headers: HttpHeaders; var RunUpdate: Boolean)
     begin
-        GetCarrierData(Carrier, Headers);
+        RunUpdate := GetCarrierData(Carrier, Headers);
     end;
 
 
-    local procedure GetCarrierData(var Carrier: Record "EEMCP Carrier"; var Headers: HttpHeaders)
+    local procedure GetCarrierData(var Carrier: Record "EEMCP Carrier"; var Headers: HttpHeaders): Boolean
     var
         CarrierData: Record "EEMCP Carrier Data";
         JsonBody, CarrierJsonObj : JsonObject;
         JsonArry: JsonArray;
         JsonTkn: JsonToken;
         RecVar: Variant;
+        ModifiedDateTime: DateTime;
         URL: Text;
     begin
         URL := StrSubstNo('%1/api/v1/carrier/getcustomerpacketwithsw?DOTNumber=%2', MyCarrierPacketsSetup."Integration URL", Carrier."DOT No.");
         CarrierJsonObj := RestAPIMgt.GetResponseAsJsonObject('POST', URL, '', JsonBody, Headers);
+        ModifiedDateTime := JsonMgt.GetJsonValueAsDateTime(CarrierJsonObj, 'ModifiedDateTime');
+        if ModifiedDateTime <> 0DT then
+            if Carrier."Last Modified At" >= ModifiedDateTime then
+                exit(false);
 
         if not CarrierData.Get(Carrier."DOT No.") then begin
             CarrierData.Init();
@@ -358,9 +364,15 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
                 end;
             end;
         CarrierData.Modify(false);
+
+
+        if ModifiedDateTime <> 0DT then
+            Carrier."Last Modified At" := ModifiedDateTime;
         Carrier."Requires Update" := false;
         Carrier.Modify(false);
+
         Commit();
+        exit(true);
     end;
 
     [TryFunction]
