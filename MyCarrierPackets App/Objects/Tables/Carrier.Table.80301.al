@@ -33,6 +33,21 @@ table 80301 "EEMCP Carrier"
             Editable = false;
             TableRelation = Vendor."No.";
         }
+        field(10; "Error Message"; Text[512])
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
+        field(11; "Error Stack"; Text[2048])
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
+        field(12; "Last Attempted Update"; DateTime)
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
     }
 
     keys

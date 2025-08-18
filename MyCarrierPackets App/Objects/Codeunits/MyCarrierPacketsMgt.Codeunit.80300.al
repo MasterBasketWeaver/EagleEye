@@ -153,8 +153,16 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
             Carrier.SetFilter("Last Modifued At", '>=%1', MyCarrierPacketsSetup."Monitored Carrier Cutoff");
         if Carrier.FindSet(true) then
             repeat
-                GetCarrierData(Carrier, Headers);
-                CreateAndUpdateVendorFromCarrier(Carrier, false);
+                Carrier."Last Attempted Update" := CurrentDateTime();
+                if TryToGetCarrierData(Carrier, Headers) then begin
+                    Carrier."Error Message" := '';
+                    Carrier."Error Stack" := '';
+                    CreateAndUpdateVendorFromCarrier(Carrier, false);
+                end else begin
+                    Carrier."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(Carrier."Error Message"));
+                    Carrier."Error Stack" := CopyStr(GetLastErrorCallStack, 1, MaxStrLen(Carrier."Error Stack"));
+                end;
+                Carrier.Modify(true);
             until Carrier.Next() = 0;
 
         if PurchPayableSetup.Get() and (PurchPayableSetup."EEC ACH Payment Method" <> '') then
@@ -269,6 +277,13 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         Headers: HttpHeaders;
     begin
         RestAPIMgt.AddHeader(Headers, 'Authorization', StrSubstNo('Bearer %1', CheckToGetAPIToken()));
+        GetCarrierData(Carrier, Headers);
+    end;
+
+
+    [TryFunction]
+    local procedure TryToGetCarrierData(var Carrier: Record "EEMCP Carrier"; var Headers: HttpHeaders)
+    begin
         GetCarrierData(Carrier, Headers);
     end;
 

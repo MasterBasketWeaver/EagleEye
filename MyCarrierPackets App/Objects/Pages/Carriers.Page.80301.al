@@ -35,6 +35,14 @@ page 80301 "EEMCP Carriers"
                 {
                     ApplicationArea = all;
                 }
+                field("Last Attempted Update"; Rec."Last Attempted Update")
+                {
+                    ApplicationArea = all;
+                }
+                field("Error Message"; Rec."Error Message")
+                {
+                    ApplicationArea = all;
+                }
             }
         }
     }
@@ -43,6 +51,21 @@ page 80301 "EEMCP Carriers"
     {
         area(Processing)
         {
+            action("View Error")
+            {
+                ApplicationArea = All;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                Image = Error;
+                Enabled = Rec."Error Message" <> '';
+
+                trigger OnAction()
+                begin
+                    Message('%1\%2', Rec."Error Message", Rec."Error Stack");
+                end;
+            }
             action("Get Data")
             {
                 ApplicationArea = All;
