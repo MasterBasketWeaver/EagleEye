@@ -303,8 +303,13 @@ codeunit 80300 "EEMCP My Carrier Packets Mgt."
         CarrierJsonObj := RestAPIMgt.GetResponseAsJsonObject('POST', URL, '', JsonBody, Headers);
         ModifiedDateTime := JsonMgt.GetJsonValueAsDateTime(CarrierJsonObj, 'ModifiedDateTime');
         if ModifiedDateTime <> 0DT then
-            if Carrier."Last Modified At" >= ModifiedDateTime then
+            if Carrier."Last Modified At" >= ModifiedDateTime then begin
+                if Carrier."Requires Update" then begin
+                    Carrier."Requires Update" := false;
+                    Carrier.Modify(false);
+                end;
                 exit(false);
+            end;
 
         if not CarrierData.Get(Carrier."DOT No.") then begin
             CarrierData.Init();
