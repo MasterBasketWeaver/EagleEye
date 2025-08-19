@@ -325,6 +325,11 @@ table 80004 "EE Sales Header Staging"
             DataClassification = CustomerContent;
             Editable = false;
         }
+        field(140; "Source Account"; Text[100])
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
     }
 
     keys
@@ -356,7 +361,7 @@ table 80004 "EE Sales Header Staging"
                 PurchHeaderStaging.Delete(true);
     end;
 
-    procedure FormatDateValues()
+    local procedure FormatDateValues()
     var
         TypeHelper: Codeunit "Type Helper";
         TimezoneOffset: Duration;
@@ -389,5 +394,35 @@ table 80004 "EE Sales Header Staging"
         if Rec.date_invoice_paid <> '' then
             if Evaluate(Rec."Invoice Paid At", Rec.date_invoice_paid) then
                 Rec."Invoice Paid At" += TimezoneOffset;
+    end;
+
+    procedure DrillDown(DrillDownId: Text)
+    begin
+        Rec.SetCurrentKey(id);
+        Rec.SetRange(id, DrillDownId);
+        if Rec.FindLast() then
+            Page.Run(0, Rec);
+    end;
+
+    procedure DocumentDrillDown()
+    var
+        SalesHeader: Record "Sales Header";
+        SalesInvHeader: Record "Sales Invoice Header";
+    begin
+        if Rec."Document No." = '' then
+            exit;
+        if not SalesHeader.Get(SalesHeader."Document Type"::Invoice, Rec."Document No.") then begin
+            SalesInvHeader.SetCurrentKey("Order No.");
+            SalesInvHeader.SetRange("Order No.", Rec."Document No.");
+            if not SalesInvHeader.FindFirst() then begin
+                SalesInvHeader.Reset();
+                SalesInvHeader.SetCurrentKey("Pre-Assigned No.");
+                SalesInvHeader.SetRange("Pre-Assigned No.", Rec."Document No.");
+                if not SalesInvHeader.FindFirst() then
+                    exit;
+            end;
+            Page.Run(Page::"Posted Sales Invoice", SalesInvHeader);
+        end else
+            Page.Run(Page::"Sales Invoice", SalesHeader);
     end;
 }

@@ -11,7 +11,7 @@ codeunit 80001 "EE Get Purchase Orders"
         ImportEntry: Record "EE Import/Export Entry";
         EventType: Enum "EE Event Type";
         JsonArry: JsonArray;
-        URL: Text;
+        URL, Username : Text;
         Success, IsReceived, LogEntry : Boolean;
     begin
         if PassedURL = '' then begin
@@ -39,13 +39,13 @@ codeunit 80001 "EE Get Purchase Orders"
                 EventType := EventType::Closed;
         end;
 
-        if not FleetRockMgt.TryToGetPurchaseOrders(StartDateTime, JsonArry, URL, EventType) then begin
+        if not FleetRockMgt.TryToGetPurchaseOrders(StartDateTime, JsonArry, URL, EventType, Username) then begin
             FleetRockMgt.InsertImportEntry(false, 0, ImportEntry."Document Type"::"Purchase Order",
-                EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET');
+                EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET', Username);
             exit;
         end;
         if JsonArry.Count() > 0 then
-            ImportPurchaseOrders(JsonArry, EventType, URL, IsReceived);
+            ImportPurchaseOrders(JsonArry, EventType, URL, IsReceived, Username);
     end;
 
     procedure SetStartDateTime(NewStartDateTime: DateTime)
@@ -54,7 +54,7 @@ codeunit 80001 "EE Get Purchase Orders"
         HasSetStartDateTime := true;
     end;
 
-    procedure ImportPurchaseOrders(var JsonArry: JsonArray; EventType: Enum "EE Event Type"; URL: Text; IsReceived: Boolean): Boolean
+    procedure ImportPurchaseOrders(var JsonArry: JsonArray; EventType: Enum "EE Event Type"; URL: Text; IsReceived: Boolean; Username: Text): Boolean
     var
         PurchaseHeader: Record "Purchase Header";
         ImportEntry: Record "EE Import/Export Entry";
@@ -79,21 +79,21 @@ codeunit 80001 "EE Get Purchase Orders"
                     if JsonMgt.GetJsonValueAsText(OrderJsonObj, 'status') = 'Received' then begin
                         LogEntry := true;
                         if FleetRockMgt.TryToCheckIfAlreadyImported(JsonMgt.GetJsonValueAsText(OrderJsonObj, 'id'), PurchaseHeader) then
-                            Success := FleetRockMgt.TryToInsertPOStagingRecords(OrderJsonObj, ImportEntryNo, true);
+                            Success := FleetRockMgt.TryToInsertPOStagingRecords(OrderJsonObj, ImportEntryNo, true, Username);
                     end;
                 end else begin
                     LogEntry := true;
-                    Success := ImportClosedPurchaseOrder(FleetRockSetup, OrderJsonObj, ImportEntryNo, LogEntry);
+                    Success := ImportClosedPurchaseOrder(FleetRockSetup, OrderJsonObj, ImportEntryNo, LogEntry, Username);
                 end;
                 if LogEntry then
                     FleetRockMgt.InsertImportEntry(Success and (GetLastErrorText() = ''), ImportEntryNo,
                         ImportEntry."Document Type"::"Purchase Order", EventType, Enum::"EE Direction"::Import,
-                        GetLastErrorText(), URL, 'GET');
+                        GetLastErrorText(), URL, 'GET', Username);
             end;
         end;
     end;
 
-    local procedure ImportClosedPurchaseOrder(var FleetRockSetup: Record "EE Fleetrock Setup"; var OrderJsonObj: JsonObject; var ImportEntryNo: Integer; var LogEntry: Boolean): Boolean
+    local procedure ImportClosedPurchaseOrder(var FleetRockSetup: Record "EE Fleetrock Setup"; var OrderJsonObj: JsonObject; var ImportEntryNo: Integer; var LogEntry: Boolean; Username: Text): Boolean
     var
         PurchaseHeaderStaging: Record "EE Purch. Header Staging";
         OrderId: Text;
@@ -106,7 +106,7 @@ codeunit 80001 "EE Get Purchase Orders"
                 exit(true)
             end;
         end;
-        if FleetRockMgt.TryToInsertPOStagingRecords(OrderJsonObj, ImportEntryNo, false) and PurchaseHeaderStaging.Get(ImportEntryNo) then
+        if FleetRockMgt.TryToInsertPOStagingRecords(OrderJsonObj, ImportEntryNo, false, Username) and PurchaseHeaderStaging.Get(ImportEntryNo) then
             exit(UpdateAndPostPurchaseOrder(FleetrockSetup, PurchaseHeaderStaging));
         exit(false);
     end;

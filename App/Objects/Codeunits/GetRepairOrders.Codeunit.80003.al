@@ -12,7 +12,7 @@ codeunit 80003 "EE Get Repair Orders"
         SalesHeaderStaging: Record "EE Sales Header Staging";
         OrderStatus: Enum "EE Repair Order Status";
         EventType: Enum "EE Event Type";
-        JsonArry, VendorJsonArray : JsonArray;
+        JsonArry, VendorJsonArray, ExtraArray : JsonArray;
         URL: Text;
     begin
         if Rec."Parameter String" = 'invoiced' then begin
@@ -33,20 +33,22 @@ codeunit 80003 "EE Get Repair Orders"
 
         if not FleetRockMgt.TryToGetRepairOrders(StartDateTime, OrderStatus, JsonArry, URL, false) then
             FleetRockMgt.InsertImportEntry(false, 0, ImportEntry."Document Type"::"Repair Order",
-                EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET');
+                EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET', FleetRockSetup.Username);
 
 
         FleetRockSetup.Get();
         if FleetRockSetup."Import Repair with Vendor" and (FleetRockSetup."Vendor API Key" <> '') then
             if not FleetRockMgt.TryToGetRepairOrders(StartDateTime, OrderStatus, VendorJsonArray, URL, true) then
                 FleetRockMgt.InsertImportEntry(false, 0, ImportEntry."Document Type"::"Repair Order",
-                    EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET')
+                    EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET', FleetRockSetup."Vendor Username")
             else
                 if (VendorJsonArray.Count() > 0) and (VendorJsonArray.Count() <> JsonArry.Count()) then
-                    MergeJsonArrays(VendorJsonArray, JsonArry);
+                    ExtraArray := GetDeltaOfArrays(VendorJsonArray, JsonArry);
 
         if JsonArry.Count() > 0 then
-            ImportRepairOrders(JsonArry, OrderStatus, EventType, URL);
+            ImportRepairOrders(JsonArry, OrderStatus, EventType, URL, FleetRockSetup.Username);
+        if ExtraArray.Count() > 0 then
+            ImportRepairOrders(ExtraArray, OrderStatus, EventType, URL, FleetRockSetup."Vendor Username");
     end;
 
     procedure SetStartDateTime(NewStartDateTime: DateTime)
@@ -56,7 +58,7 @@ codeunit 80003 "EE Get Repair Orders"
     end;
 
 
-    procedure ImportRepairOrders(var JsonArry: JsonArray; OrderStatus: Enum "EE Repair Order Status"; EventType: Enum "EE Event Type"; URL: Text): Boolean
+    procedure ImportRepairOrders(var JsonArry: JsonArray; OrderStatus: Enum "EE Repair Order Status"; EventType: Enum "EE Event Type"; URL: Text; Username: Text): Boolean
     var
         FleetRockSetup: Record "EE Fleetrock Setup";
         OrderJsonObj: JsonObject;
@@ -79,12 +81,12 @@ codeunit 80003 "EE Get Repair Orders"
                 LogEntry := false;
                 ClearLastError();
                 if not FleetRockSetup."Import Repairs as Purchases" then
-                    Success := ImportAsSalesInvoice(FleetRockSetup, OrderJsonObj, OrderStatus, ImportEntryNo, LogEntry)
+                    Success := ImportAsSalesInvoice(FleetRockSetup, OrderJsonObj, OrderStatus, ImportEntryNo, LogEntry, Username)
                 else
                     if OrderStatus = OrderStatus::invoiced then
-                        Success := ImportAsPurchaseOrder(FleetRockSetup, OrderJsonObj, ImportEntryNo, LogEntry);
+                        Success := ImportAsPurchaseOrder(FleetRockSetup, OrderJsonObj, ImportEntryNo, LogEntry, Username);
                 if LogEntry then
-                    FleetRockMgt.InsertImportEntry(Success and (GetLastErrorText() = ''), ImportEntryNo, ImportType, EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET');
+                    FleetRockMgt.InsertImportEntry(Success and (GetLastErrorText() = ''), ImportEntryNo, ImportType, EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET', Username);
             end;
         end;
     end;
@@ -108,7 +110,7 @@ codeunit 80003 "EE Get Repair Orders"
     end;
 
 
-    local procedure ImportAsPurchaseOrder(var FleetrockSetup: Record "EE Fleetrock Setup"; var OrderJsonObj: JsonObject; var ImportEntryNo: Integer; var LogEntry: Boolean): Boolean
+    local procedure ImportAsPurchaseOrder(var FleetrockSetup: Record "EE Fleetrock Setup"; var OrderJsonObj: JsonObject; var ImportEntryNo: Integer; var LogEntry: Boolean; Username: Text): Boolean
     var
         PurchaseHeader: Record "Purchase Header";
         PurchaseHeaderStaging: Record "EE Purch. Header Staging";
@@ -138,7 +140,7 @@ codeunit 80003 "EE Get Repair Orders"
             PurchaseHeaderStaging.Reset();
         end;
         PurchaseHeader.Reset();
-        if FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, false) and SalesHeaderStaging.Get(ImportEntryNo) then
+        if FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, false, Username) and SalesHeaderStaging.Get(ImportEntryNo) then
             if FleetRockMgt.TryToCreatePurchaseStagingFromRepairStaging(SalesHeaderStaging, PurchaseHeaderStaging) then begin
                 Success := GetPurchaseOrders.UpdateAndPostPurchaseOrder(FleetrockSetup, PurchaseHeaderStaging);
                 ImportEntryNo := PurchaseHeaderStaging."Entry No.";
@@ -150,7 +152,7 @@ codeunit 80003 "EE Get Repair Orders"
         exit(Success);
     end;
 
-    local procedure ImportAsSalesInvoice(var FleetrockSetup: Record "EE Fleetrock Setup"; var OrderJsonObj: JsonObject; OrderStatus: Enum "EE Repair Order Status"; var ImportEntryNo: Integer; var LogEntry: Boolean): Boolean
+    local procedure ImportAsSalesInvoice(var FleetrockSetup: Record "EE Fleetrock Setup"; var OrderJsonObj: JsonObject; OrderStatus: Enum "EE Repair Order Status"; var ImportEntryNo: Integer; var LogEntry: Boolean; Username: Text): Boolean
     var
         SalesHeader: Record "Sales Header";
         SalesHeaderStaging: Record "EE Sales Header Staging";
@@ -167,7 +169,7 @@ codeunit 80003 "EE Get Repair Orders"
                     exit(true);
                 end;
             end;
-            if FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, false) and SalesHeaderStaging.Get(ImportEntryNo) then begin
+            if FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, false, Username) and SalesHeaderStaging.Get(ImportEntryNo) then begin
                 SalesHeader.SetCurrentKey("EE Fleetrock ID");
                 SalesHeader.SetRange("Document Type", SalesHeader."Document Type"::Invoice);
                 SalesHeader.SetRange("EE Fleetrock ID", SalesHeaderStaging.id);
@@ -188,7 +190,7 @@ codeunit 80003 "EE Get Repair Orders"
             if JsonMgt.GetJsonValueAsText(OrderJsonObj, 'status') = 'In Progress' then begin
                 LogEntry := true;
                 if FleetRockMgt.TryToCheckIfAlreadyImported(JsonMgt.GetJsonValueAsText(OrderJsonObj, 'id'), SalesHeader) then
-                    Success := FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, true);
+                    Success := FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, true, Username);
             end;
         exit(Success);
     end;
@@ -206,53 +208,77 @@ codeunit 80003 "EE Get Repair Orders"
 
 
 
-    local procedure MergeJsonArrays(var VendorJsonArray: JsonArray; var CustomerVendorArray: JsonArray)
+    local procedure MergeJsonArrays(var VendorJsonArray: JsonArray; var CustomerJsonArray: JsonArray)
+    var
+        JTkn: JsonToken;
+        JObj: JsonObject;
+        DeltaROs: List of [Text];
+    begin
+        DeltaROs := GetArrayDeltaAsList(VendorJsonArray, CustomerJsonArray);
+        if DeltaROs.Count() <> 0 then
+            foreach JTkn in VendorJsonArray do begin
+                JObj := JTkn.AsObject();
+                if DeltaROs.Contains(JsonMgt.GetJsonValueAsText(JObj, 'id')) then
+                    CustomerJsonArray.Add(JTkn);
+            end;
+    end;
+
+    local procedure GetDeltaOfArrays(var VendorJsonArray: JsonArray; var CustomerJsonArray: JsonArray): JsonArray
+    var
+        DeltaArray: JsonArray;
+        JTkn: JsonToken;
+        JObj: JsonObject;
+        DeltaROs: List of [Text];
+    begin
+        DeltaROs := GetArrayDeltaAsList(VendorJsonArray, CustomerJsonArray);
+        if DeltaROs.Count() <> 0 then
+            foreach JTkn in VendorJsonArray do begin
+                JObj := JTkn.AsObject();
+                if DeltaROs.Contains(JsonMgt.GetJsonValueAsText(JObj, 'id')) then
+                    DeltaArray.Add(JTkn);
+            end;
+        exit(DeltaArray);
+    end;
+
+    local procedure GetArrayDeltaAsList(var Array1: JsonArray; var Array2: JsonArray): List of [Text]
     var
         JsonBuffer: Record "JSON Buffer" temporary;
         JTkn: JsonToken;
         JObj: JsonObject;
-        VendorROs, CustomerROs, DeltaROs : List of [Text];
+        List1, List2, DeltaList : List of [Text];
         s: Text;
     begin
-        VendorJsonArray.WriteTo(s);
+        Array1.WriteTo(s);
         JsonBuffer.ReadFromText(s);
         JsonBuffer.SetRange(Depth, 1);
         if JsonBuffer.FindSet() then
             repeat
                 if JsonBuffer.GetPropertyValue(s, 'id') then
-                    if not VendorROs.Contains(s) then
-                        VendorROs.Add(s);
+                    if not List1.Contains(s) then
+                        List1.Add(s);
             until JsonBuffer.Next() = 0;
 
-        CustomerVendorArray.WriteTo(s);
+        Array2.WriteTo(s);
         JsonBuffer.Reset();
         JsonBuffer.ReadFromText(s);
         JsonBuffer.SetRange(Depth, 1);
         if JsonBuffer.FindSet() then
             repeat
                 if JsonBuffer.GetPropertyValue(s, 'id') then
-                    if not CustomerROs.Contains(s) then
-                        CustomerROs.Add(s);
+                    if not List2.Contains(s) then
+                        List2.Add(s);
             until JsonBuffer.Next() = 0;
 
-        foreach s in VendorROs do
-            if not CustomerROs.Contains(s) then
-                DeltaROs.Add(s);
-
-        if DeltaROs.Count() = 0 then
-            exit;
-
-        foreach JTkn in VendorJsonArray do begin
-            JObj := JTkn.AsObject();
-            if DeltaROs.Contains(JsonMgt.GetJsonValueAsText(JObj, 'id')) then
-                CustomerVendorArray.Add(JTkn);
-        end;
+        foreach s in List1 do
+            if not List2.Contains(s) then
+                DeltaList.Add(s);
     end;
 
     var
         FleetRockMgt: Codeunit "EE Fleetrock Mgt.";
         GetPurchaseOrders: Codeunit "EE Get Purchase Orders";
         JsonMgt: Codeunit "EE Json Mgt.";
+        Usernames: Dictionary of [Text, Text];
         StartDateTime: DateTime;
         HasSetStartDateTime: Boolean;
 }
