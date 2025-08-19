@@ -27,7 +27,7 @@ page 80301 "EEMCP Carriers"
                 {
                     ApplicationArea = all;
                 }
-                field("Last Modifued At"; Rec."Last Modifued At")
+                field("Last Modified At"; Rec."Last Modified At")
                 {
                     ApplicationArea = all;
                 }

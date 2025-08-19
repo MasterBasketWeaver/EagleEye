@@ -17,7 +17,7 @@ table 80301 "EEMCP Carrier"
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(3; "Last Modifued At"; DateTime)
+        field(3; "Last Modified At"; DateTime)
         {
             DataClassification = CustomerContent;
             Editable = false;
