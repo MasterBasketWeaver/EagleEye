@@ -170,6 +170,11 @@ table 80001 "EE Purch. Header Staging"
             CalcFormula = lookup(User."User Name" where("User Security ID" = field(SystemCreatedBy)));
             Editable = false;
         }
+        field(140; "Source Account"; Text[100])
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
     }
 
     keys
@@ -194,7 +199,7 @@ table 80001 "EE Purch. Header Staging"
         PurchLineStaging.DeleteAll(true);
     end;
 
-    procedure FormatDateValues()
+    local procedure FormatDateValues()
     var
         TypeHelper: Codeunit "Type Helper";
         TimezoneOffset: Duration;
@@ -219,5 +224,36 @@ table 80001 "EE Purch. Header Staging"
         if Rec.date_closed <> '' then
             if Evaluate(Rec.Closed, Rec.date_closed) then
                 Rec.Closed += TimezoneOffset;
+    end;
+
+    procedure DrillDown(DrillDownId: Text)
+    begin
+        Rec.SetCurrentKey(id);
+        Rec.SetRange(id, DrillDownId);
+        if Rec.FindLast() then
+            Page.Run(0, Rec);
+    end;
+
+    procedure DocumentDrillDown()
+    var
+        PurchaseHeader: Record "Purchase Header";
+        PurchInvHeader: Record "Purch. Inv. Header";
+    begin
+        if Rec."Document No." = '' then
+            exit;
+        if PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, Rec."Document No.") then
+            Page.Run(Page::"Purchase Order", PurchaseHeader)
+        else begin
+            PurchInvHeader.SetCurrentKey("Order No.");
+            PurchInvHeader.SetRange("Order No.", Rec."Document No.");
+            if not PurchInvHeader.FindFirst() then begin
+                PurchInvHeader.Reset();
+                PurchInvHeader.SetCurrentKey("Pre-Assigned No.");
+                PurchInvHeader.SetRange("Pre-Assigned No.", Rec."Document No.");
+                if not PurchInvHeader.FindFirst() then
+                    exit;
+            end;
+            Page.Run(Page::"Posted Purchase Invoice", PurchInvHeader);
+        end;
     end;
 }

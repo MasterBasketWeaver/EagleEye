@@ -19,31 +19,18 @@ page 80001 "EE Staged Purchased Headers"
                 {
                     ApplicationArea = All;
                 }
+                field("Source Account"; Rec."Source Account")
+                {
+                    ApplicationArea = all;
+                }
                 field("Document No."; Rec."Document No.")
                 {
                     ApplicationArea = all;
                     ToolTip = 'Specifies the Document No. of the related Purchase Order that was created from the staging record.';
 
                     trigger OnDrillDown()
-                    var
-                        PurchaseHeader: Record "Purchase Header";
-                        PurchInvHeader: Record "Purch. Inv. Header";
                     begin
-                        if Rec."Document No." <> '' then
-                            if PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, Rec."Document No.") then
-                                Page.Run(Page::"Purchase Order", PurchaseHeader)
-                            else begin
-                                PurchInvHeader.SetCurrentKey("Order No.");
-                                PurchInvHeader.SetRange("Order No.", Rec."Document No.");
-                                if not PurchInvHeader.FindFirst() then begin
-                                    PurchInvHeader.Reset();
-                                    PurchInvHeader.SetCurrentKey("Pre-Assigned No.");
-                                    PurchInvHeader.SetRange("Pre-Assigned No.", Rec."Document No.");
-                                    if not PurchInvHeader.FindFirst() then
-                                        exit;
-                                end;
-                                Page.Run(Page::"Posted Purchase Invoice", PurchInvHeader);
-                            end;
+                        Rec.DocumentDrillDown();
                     end;
                 }
                 field(id; Rec.id)

@@ -19,30 +19,17 @@ page 80004 "EE Staged Repair Order Headers"
                 {
                     ApplicationArea = all;
                 }
+                field("Source Account"; Rec."Source Account")
+                {
+                    ApplicationArea = all;
+                }
                 field("Document No."; Rec."Document No.")
                 {
                     ApplicationArea = all;
 
                     trigger OnDrillDown()
-                    var
-                        SalesHeader: Record "Sales Header";
-                        SalesInvHeader: Record "Sales Invoice Header";
                     begin
-                        if Rec."Document No." <> '' then
-                            if SalesHeader.Get(SalesHeader."Document Type"::Invoice, Rec."Document No.") then
-                                Page.Run(Page::"Sales Invoice", SalesHeader)
-                            else begin
-                                SalesInvHeader.SetCurrentKey("Order No.");
-                                SalesInvHeader.SetRange("Order No.", Rec."Document No.");
-                                if not SalesInvHeader.FindFirst() then begin
-                                    SalesInvHeader.Reset();
-                                    SalesInvHeader.SetCurrentKey("Pre-Assigned No.");
-                                    SalesInvHeader.SetRange("Pre-Assigned No.", Rec."Document No.");
-                                    if not SalesInvHeader.FindFirst() then
-                                        exit;
-                                end;
-                                Page.Run(Page::"Posted Sales Invoice", SalesInvHeader);
-                            end;
+                        Rec.DocumentDrillDown();
                     end;
                 }
                 field("Purch. Staging Entry No."; Rec."Purch. Staging Entry No.")
