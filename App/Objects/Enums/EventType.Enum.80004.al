@@ -9,4 +9,5 @@ enum 80004 "EE Event Type"
     value(7; "Updated") { }
     value(8; " ") { Caption = ''; }
     value(9; "Manual Import") { }
+    value(10; "Finished") { }
 }

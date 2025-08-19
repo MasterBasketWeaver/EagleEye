@@ -17,10 +17,10 @@ codeunit 80003 "EE Get Repair Orders"
     begin
         if Rec."Parameter String" = 'invoiced' then begin
             OrderStatus := OrderStatus::invoiced;
-            EventType := EventType::invoiced;
+            EventType := EventType::Invoiced;
         end else begin
-            OrderStatus := OrderStatus::started;
-            EventType := EventType::Started;
+            OrderStatus := OrderStatus::finished;
+            EventType := EventType::Finished;
         end;
 
         if not HasSetStartDateTime then begin
