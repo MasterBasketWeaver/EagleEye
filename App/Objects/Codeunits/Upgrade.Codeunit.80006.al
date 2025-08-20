@@ -16,6 +16,35 @@ codeunit 80006 "EE Upgrade"
         // ClearGLSetups();
         // PopulateDocumentNos();
         // ClearInvalidEntries();
+
+        PopulateFleetrockIDs();
+    end;
+
+
+    local procedure PopulateFleetrockIDs()
+    var
+        FleetrockEntry: Record "EE Import/Export Entry";
+        SalesHeaderStaging: Record "EE Sales Header Staging";
+        PurchHeaderStaging: Record "EE Purch. Header Staging";
+    begin
+        FleetrockEntry.SetFilter("Import Entry No.", '<>%1', 0);
+        FleetrockEntry.SetRange("Fleetrock ID", '');
+        FleetrockEntry.SetRange("Document Type", FleetrockEntry."Document Type"::"Purchase Order");
+        if FleetrockEntry.FindSet() then
+            repeat
+                if PurchHeaderStaging.Get(FleetrockEntry."Import Entry No.") then begin
+                    FleetrockEntry."Fleetrock ID" := PurchHeaderStaging.id;
+                    FleetrockEntry.Modify(false);
+                end;
+            until FleetrockEntry.Next() = 0;
+        FleetrockEntry.SetRange("Document Type", FleetrockEntry."Document Type"::"Repair Order");
+        if FleetrockEntry.FindSet() then
+            repeat
+                if SalesHeaderStaging.Get(FleetrockEntry."Import Entry No.") then begin
+                    FleetrockEntry."Fleetrock ID" := SalesHeaderStaging.id;
+                    FleetrockEntry.Modify(false);
+                end;
+            until FleetrockEntry.Next() = 0;
     end;
 
     local procedure ClearInvalidEntries()
