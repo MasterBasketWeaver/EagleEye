@@ -14,6 +14,7 @@ codeunit 80003 "EE Get Repair Orders"
         EventType: Enum "EE Event Type";
         JsonArry, VendorJsonArray : JsonArray;
         URL: Text;
+        FourHourDuration: Duration;
     begin
         if Rec."Parameter String" = 'invoiced' then begin
             OrderStatus := OrderStatus::invoiced;
@@ -21,6 +22,9 @@ codeunit 80003 "EE Get Repair Orders"
         end else begin
             OrderStatus := OrderStatus::finished;
             EventType := EventType::Finished;
+            HasSetStartDateTime := true;
+            FourHourDuration := 1000 * 60 * 60 * 4;
+            StartDateTime := CurrentDateTime() - FourHourDuration;
         end;
 
         if not HasSetStartDateTime then begin
@@ -78,11 +82,10 @@ codeunit 80003 "EE Get Repair Orders"
                 Success := false;
                 LogEntry := false;
                 ClearLastError();
-                if not FleetRockSetup."Import Repairs as Purchases" then
-                    Success := ImportAsSalesInvoice(FleetRockSetup, OrderJsonObj, OrderStatus, ImportEntryNo, LogEntry)
+                if FleetRockSetup."Import Repairs as Purchases" then
+                    Success := ImportAsPurchaseOrder(FleetRockSetup, OrderJsonObj, OrderStatus, ImportEntryNo, LogEntry)
                 else
-                    if OrderStatus = OrderStatus::invoiced then
-                        Success := ImportAsPurchaseOrder(FleetRockSetup, OrderJsonObj, ImportEntryNo, LogEntry);
+                    Success := ImportAsSalesInvoice(FleetRockSetup, OrderJsonObj, OrderStatus, ImportEntryNo, LogEntry);
                 if LogEntry then
                     FleetRockMgt.InsertImportEntry(Success and (GetLastErrorText() = ''), ImportEntryNo, ImportType, EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET');
             end;
@@ -108,7 +111,7 @@ codeunit 80003 "EE Get Repair Orders"
     end;
 
 
-    local procedure ImportAsPurchaseOrder(var FleetrockSetup: Record "EE Fleetrock Setup"; var OrderJsonObj: JsonObject; var ImportEntryNo: Integer; var LogEntry: Boolean): Boolean
+    local procedure ImportAsPurchaseOrder(var FleetrockSetup: Record "EE Fleetrock Setup"; var OrderJsonObj: JsonObject; OrderStatus: Enum "EE Repair Order Status"; var ImportEntryNo: Integer; var LogEntry: Boolean): Boolean
     var
         PurchaseHeader: Record "Purchase Header";
         PurchaseHeaderStaging: Record "EE Purch. Header Staging";
@@ -140,7 +143,10 @@ codeunit 80003 "EE Get Repair Orders"
         PurchaseHeader.Reset();
         if FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, false) and SalesHeaderStaging.Get(ImportEntryNo) then
             if FleetRockMgt.TryToCreatePurchaseStagingFromRepairStaging(SalesHeaderStaging, PurchaseHeaderStaging) then begin
-                Success := GetPurchaseOrders.UpdateAndPostPurchaseOrder(FleetrockSetup, PurchaseHeaderStaging);
+                if OrderStatus = OrderStatus::invoiced then
+                    Success := GetPurchaseOrders.UpdateAndPostPurchaseOrder(FleetrockSetup, PurchaseHeaderStaging)
+                else
+                    Success := FleetRockMgt.CreatePurchaseOrder(PurchaseHeaderStaging);
                 ImportEntryNo := PurchaseHeaderStaging."Entry No.";
             end;
         if PurchaseHeaderStaging."Document No." <> '' then begin
