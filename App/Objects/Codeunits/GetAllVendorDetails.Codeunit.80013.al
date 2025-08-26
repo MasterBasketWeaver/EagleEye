@@ -10,11 +10,12 @@ codeunit 80013 "EE Get All Vendor Details"
     begin
         Vendor.SetRange("EE Source Type", Vendor."EE Source Type"::Fleetrock);
         Vendor.SetFilter("EE Source No.", '<>%1', '');
-        if not Vendor.FindSet() then
+        if not Vendor.FindSet(true) then
             exit;
         SingleInstance.SetSkipVendorUpdate(true);
         repeat
-            FleetrockMgt.UpdateVendor(Vendor, Vendor."EE Source No.", false);
+            if FleetrockMgt.UpdateVendor(Vendor, Vendor."EE Source No.", false) then
+                Vendor.Modify(true);
         until Vendor.Next() = 0;
         SingleInstance.SetSkipVendorUpdate(false);
     end;

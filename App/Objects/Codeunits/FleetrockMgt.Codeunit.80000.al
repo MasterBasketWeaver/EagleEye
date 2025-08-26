@@ -461,14 +461,17 @@ codeunit 80000 "EE Fleetrock Mgt."
     begin
         Vendor2 := Vendor;
 
-        Input := CopyStr(JsonMgt.GetJsonValueAsText(VendorObj, 'street_address_1'), 1, MaxStrLen(Vendor.Address));
+        if VendorObj.Contains('street_address_1') then begin
+            Input := CopyStr(JsonMgt.GetJsonValueAsText(VendorObj, 'street_address_2'), 1, MaxStrLen(Vendor."Address 2"));
+            if Input <> '' then
+                if Vendor."Address 2" = '' then
+                    Vendor.Validate("Address 2", Input);
+            Input := CopyStr(JsonMgt.GetJsonValueAsText(VendorObj, 'street_address_1'), 1, MaxStrLen(Vendor.Address));
+        end else
+            Input := CopyStr(JsonMgt.GetJsonValueAsText(VendorObj, 'street_address'), 1, MaxStrLen(Vendor.Address));
         if Input <> '' then
             if Vendor.Address = '' then
                 Vendor.Validate(Address, Input);
-        Input := CopyStr(JsonMgt.GetJsonValueAsText(VendorObj, 'street_address_2'), 1, MaxStrLen(Vendor."Address 2"));
-        if Input <> '' then
-            if Vendor."Address 2" = '' then
-                Vendor.Validate("Address 2", Input);
         Input := CopyStr(JsonMgt.GetJsonValueAsText(VendorObj, 'city'), 1, MaxStrLen(Vendor."City"));
         if Input <> '' then
             if Vendor."City" = '' then
@@ -481,6 +484,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         if Input <> '' then
             if Vendor."Country/Region Code" = '' then
                 Vendor."Country/Region Code" := Input;
+
         Input := CopyStr(JsonMgt.GetJsonValueAsText(VendorObj, 'zip_code'), 1, MaxStrLen(Vendor."Post Code"));
         if Input <> '' then
             if Vendor."Post Code" = '' then
@@ -492,7 +496,7 @@ codeunit 80000 "EE Fleetrock Mgt."
 
         PhoneNo := CopyStr(JsonMgt.GetJsonValueAsText(VendorObj, 'phone'), 1, MaxStrLen(Vendor."Phone No."));
         if (PhoneNo <> '') and (Vendor."Phone No." = '') then
-            if not TryToSetVendorNo(Vendor, PhoneNo) then
+            if not TryToSetVendorPhoneNo(Vendor, PhoneNo) then
                 Vendor."Phone No." := PhoneNo;
         PaymentTermDays := Round(JsonMgt.GetJsonValueAsDecimal(VendorObj, 'payment_term_days'), 1);
         if PaymentTermDays = 0 then
@@ -502,6 +506,10 @@ codeunit 80000 "EE Fleetrock Mgt."
         if Vendor."Payment Terms Code" = '' then
             if Vendor."Payment Terms Code" <> PaymentTermsCode then
                 Vendor.Validate("Payment Terms Code", PaymentTermsCode);
+
+        if (Vendor."Country/Region Code" = '') then
+            if HasUSStateCode(Vendor.County) then
+                Vendor."Country/Region Code" := 'US';
 
         exit((Vendor.Address <> Vendor2.Address)
             or (Vendor2."Address 2" <> Vendor."Address 2")
@@ -514,8 +522,20 @@ codeunit 80000 "EE Fleetrock Mgt."
             or (Vendor2."Payment Terms Code" <> Vendor."Payment Terms Code"));
     end;
 
+    local procedure HasUSStateCode(StateCode: Text[30]): Boolean
+    begin
+        if StateCode = '' then
+            exit(false);
+        exit(StateCode in ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+                   'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+                   'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+                   'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+                   'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY']);
+    end;
+
+
     [TryFunction]
-    local procedure TryToSetVendorNo(var Vendor: Record Vendor; PhoneNo: Text)
+    local procedure TryToSetVendorPhoneNo(var Vendor: Record Vendor; PhoneNo: Text)
     begin
         Vendor.Validate("Phone No.", PhoneNo);
     end;
