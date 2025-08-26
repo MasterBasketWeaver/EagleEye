@@ -55,7 +55,8 @@ pageextension 80000 "EE Vendor Card" extends "Vendor Card"
                 trigger OnAction()
                 begin
                     Rec.TestField("EE Source Type", Enum::"EE Source Type"::Fleetrock);
-                    FleetrockMgt.UpdateVendor(Rec, Rec."EE Source No.", false);
+                    if FleetrockMgt.UpdateVendor(Rec, Rec."EE Source No.", false) then
+                        Rec.Modify(true);
                 end;
             }
         }
