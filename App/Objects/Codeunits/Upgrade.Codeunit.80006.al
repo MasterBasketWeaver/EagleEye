@@ -16,8 +16,7 @@ codeunit 80006 "EE Upgrade"
         // ClearGLSetups();
         // PopulateDocumentNos();
         // ClearInvalidEntries();
-
-        PopulateFleetrockIDs();
+        // PopulateFleetrockIDs();
     end;
 
 
