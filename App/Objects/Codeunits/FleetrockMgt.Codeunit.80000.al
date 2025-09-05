@@ -186,7 +186,10 @@ codeunit 80000 "EE Fleetrock Mgt."
         if PurchHeaderStaging.Closed <> 0DT then
             PurchaseHeader.Validate("Posting Date", DT2Date(PurchHeaderStaging.Closed))
         else
-            PurchaseHeader.Validate("Posting Date", DT2Date(PurchHeaderStaging.Received));
+            if PurchHeaderStaging.Received <> 0DT then
+                PurchaseHeader.Validate("Posting Date", DT2Date(PurchHeaderStaging.Received))
+            else
+                PurchaseHeader.Validate("Posting Date", DT2Date(PurchHeaderStaging.Opened));
         PurchaseHeader.Validate("Document Date", PurchaseHeader."Posting Date");
         PurchaseHeader.Insert(true);
         DocNo := PurchaseHeader."No.";

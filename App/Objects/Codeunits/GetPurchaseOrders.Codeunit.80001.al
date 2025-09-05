@@ -53,6 +53,7 @@ codeunit 80001 "EE Get Purchase Orders"
                     exit;
 
                 EventType := EventType::Opened;
+                URL := '';
                 if not FleetRockMgt.TryToGetPurchaseOrders(StartDateTime, JsonArry, URL, EventType, Username) then begin
                     FleetRockMgt.InsertImportEntry(false, 0, ImportEntry."Document Type"::"Purchase Order",
                         EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET', Username);
@@ -68,8 +69,9 @@ codeunit 80001 "EE Get Purchase Orders"
         end;
 
 
-
+        Clear(JsonArry);
         EventType := EventType::Opened;
+        URL := '';
         if not FleetRockMgt.TryToGetPurchaseOrders(StartDateTime, JsonArry, URL, EventType, Username) then begin
             FleetRockMgt.InsertImportEntry(false, 0, ImportEntry."Document Type"::"Purchase Order",
                 EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET', Username);
