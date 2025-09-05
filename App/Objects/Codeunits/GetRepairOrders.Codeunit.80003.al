@@ -49,6 +49,30 @@ codeunit 80003 "EE Get Repair Orders"
             ImportRepairOrders(JsonArry, OrderStatus, EventType, URL, FleetRockSetup.Username);
         if ExtraArray.Count() > 0 then
             ImportRepairOrders(ExtraArray, OrderStatus, EventType, URL, FleetRockSetup."Vendor Username");
+
+        if EventType = EventType::Invoiced then
+            exit;
+
+        EventType := EventType::Started;
+        Clear(JsonArry);
+        Clear(VendorJsonArray);
+        Clear(ExtraArray);
+        if not FleetRockMgt.TryToGetRepairOrders(StartDateTime, OrderStatus, JsonArry, URL, false) then
+            FleetRockMgt.InsertImportEntry(false, 0, ImportEntry."Document Type"::"Repair Order",
+                EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET', FleetRockSetup.Username);
+
+        if FleetRockSetup."Import Repair with Vendor" and (FleetRockSetup."Vendor API Key" <> '') then
+            if not FleetRockMgt.TryToGetRepairOrders(StartDateTime, OrderStatus, VendorJsonArray, URL, true) then
+                FleetRockMgt.InsertImportEntry(false, 0, ImportEntry."Document Type"::"Repair Order",
+                    EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET', FleetRockSetup."Vendor Username")
+            else
+                if (VendorJsonArray.Count() > 0) and (VendorJsonArray.Count() <> JsonArry.Count()) then
+                    ExtraArray := GetDeltaOfArrays(VendorJsonArray, JsonArry);
+
+        if JsonArry.Count() > 0 then
+            ImportRepairOrders(JsonArry, OrderStatus, EventType, URL, FleetRockSetup.Username);
+        if ExtraArray.Count() > 0 then
+            ImportRepairOrders(ExtraArray, OrderStatus, EventType, URL, FleetRockSetup."Vendor Username");
     end;
 
     procedure SetStartDateTime(NewStartDateTime: DateTime)
