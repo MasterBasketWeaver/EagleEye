@@ -189,7 +189,10 @@ codeunit 80000 "EE Fleetrock Mgt."
         if PurchHeaderStaging.Closed <> 0DT then
             PurchaseHeader.Validate("Posting Date", DT2Date(PurchHeaderStaging.Closed))
         else
-            PurchaseHeader.Validate("Posting Date", DT2Date(PurchHeaderStaging.Received));
+            if PurchHeaderStaging.Received <> 0DT then
+                PurchaseHeader.Validate("Posting Date", DT2Date(PurchHeaderStaging.Received))
+            else
+                PurchaseHeader.Validate("Posting Date", DT2Date(PurchHeaderStaging.Opened));
         PurchaseHeader.Validate("Document Date", PurchaseHeader."Posting Date");
         PurchaseHeader.Insert(true);
         DocNo := PurchaseHeader."No.";
@@ -989,7 +992,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             JObjt := JTkn.AsObject();
             if JsonMgt.GetJsonValueAsText(JObjt, 'id') = DocId then begin
                 JsonArray2.Add(JObjt);
-                GetPurchOrdersCU.ImportPurchaseOrders(JsonArray2, Enum::"EE Event Type"::"Manual Import", URL, false, FleetrockSetup.Username);
+                GetPurchOrdersCU.ImportPurchaseOrders(JsonArray2, Enum::"EE Event Type"::"Manual Import", URL, false, false, FleetrockSetup.Username);
                 exit;
             end;
         end;
