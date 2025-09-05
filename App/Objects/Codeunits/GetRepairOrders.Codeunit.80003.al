@@ -53,6 +53,31 @@ codeunit 80003 "EE Get Repair Orders"
             ImportRepairOrders(JsonArry, OrderStatus, EventType, URL, FleetRockSetup.Username);
         if ExtraArray.Count() > 0 then
             ImportRepairOrders(ExtraArray, OrderStatus, EventType, URL, FleetRockSetup."Vendor Username");
+
+        if EventType = EventType::Invoiced then
+            exit;
+
+        EventType := EventType::Started;
+        OrderStatus := OrderStatus::started;
+        Clear(JsonArry);
+        Clear(VendorJsonArray);
+        Clear(ExtraArray);
+        if not FleetRockMgt.TryToGetRepairOrders(StartDateTime, OrderStatus, JsonArry, URL, false) then
+            FleetRockMgt.InsertImportEntry(false, 0, ImportEntry."Document Type"::"Repair Order",
+                EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET', FleetRockSetup.Username);
+
+        if FleetRockSetup."Import Repair with Vendor" and (FleetRockSetup."Vendor API Key" <> '') then
+            if not FleetRockMgt.TryToGetRepairOrders(StartDateTime, OrderStatus, VendorJsonArray, URL, true) then
+                FleetRockMgt.InsertImportEntry(false, 0, ImportEntry."Document Type"::"Repair Order",
+                    EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET', FleetRockSetup."Vendor Username")
+            else
+                if (VendorJsonArray.Count() > 0) and (VendorJsonArray.Count() <> JsonArry.Count()) then
+                    ExtraArray := GetDeltaOfArrays(VendorJsonArray, JsonArry);
+
+        if JsonArry.Count() > 0 then
+            ImportRepairOrders(JsonArry, OrderStatus, EventType, URL, FleetRockSetup.Username);
+        if ExtraArray.Count() > 0 then
+            ImportRepairOrders(ExtraArray, OrderStatus, EventType, URL, FleetRockSetup."Vendor Username");
     end;
 
     procedure SetStartDateTime(NewStartDateTime: DateTime)
@@ -162,7 +187,7 @@ codeunit 80003 "EE Get Repair Orders"
     var
         SalesHeader: Record "Sales Header";
         SalesHeaderStaging: Record "EE Sales Header Staging";
-        OrderId: Text;
+        OrderId, Status : Text;
         Success: Boolean;
     begin
         if OrderStatus = OrderStatus::invoiced then begin
@@ -192,13 +217,14 @@ codeunit 80003 "EE Get Repair Orders"
                         Success := Codeunit.Run(Codeunit::"Sales-Post", SalesHeader);
                     end;
             end;
-        end else
-            if JsonMgt.GetJsonValueAsText(OrderJsonObj, 'status') = 'In Progress' then begin
-                LogEntry := true;
-                if FleetRockMgt.TryToCheckIfAlreadyImported(JsonMgt.GetJsonValueAsText(OrderJsonObj, 'id'), SalesHeader) then
-                    Success := FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, true, Username);
-            end;
-        exit(Success);
+            exit(Success);
+        end;
+        Status := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'status').ToUpper();
+        if ((OrderStatus = OrderStatus::started) and (Status.ToUpper() = InProgressStatus)) or ((OrderStatus = OrderStatus::finished) and (Status = FinishedStatus)) then begin
+            LogEntry := true;
+            if FleetRockMgt.TryToCheckIfAlreadyImported(JsonMgt.GetJsonValueAsText(OrderJsonObj, 'id'), SalesHeader) then
+                Success := FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, true, Username);
+        end;
     end;
 
     [TryFunction]
@@ -287,4 +313,6 @@ codeunit 80003 "EE Get Repair Orders"
         Usernames: Dictionary of [Text, Text];
         StartDateTime: DateTime;
         HasSetStartDateTime: Boolean;
+        InProgressStatus: Label 'IN PROGRESS';
+        FinishedStatus: Label 'FINISHED';
 }
