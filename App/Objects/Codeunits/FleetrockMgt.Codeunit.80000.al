@@ -986,7 +986,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             JObjt := JTkn.AsObject();
             if JsonMgt.GetJsonValueAsText(JObjt, 'id') = DocId then begin
                 JsonArray2.Add(JObjt);
-                GetPurchOrdersCU.ImportPurchaseOrders(JsonArray2, Enum::"EE Event Type"::"Manual Import", URL, false, FleetrockSetup.Username);
+                GetPurchOrdersCU.ImportPurchaseOrders(JsonArray2, Enum::"EE Event Type"::"Manual Import", URL, false, false, FleetrockSetup.Username);
                 exit;
             end;
         end;
