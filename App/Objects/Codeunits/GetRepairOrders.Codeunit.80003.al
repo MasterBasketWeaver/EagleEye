@@ -54,6 +54,7 @@ codeunit 80003 "EE Get Repair Orders"
             exit;
 
         EventType := EventType::Started;
+        OrderStatus := OrderStatus::started;
         Clear(JsonArry);
         Clear(VendorJsonArray);
         Clear(ExtraArray);
@@ -180,7 +181,7 @@ codeunit 80003 "EE Get Repair Orders"
     var
         SalesHeader: Record "Sales Header";
         SalesHeaderStaging: Record "EE Sales Header Staging";
-        OrderId: Text;
+        OrderId, Status : Text;
         Success: Boolean;
     begin
         if OrderStatus = OrderStatus::invoiced then begin
@@ -210,13 +211,14 @@ codeunit 80003 "EE Get Repair Orders"
                         Success := Codeunit.Run(Codeunit::"Sales-Post", SalesHeader);
                     end;
             end;
-        end else
-            if JsonMgt.GetJsonValueAsText(OrderJsonObj, 'status') = 'In Progress' then begin
-                LogEntry := true;
-                if FleetRockMgt.TryToCheckIfAlreadyImported(JsonMgt.GetJsonValueAsText(OrderJsonObj, 'id'), SalesHeader) then
-                    Success := FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, true, Username);
-            end;
-        exit(Success);
+            exit(Success);
+        end;
+        Status := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'status').ToUpper();
+        if ((OrderStatus = OrderStatus::started) and (Status.ToUpper() = InProgressStatus)) or ((OrderStatus = OrderStatus::finished) and (Status = FinishedStatus)) then begin
+            LogEntry := true;
+            if FleetRockMgt.TryToCheckIfAlreadyImported(JsonMgt.GetJsonValueAsText(OrderJsonObj, 'id'), SalesHeader) then
+                Success := FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, true, Username);
+        end;
     end;
 
     [TryFunction]
@@ -305,4 +307,6 @@ codeunit 80003 "EE Get Repair Orders"
         Usernames: Dictionary of [Text, Text];
         StartDateTime: DateTime;
         HasSetStartDateTime: Boolean;
+        InProgressStatus: Label 'IN PROGRESS';
+        FinishedStatus: Label 'FINISHED';
 }
