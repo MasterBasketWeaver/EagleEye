@@ -234,7 +234,7 @@ codeunit 80003 "EE Get Repair Orders"
         if DeltaROs.Count() <> 0 then
             foreach JTkn in VendorJsonArray do begin
                 JObj := JTkn.AsObject();
-                if DeltaROs.Contains(JsonMgt.GetJsonValueAsText(JObj, 'id')) then
+                if not DeltaROs.Contains(JsonMgt.GetJsonValueAsText(JObj, 'id')) then
                     DeltaArray.Add(JTkn);
             end;
         exit(DeltaArray);
