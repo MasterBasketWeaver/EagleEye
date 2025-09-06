@@ -144,10 +144,11 @@ codeunit 80000 "EE Fleetrock Mgt."
         FleetrockSetup.TestField("Payment Terms");
     end;
 
-    procedure CreatePurchaseOrder(var PurchHeaderStaging: Record "EE Purch. Header Staging")
+    procedure CreatePurchaseOrder(var PurchHeaderStaging: Record "EE Purch. Header Staging"): Boolean
     var
         PurchaseHeader: Record "Purchase Header";
         DocNo: Code[20];
+        Result: Boolean;
     begin
         GetAndCheckSetup();
         CheckPurchaseOrderSetup();
@@ -161,8 +162,10 @@ codeunit 80000 "EE Fleetrock Mgt."
             PurchHeaderStaging."Processed Error" := false;
             PurchHeaderStaging.Processed := true;
             PurchHeaderStaging."Document No." := DocNo;
+            Result := true;
         end;
         PurchHeaderStaging.Modify(true);
+        exit(Result);
     end;
 
 
