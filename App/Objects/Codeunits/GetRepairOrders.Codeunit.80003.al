@@ -223,9 +223,10 @@ codeunit 80003 "EE Get Repair Orders"
         end;
         Status := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'status').ToUpper();
         if ((OrderStatus = OrderStatus::started) and (Status.ToUpper() = InProgressStatus)) or ((OrderStatus = OrderStatus::finished) and (Status = FinishedStatus)) then begin
+            if not FleetRockMgt.TryToCheckIfAlreadyImported(JsonMgt.GetJsonValueAsText(OrderJsonObj, 'id'), SalesHeader) then
+                exit(false);
             LogEntry := true;
-            if FleetRockMgt.TryToCheckIfAlreadyImported(JsonMgt.GetJsonValueAsText(OrderJsonObj, 'id'), SalesHeader) then
-                exit(FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, true, Username));
+            exit(FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, true, Username));
         end;
     end;
 
