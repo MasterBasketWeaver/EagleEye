@@ -146,6 +146,13 @@ codeunit 80000 "EE Fleetrock Mgt."
 
     procedure CreatePurchaseOrder(var PurchHeaderStaging: Record "EE Purch. Header Staging"): Boolean
     var
+        UpdatedAmount: Boolean;
+    begin
+        exit(CreatePurchaseOrder(PurchHeaderStaging, UpdatedAmount));
+    end;
+
+    procedure CreatePurchaseOrder(var PurchHeaderStaging: Record "EE Purch. Header Staging"; var UpdatedAmount: Boolean): Boolean
+    var
         PurchaseHeader: Record "Purchase Header";
         DocNo: Code[20];
         Result: Boolean;
@@ -153,7 +160,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         GetAndCheckSetup();
         CheckPurchaseOrderSetup();
 
-        if not TryToCreatePurchaseOrder(PurchHeaderStaging, DocNo) then begin
+        if not TryToCreatePurchaseOrder(PurchHeaderStaging, DocNo, UpdatedAmount) then begin
             PurchHeaderStaging."Processed Error" := true;
             PurchHeaderStaging."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(PurchHeaderStaging."Error Message"));
             if PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, DocNo) then
@@ -168,9 +175,17 @@ codeunit 80000 "EE Fleetrock Mgt."
         exit(Result);
     end;
 
-
     [TryFunction]
     procedure TryToCreatePurchaseOrder(var PurchHeaderStaging: Record "EE Purch. Header Staging"; var DocNo: Code[20])
+    var
+        UpdatedAmount: Boolean;
+    begin
+        TryToCreatePurchaseOrder(PurchHeaderStaging, DocNo, UpdatedAmount);
+    end;
+
+
+    [TryFunction]
+    procedure TryToCreatePurchaseOrder(var PurchHeaderStaging: Record "EE Purch. Header Staging"; var DocNo: Code[20]; var UpdatedAmount: Boolean)
     var
         PurchaseHeader: Record "Purchase Header";
         PurchInvHeader: Record "Purch. Inv. Header";
@@ -179,7 +194,7 @@ codeunit 80000 "EE Fleetrock Mgt."
     begin
         CheckIfAlreadyImported(PurchHeaderStaging.id, PurchaseHeader);
         if PurchaseHeader."No." <> '' then begin
-            UpdatePurchaseOrder(PurchHeaderStaging, PurchaseHeader);
+            UpdatePurchaseOrder(PurchHeaderStaging, PurchaseHeader, UpdatedAmount);
             DocNo := PurchaseHeader."No.";
             exit;
         end;
@@ -227,6 +242,7 @@ codeunit 80000 "EE Fleetrock Mgt."
 
         PurchaseHeader.Modify(true);
         CreatePurchaseLines(PurchHeaderStaging, DocNo);
+        UpdatedAmount := true;
     end;
 
     local procedure CreatePurchaseLines(var PurchHeaderStaging: Record "EE Purch. Header Staging"; DocNo: Code[20])
@@ -1332,10 +1348,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         SalesHeader.SetHideValidationDialog(true);
         SalesHeader.SetHideCreditCheckDialogue(true);
         SalesHeader.Validate("Document Type", Enum::"Sales Document Type"::Invoice);
-        if SalesHeaderStaging."Expected Finish At" <> 0DT then
-            SalesHeader.Validate("Posting Date", DT2Date(SalesHeaderStaging."Expected Finish At"))
-        else
-            SalesHeader.Validate("Posting Date", DT2Date(SalesHeaderStaging."Started At"));
+        SetSalesHeaderPostingDate(SalesHeader, SalesHeaderStaging);
         SalesHeader.Insert(true);
         DocNo := SalesHeader."No.";
 
@@ -1386,6 +1399,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         TaskLineStaging.SetAutoCalcFields("Part Lines");
         if not TaskLineStaging.FindSet() then
             exit;
+        SalesLine.SetHideValidationDialog(true);
         PartLineStaging.SetCurrentKey("Header Id", "Header Entry No.", "Task Entry No.", "Task Id");
         PartLineStaging.SetRange("Header Id", SalesHeaderStaging.id);
         PartLineStaging.SetRange("Header Entry No.", SalesHeaderStaging."Entry No.");
@@ -1550,16 +1564,23 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
 
-
+    [TryFunction]
+    procedure TryToUpdateRepairOrder(var SalesHeaderStaging: Record "EE Sales Header Staging"; DocNo: Code[20])
+    var
+        UpdatedAmount: Boolean;
+    begin
+        TryToUpdateRepairOrder(SalesHeaderStaging, DocNo, UpdatedAmount);
+    end;
 
 
     [TryFunction]
-    procedure TryToUpdateRepairOrder(var SalesHeaderStaging: Record "EE Sales Header Staging"; DocNo: Code[20])
+    procedure TryToUpdateRepairOrder(var SalesHeaderStaging: Record "EE Sales Header Staging"; DocNo: Code[20]; var UpdatedAmount: Boolean)
     var
         SalesHeader: Record "Sales Header";
         SalesLine: Record "Sales Line";
         TaskLineStaging: Record "EE Task Line Staging";
         PartLineStaging: Record "EE Part Line Staging";
+        Amount, AmountIncludingVAT : Decimal;
         LineNo, DescrLength : Integer;
     begin
         GetAndCheckSetup();
@@ -1568,8 +1589,11 @@ codeunit 80000 "EE Fleetrock Mgt."
         if SalesHeaderStaging.remit_to <> '' then
             GetCustomerNo(SalesHeaderStaging, true);
         SalesHeader.Get(SalesHeader."Document Type"::Invoice, DocNo);
+        SalesHeader.CalcFields(Amount, "Amount Including VAT");
+        Amount := SalesHeader.Amount;
+        AmountIncludingVAT := SalesHeader."Amount Including VAT";
         SalesHeader.SetHideValidationDialog(true);
-        SalesHeader.Validate("Posting Date", DT2Date(SalesHeaderStaging."Invoiced At"));
+        SetSalesHeaderPostingDate(SalesHeader, SalesHeaderStaging);
         SalesHeader.Modify(true);
         if SalesHeaderStaging."Document No." <> SalesHeader."No." then begin
             SalesHeaderStaging.Validate("Document No.", SalesHeader."No.");
@@ -1581,6 +1605,27 @@ codeunit 80000 "EE Fleetrock Mgt."
         SalesLine.DeleteAll(true);
 
         CreateSalesLines(SalesHeaderStaging, SalesHeader."No.");
+
+        SalesHeader.CalcFields(Amount, "Amount Including VAT");
+        UpdatedAmount := (Amount <> SalesHeader.Amount) or (AmountIncludingVAT <> SalesHeader."Amount Including VAT");
+    end;
+
+    local procedure SetSalesHeaderPostingDate(var SalesHeader: Record "Sales Header"; var SalesHeaderStaging: Record "EE Sales Header Staging")
+    var
+        PostingDate: Date;
+    begin
+        case true of
+            SalesHeaderStaging."Invoiced At" <> 0DT:
+                PostingDate := DT2Date(SalesHeaderStaging."Invoiced At");
+            SalesHeaderStaging."Started At" <> 0DT:
+                PostingDate := DT2Date(SalesHeaderStaging."Started At");
+            SalesHeaderStaging."Finished At" <> 0DT:
+                PostingDate := DT2Date(SalesHeaderStaging."Finished At");
+            SalesHeaderStaging."Expected Finish At" <> 0DT:
+                PostingDate := DT2Date(SalesHeaderStaging."Expected Finish At");
+        end;
+        if PostingDate <> 0D then
+            SalesHeader.Validate("Posting Date", PostingDate);
     end;
 
     [TryFunction]
@@ -1600,12 +1645,23 @@ codeunit 80000 "EE Fleetrock Mgt."
 
     procedure UpdatePurchaseOrder(var PurchaseHeaderStaging: Record "EE Purch. Header Staging"; var PurchaseHeader: Record "Purchase Header")
     var
+        UpdatedAmount: Boolean;
+    begin
+        UpdatePurchaseOrder(PurchaseHeaderStaging, PurchaseHeader, UpdatedAmount);
+    end;
+
+    procedure UpdatePurchaseOrder(var PurchaseHeaderStaging: Record "EE Purch. Header Staging"; var PurchaseHeader: Record "Purchase Header"; var UpdatedAmount: Boolean)
+    var
         PurchaseLine: Record "Purchase Line";
         PurchLineStaging: Record "EE Purch. Line Staging";
         ClosedDate: Date;
         RemitVendorNo: Code[20];
+        Amount, AmountIncludingVAT : Decimal;
         LineNo: Integer;
     begin
+        PurchaseHeader.CalcFields(Amount, "Amount Including VAT");
+        Amount := PurchaseHeader.Amount;
+        AmountIncludingVAT := PurchaseHeader."Amount Including VAT";
         GetAndCheckSetup();
         CheckPurchaseOrderSetup();
         GetVendorNo(PurchaseHeaderStaging, false);
@@ -1646,6 +1702,9 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchaseLine.DeleteAll(true);
 
         CreatePurchaseLines(purchaseHeaderStaging, PurchaseHeader."No.");
+
+        PurchaseHeader.CalcFields(Amount, "Amount Including VAT");
+        UpdatedAmount := (Amount <> PurchaseHeader.Amount) or (AmountIncludingVAT <> PurchaseHeader."Amount Including VAT");
     end;
 
     local procedure SetVendorInvoiceNo(var PurchaseHeader: Record "Purchase Header"; InvoiceNo: Text)
