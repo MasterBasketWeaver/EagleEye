@@ -32,20 +32,54 @@ codeunit 80001 "EE Get Purchase Orders"
             end;
         end else begin
             URL := PassedURL;
-            if URL.Contains('event=Received') then begin
-                IsReceived := true;
-                EventType := EventType::Received;
-            end else
-                EventType := EventType::Closed;
+            case true of
+                URL.Contains('event=Received'):
+                    begin
+                        IsReceived := true;
+                        EventType := EventType::Received;
+                    end;
+                URL.Contains('event=Opened'):
+                    EventType := EventType::Opened;
+                else
+                    EventType := EventType::Closed;
+            end;
         end;
 
+        if EventType <> EventType::Opened then begin
+            if not FleetRockMgt.TryToGetPurchaseOrders(StartDateTime, JsonArry, URL, EventType, Username) then begin
+                FleetRockMgt.InsertImportEntry(false, 0, ImportEntry."Document Type"::"Purchase Order",
+                    EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET', Username);
+                if EventType = EventType::Closed then
+                    exit;
+
+                EventType := EventType::Opened;
+                URL := '';
+                if not FleetRockMgt.TryToGetPurchaseOrders(StartDateTime, JsonArry, URL, EventType, Username) then begin
+                    FleetRockMgt.InsertImportEntry(false, 0, ImportEntry."Document Type"::"Purchase Order",
+                        EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET', Username);
+                    exit;
+                end;
+            end;
+
+            if JsonArry.Count() > 0 then
+                ImportPurchaseOrders(JsonArry, EventType, URL, IsReceived, EventType = EventType::Opened, Username);
+
+            if EventType = EventType::Closed then
+                exit;
+        end;
+
+
+        Clear(JsonArry);
+        EventType := EventType::Opened;
+        URL := '';
         if not FleetRockMgt.TryToGetPurchaseOrders(StartDateTime, JsonArry, URL, EventType, Username) then begin
             FleetRockMgt.InsertImportEntry(false, 0, ImportEntry."Document Type"::"Purchase Order",
                 EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET', Username);
             exit;
         end;
+
         if JsonArry.Count() > 0 then
-            ImportPurchaseOrders(JsonArry, EventType, URL, IsReceived, Username);
+            ImportPurchaseOrders(JsonArry, EventType, URL, false, true, Username);
     end;
 
     procedure SetStartDateTime(NewStartDateTime: DateTime)
@@ -54,7 +88,7 @@ codeunit 80001 "EE Get Purchase Orders"
         HasSetStartDateTime := true;
     end;
 
-    procedure ImportPurchaseOrders(var JsonArry: JsonArray; EventType: Enum "EE Event Type"; URL: Text; IsReceived: Boolean; Username: Text): Boolean
+    procedure ImportPurchaseOrders(var JsonArry: JsonArray; EventType: Enum "EE Event Type"; URL: Text; IsReceived: Boolean; IsOpened: Boolean; Username: Text): Boolean
     var
         PurchaseHeader: Record "Purchase Header";
         ImportEntry: Record "EE Import/Export Entry";
@@ -75,8 +109,9 @@ codeunit 80001 "EE Get Purchase Orders"
                 ClearLastError();
                 Success := false;
                 LogEntry := false;
-                if IsReceived then begin
-                    if JsonMgt.GetJsonValueAsText(OrderJsonObj, 'status') = 'Received' then begin
+                if IsReceived or IsOpened then begin
+                    if (IsOpened and (JsonMgt.GetJsonValueAsText(OrderJsonObj, 'status') = 'Open'))
+                            or (IsReceived and (JsonMgt.GetJsonValueAsText(OrderJsonObj, 'status') = 'Received')) then begin
                         LogEntry := true;
                         if FleetRockMgt.TryToCheckIfAlreadyImported(JsonMgt.GetJsonValueAsText(OrderJsonObj, 'id'), PurchaseHeader) then
                             Success := FleetRockMgt.TryToInsertPOStagingRecords(OrderJsonObj, ImportEntryNo, true, Username);
