@@ -42,8 +42,9 @@ codeunit 80003 "EE Get Repair Orders"
                 FleetRockMgt.InsertImportEntry(false, 0, ImportEntry."Document Type"::"Repair Order",
                     EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET', FleetRockSetup."Vendor Username")
             else
-                if (VendorJsonArray.Count() > 0) and (VendorJsonArray.Count() <> JsonArry.Count()) then
+                if (VendorJsonArray.Count() > 0) and (JsonArry.Count() > 0) then
                     ExtraArray := GetDeltaOfArrays(VendorJsonArray, JsonArry);
+
 
         if JsonArry.Count() > 0 then
             ImportRepairOrders(JsonArry, OrderStatus, EventType, URL, FleetRockSetup.Username);
@@ -56,6 +57,7 @@ codeunit 80003 "EE Get Repair Orders"
         StartDateTime := NewStartDateTime;
         HasSetStartDateTime := true;
     end;
+
 
 
     procedure ImportRepairOrders(var JsonArry: JsonArray; OrderStatus: Enum "EE Repair Order Status"; EventType: Enum "EE Event Type"; URL: Text; Username: Text): Boolean
@@ -234,7 +236,7 @@ codeunit 80003 "EE Get Repair Orders"
         if DeltaROs.Count() <> 0 then
             foreach JTkn in VendorJsonArray do begin
                 JObj := JTkn.AsObject();
-                if not DeltaROs.Contains(JsonMgt.GetJsonValueAsText(JObj, 'id')) then
+                if DeltaROs.Contains(JsonMgt.GetJsonValueAsText(JObj, 'id')) then
                     DeltaArray.Add(JTkn);
             end;
         exit(DeltaArray);
@@ -272,6 +274,8 @@ codeunit 80003 "EE Get Repair Orders"
         foreach s in List1 do
             if not List2.Contains(s) then
                 DeltaList.Add(s);
+
+        exit(DeltaList);
     end;
 
     var
