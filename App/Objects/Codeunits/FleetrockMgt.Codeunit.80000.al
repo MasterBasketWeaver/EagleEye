@@ -33,7 +33,8 @@ codeunit 80000 "EE Fleetrock Mgt."
         if UseVendorKey then begin
             if LoadedVendorSetup then
                 exit
-        end else if LoadedSetup then
+        end else
+            if LoadedSetup then
                 exit;
         FleetrockSetup.Get();
         FleetrockSetup.TestField("Integration URL");
