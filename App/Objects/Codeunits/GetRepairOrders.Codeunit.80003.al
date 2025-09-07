@@ -8,13 +8,12 @@ codeunit 80003 "EE Get Repair Orders"
     var
         SalesHeader: Record "Sales Header";
         FleetRockSetup: Record "EE Fleetrock Setup";
-        ImportEntry: Record "EE Import/Export Entry";
         SalesHeaderStaging: Record "EE Sales Header Staging";
         OrderStatus: Enum "EE Repair Order Status";
         EventType: Enum "EE Event Type";
-        JsonArry, VendorJsonArray, ExtraArray : JsonArray;
+        JsonArry, ExtraArray : JsonArray;
         URL: Text;
-        FourHourDuration: Duration;
+        FortyEightHourDuration: Duration;
     begin
         if Rec."Parameter String" = 'invoiced' then begin
             OrderStatus := OrderStatus::invoiced;
@@ -22,34 +21,15 @@ codeunit 80003 "EE Get Repair Orders"
         end else begin
             OrderStatus := OrderStatus::finished;
             EventType := EventType::Finished;
-            HasSetStartDateTime := true;
-            FourHourDuration := 1000 * 60 * 60 * 4;
-            StartDateTime := CurrentDateTime() - FourHourDuration;
+            FortyEightHourDuration := 1000 * 60 * 60 * 48;
+            StartDateTime := CurrentDateTime() - FortyEightHourDuration;
         end;
-
-        if not HasSetStartDateTime then begin
-            ImportEntry.SetRange("Document Type", ImportEntry."Document Type"::"Repair Order");
-            ImportEntry.SetRange("Event Type", EventType);
-            ImportEntry.SetRange(Success, true);
-            if ImportEntry.FindLast() then
-                StartDateTime := ImportEntry.SystemCreatedAt;
-        end;
-
-        if not FleetRockMgt.TryToGetRepairOrders(StartDateTime, OrderStatus, JsonArry, URL, false) then
-            FleetRockMgt.InsertImportEntry(false, 0, ImportEntry."Document Type"::"Repair Order",
-                EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET', FleetRockSetup.Username);
-
 
         FleetRockSetup.Get();
-        if FleetRockSetup."Import Repair with Vendor" and (FleetRockSetup."Vendor API Key" <> '') then
-            if not FleetRockMgt.TryToGetRepairOrders(StartDateTime, OrderStatus, VendorJsonArray, URL, true) then
-                FleetRockMgt.InsertImportEntry(false, 0, ImportEntry."Document Type"::"Repair Order",
-                    EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET', FleetRockSetup."Vendor Username")
-            else
-                if (VendorJsonArray.Count() > 0) and (JsonArry.Count() > 0) then
-                    ExtraArray := GetDeltaOfArrays(VendorJsonArray, JsonArry);
+        if not HasSetStartDateTime then
+            UpdateStartDateTime(FleetRockSetup."Import Repairs as Purchases", EventType);
 
-
+        PopulateJsonArrays(FleetRockSetup, JsonArry, ExtraArray, URL, OrderStatus, EventType);
         if JsonArry.Count() > 0 then
             ImportRepairOrders(JsonArry, OrderStatus, EventType, URL, FleetRockSetup.Username);
         if ExtraArray.Count() > 0 then
@@ -60,25 +40,52 @@ codeunit 80003 "EE Get Repair Orders"
 
         EventType := EventType::Started;
         OrderStatus := OrderStatus::started;
-        Clear(JsonArry);
-        Clear(VendorJsonArray);
-        Clear(ExtraArray);
-        if not FleetRockMgt.TryToGetRepairOrders(StartDateTime, OrderStatus, JsonArry, URL, false) then
-            FleetRockMgt.InsertImportEntry(false, 0, ImportEntry."Document Type"::"Repair Order",
-                EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET', FleetRockSetup.Username);
+        if not HasSetStartDateTime then begin
+            StartDateTime := CurrentDateTime() - FortyEightHourDuration;
+            UpdateStartDateTime(FleetRockSetup."Import Repairs as Purchases", EventType);
+        end;
 
-        if FleetRockSetup."Import Repair with Vendor" and (FleetRockSetup."Vendor API Key" <> '') then
-            if not FleetRockMgt.TryToGetRepairOrders(StartDateTime, OrderStatus, VendorJsonArray, URL, true) then
-                FleetRockMgt.InsertImportEntry(false, 0, ImportEntry."Document Type"::"Repair Order",
-                    EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET', FleetRockSetup."Vendor Username")
-            else
-                if (VendorJsonArray.Count() > 0) and (VendorJsonArray.Count() <> JsonArry.Count()) then
-                    ExtraArray := GetDeltaOfArrays(VendorJsonArray, JsonArry);
-
+        PopulateJsonArrays(FleetRockSetup, JsonArry, ExtraArray, URL, OrderStatus, EventType);
         if JsonArry.Count() > 0 then
             ImportRepairOrders(JsonArry, OrderStatus, EventType, URL, FleetRockSetup.Username);
         if ExtraArray.Count() > 0 then
             ImportRepairOrders(ExtraArray, OrderStatus, EventType, URL, FleetRockSetup."Vendor Username");
+    end;
+
+
+    local procedure PopulateJsonArrays(var FleetrockSetup: Record "EE Fleetrock Setup"; var JsonArry: JsonArray; var ExtraArray: JsonArray; var URL: Text; OrderStatus: Enum "EE Repair Order Status"; EventType: Enum "EE Event Type")
+    var
+        VendorJsonArray: JsonArray;
+    begin
+        Clear(JsonArry);
+        Clear(ExtraArray);
+        if not FleetRockMgt.TryToGetRepairOrders(StartDateTime, OrderStatus, JsonArry, URL, false) then
+            FleetRockMgt.InsertImportEntry(false, 0, Enum::"EE Import Type"::"Repair Order",
+                EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET', FleetRockSetup.Username);
+
+        if FleetRockSetup."Import Repair with Vendor" and (FleetRockSetup."Vendor API Key" <> '') then
+            if not FleetRockMgt.TryToGetRepairOrders(StartDateTime, OrderStatus, VendorJsonArray, URL, true) then
+                FleetRockMgt.InsertImportEntry(false, 0, Enum::"EE Import Type"::"Repair Order",
+                    EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET', FleetRockSetup."Vendor Username")
+            else
+                if (VendorJsonArray.Count() > 0) and (JsonArry.Count() > 0) then
+                    ExtraArray := GetDeltaOfArrays(VendorJsonArray, JsonArry);
+    end;
+
+
+    local procedure UpdateStartDateTime(ImportRepairsAsPurchases: Boolean; EventType: Enum "EE Event Type")
+    var
+        ImportEntry: Record "EE Import/Export Entry";
+    begin
+        if ImportRepairsAsPurchases then
+            ImportEntry.SetRange("Document Type", ImportEntry."Document Type"::"Purchase Order")
+        else
+            ImportEntry.SetRange("Document Type", ImportEntry."Document Type"::"Repair Order");
+        ImportEntry.SetRange("Event Type", EventType);
+        ImportEntry.SetRange(Success, true);
+        if ImportEntry.FindLast() then
+            if (StartDateTime = 0DT) or (ImportEntry.SystemCreatedAt < StartDateTime) then
+                StartDateTime := ImportEntry.SystemCreatedAt;
     end;
 
     procedure SetStartDateTime(NewStartDateTime: DateTime)
@@ -146,7 +153,7 @@ codeunit 80003 "EE Get Repair Orders"
         PurchaseHeaderStaging: Record "EE Purch. Header Staging";
         SalesHeaderStaging: Record "EE Sales Header Staging";
         OrderId: Text;
-        Success: Boolean;
+        Success, UpdateAmounts : Boolean;
     begin
         LogEntry := true;
         if not TryToGetOrderID(OrderJsonObj, OrderId, Enum::"EE Import Type"::"Purchase Order") then
@@ -172,10 +179,12 @@ codeunit 80003 "EE Get Repair Orders"
         PurchaseHeader.Reset();
         if FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, false, Username) and SalesHeaderStaging.Get(ImportEntryNo) then
             if FleetRockMgt.TryToCreatePurchaseStagingFromRepairStaging(SalesHeaderStaging, PurchaseHeaderStaging) then begin
-                if OrderStatus = OrderStatus::invoiced then
-                    Success := GetPurchaseOrders.UpdateAndPostPurchaseOrder(FleetrockSetup, PurchaseHeaderStaging)
-                else
-                    Success := FleetRockMgt.CreatePurchaseOrder(PurchaseHeaderStaging);
+                if OrderStatus <> OrderStatus::invoiced then begin
+                    Success := FleetRockMgt.CreatePurchaseOrder(PurchaseHeaderStaging, UpdateAmounts);
+                    if Success and not UpdateAmounts then
+                        LogEntry := false;
+                end else
+                    Success := GetPurchaseOrders.UpdateAndPostPurchaseOrder(FleetrockSetup, PurchaseHeaderStaging);
                 ImportEntryNo := PurchaseHeaderStaging."Entry No.";
             end;
         if PurchaseHeaderStaging."Document No." <> '' then begin
@@ -190,7 +199,7 @@ codeunit 80003 "EE Get Repair Orders"
         SalesHeader: Record "Sales Header";
         SalesHeaderStaging: Record "EE Sales Header Staging";
         OrderId, Status : Text;
-        Success: Boolean;
+        Success, UpdatedAmounts : Boolean;
     begin
         if OrderStatus = OrderStatus::invoiced then begin
             LogEntry := true;
@@ -222,13 +231,14 @@ codeunit 80003 "EE Get Repair Orders"
             exit(Success);
         end;
         Status := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'status').ToUpper();
-        if ((OrderStatus = OrderStatus::started) and (Status.ToUpper() = InProgressStatus)) or ((OrderStatus = OrderStatus::finished) and (Status = FinishedStatus)) then begin
+        if ((OrderStatus = OrderStatus::started) and (Status = InProgressStatus)) or ((OrderStatus = OrderStatus::finished) and (Status = FinishedStatus)) then begin
             if not FleetRockMgt.TryToCheckIfAlreadyImported(JsonMgt.GetJsonValueAsText(OrderJsonObj, 'id'), SalesHeader) then begin
                 if SalesHeader."No." = '' then
                     exit(false);
-                LogEntry := true;
                 if FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, false, Username) and SalesHeaderStaging.Get(ImportEntryNo) then
-                    Success := FleetRockMgt.TryToUpdateRepairOrder(SalesHeaderStaging, SalesHeader."No.");
+                    Success := FleetRockMgt.TryToUpdateRepairOrder(SalesHeaderStaging, SalesHeader."No.", UpdatedAmounts);
+                if not Success or UpdatedAmounts then
+                    LogEntry := true;
                 exit(Success);
             end;
             LogEntry := true;
