@@ -136,7 +136,7 @@ codeunit 80001 "EE Get Purchase Orders"
         if HasSetStartDateTime then begin
             if not TryToGetOrderID(OrderJsonObj, OrderId, Enum::"EE Import Type"::"Purchase Order") then
                 exit(false);
-            if FleetRockMgt.CheckIfPurchaseInvAlreadyImported(OrderId, false) then begin
+            if FleetRockMgt.CheckIfPurchaseInvAlreadyImportedAndPosted(OrderId, false) then begin
                 LogEntry := false;
                 exit(true)
             end;

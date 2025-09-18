@@ -63,13 +63,22 @@ codeunit 80003 "EE Get Repair Orders"
             FleetRockMgt.InsertImportEntry(false, 0, Enum::"EE Import Type"::"Repair Order",
                 EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET', FleetRockSetup.Username);
 
-        if FleetRockSetup."Import Repair with Vendor" and (FleetRockSetup."Vendor API Key" <> '') then
-            if not FleetRockMgt.TryToGetRepairOrders(StartDateTime, OrderStatus, VendorJsonArray, URL, true) then
-                FleetRockMgt.InsertImportEntry(false, 0, Enum::"EE Import Type"::"Repair Order",
-                    EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET', FleetRockSetup."Vendor Username")
-            else
-                if (VendorJsonArray.Count() > 0) and (JsonArry.Count() > 0) then
-                    ExtraArray := GetDeltaOfArrays(VendorJsonArray, JsonArry);
+        if not FleetRockSetup."Import Repair with Vendor" or (FleetRockSetup."Vendor API Key" = '') or (FleetrockSetup."Vendor Username" = '') then
+            exit;
+
+        if not FleetRockMgt.TryToGetRepairOrders(StartDateTime, OrderStatus, VendorJsonArray, URL, true) then begin
+            FleetRockMgt.InsertImportEntry(false, 0, Enum::"EE Import Type"::"Repair Order",
+                EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET', FleetRockSetup."Vendor Username");
+            exit;
+        end;
+
+        if VendorJsonArray.Count() = 0 then
+            exit;
+
+        if JsonArry.Count() > 0 then
+            ExtraArray := GetDeltaOfArrays(VendorJsonArray, JsonArry)
+        else
+            ExtraArray := VendorJsonArray;
     end;
 
 
@@ -153,40 +162,72 @@ codeunit 80003 "EE Get Repair Orders"
         PurchaseHeaderStaging: Record "EE Purch. Header Staging";
         SalesHeaderStaging: Record "EE Sales Header Staging";
         OrderId: Text;
-        Success, UpdateAmounts : Boolean;
+        Success, UpdateAmounts, Existing : Boolean;
     begin
         LogEntry := true;
         if not TryToGetOrderID(OrderJsonObj, OrderId, Enum::"EE Import Type"::"Purchase Order") then
             exit(false);
-        if FleetRockMgt.CheckIfPurchaseInvAlreadyImported(OrderId, false) then begin
+        if FleetRockMgt.CheckIfPurchaseInvAlreadyImportedAndPosted(OrderId, false) then begin
             LogEntry := false;
             exit(true);
         end;
-        PurchaseHeader.SetRange("Document Type", PurchaseHeader."Document Type"::Order);
-        PurchaseHeader.SetRange("EE Fleetrock ID", CopyStr(OrderId, 1, MaxStrLen(PurchaseHeader."EE Fleetrock ID")));
-        if PurchaseHeader.FindFirst() then begin
-            PurchaseHeaderStaging.SetRange(id, PurchaseHeader."EE Fleetrock ID");
-            PurchaseHeaderStaging.SetRange("Document No.", PurchaseHeader."No.");
-            if PurchaseHeaderStaging.FindLast() then begin
-                PurchaseHeader.CalcFields("Amount Including VAT");
-                if Abs(Round(PurchaseHeader."Amount Including VAT", 0.01) - Round(PurchaseHeaderStaging.grand_total, 0.01)) <= 0.01 then begin
+
+        if OrderStatus <> OrderStatus::invoiced then begin
+            PurchaseHeader.SetRange("Document Type", PurchaseHeader."Document Type"::Order);
+            PurchaseHeader.SetRange("EE Fleetrock ID", PurchaseHeaderStaging.id);
+            PurchaseHeader.SetAutoCalcFields("Amount Including VAT");
+            if PurchaseHeader.FindFirst() then
+                if Abs(Round(PurchaseHeader."Amount Including VAT", 0.01) - Round(JsonMgt.GetJsonValueAsDecimal(OrderJsonObj, 'grand_total'), 0.01)) <= 0.01 then begin
                     LogEntry := false;
                     exit(true);
                 end;
-            end;
-            PurchaseHeaderStaging.Reset();
         end;
-        PurchaseHeader.Reset();
-        if FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, false, Username) and SalesHeaderStaging.Get(ImportEntryNo) then
+
+        if FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, false, Username) and SalesHeaderStaging.Get(ImportEntryNo) then begin
             if FleetRockMgt.TryToCreatePurchaseStagingFromRepairStaging(SalesHeaderStaging, PurchaseHeaderStaging) then begin
                 if OrderStatus <> OrderStatus::invoiced then begin
                     Success := FleetRockMgt.CreatePurchaseOrder(PurchaseHeaderStaging, UpdateAmounts);
-                    if Success and not UpdateAmounts then
+
+                    // succesful import, but no change in amount, so remove staging records and do not log entry
+                    if Success and not UpdateAmounts then begin
+                        PurchaseHeaderStaging.Delete(true);
+                        SalesHeaderStaging.Delete(true);
                         LogEntry := false;
+                        exit(true);
+                    end;
                 end else
                     Success := GetPurchaseOrders.UpdateAndPostPurchaseOrder(FleetrockSetup, PurchaseHeaderStaging);
                 ImportEntryNo := PurchaseHeaderStaging."Entry No.";
+
+                SalesHeaderStaging.Processed := Success;
+                PurchaseHeaderStaging.Processed := Success;
+                if Success then begin
+                    SalesHeaderStaging."Error Message" := '';
+                    PurchaseHeaderStaging."Error Message" := '';
+                end else begin
+                    SalesHeaderStaging."Processed Error" := true;
+                    SalesHeaderStaging."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(SalesHeaderStaging."Error Message"));
+                    PurchaseHeaderStaging."Processed Error" := true;
+                    PurchaseHeaderStaging."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(PurchaseHeaderStaging."Error Message"));
+                end;
+                PurchaseHeaderStaging.Modify(true);
+            end else begin
+                SalesHeaderStaging."Processed Error" := true;
+                SalesHeaderStaging."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(SalesHeaderStaging."Error Message"));
+                if PurchaseHeaderStaging."Entry No." <> 0 then begin
+                    PurchaseHeaderStaging."Import Error" := true;
+                    PurchaseHeaderStaging."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(PurchaseHeaderStaging."Error Message"));
+                    PurchaseHeaderStaging.Modify(true);
+                end
             end;
+            SalesHeaderStaging.Modify(true);
+        end else
+            if SalesHeaderStaging."Entry No." <> 0 then begin
+                SalesHeaderStaging."Import Error" := true;
+                SalesHeaderStaging."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(SalesHeaderStaging."Error Message"));
+                SalesHeaderStaging.Modify(true);
+            end;
+
         if PurchaseHeaderStaging."Document No." <> '' then begin
             SalesHeaderStaging."Purch. Document No." := PurchaseHeaderStaging."Document No.";
             SalesHeaderStaging.Modify(true);

@@ -32,7 +32,7 @@ table 80001 "EE Purch. Header Staging"
             DataClassification = CustomerContent;
             Editable = false;
         }
-        field(14; tag; Text[50])
+        field(14; tag; Text[250])
         {
             DataClassification = CustomerContent;
             Editable = false;
