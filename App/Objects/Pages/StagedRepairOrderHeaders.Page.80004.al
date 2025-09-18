@@ -394,12 +394,17 @@ page 80004 "EE Staged Repair Order Headers"
                     PurchaseHeaderStaging: Record "EE Purch. Header Staging";
 
                     GetPurchaseOrders: Codeunit "EE Get Purchase Orders";
-                    Result: Boolean;
+                    Result, PostOrder : Boolean;
                 begin
+
+                    PostOrder := Confirm('Post the Purchase Order after creating it?', false);
+
                     FleetrockSetup.Get();
                     FleetrockSetup."Auto-post Purchase Orders" := false;
-                    if FleetrockMgt.TryToCreatePurchaseStagingFromRepairStaging(Rec, PurchaseHeaderStaging) then
-                        Result := GetPurchaseOrders.UpdateAndPostPurchaseOrder(FleetrockSetup, PurchaseHeaderStaging);
+                    Result := FleetrockMgt.TryToCreatePurchaseStagingFromRepairStaging(Rec, PurchaseHeaderStaging);
+                    if PostOrder then
+                        if Result then
+                            Result := GetPurchaseOrders.UpdateAndPostPurchaseOrder(FleetrockSetup, PurchaseHeaderStaging);
                     // Page.Run(0, PurchaseHeaderStaging);
                     if not Result then
                         Error('Failed:\%1', GetLastErrorText());
