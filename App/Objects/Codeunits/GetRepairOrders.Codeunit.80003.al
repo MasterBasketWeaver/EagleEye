@@ -172,14 +172,16 @@ codeunit 80003 "EE Get Repair Orders"
             exit(true);
         end;
 
-        PurchaseHeader.SetRange("Document Type", PurchaseHeader."Document Type"::Order);
-        PurchaseHeader.SetRange("EE Fleetrock ID", PurchaseHeaderStaging.id);
-        PurchaseHeader.SetAutoCalcFields("Amount Including VAT");
-        if PurchaseHeader.FindFirst() then
-            if Abs(Round(PurchaseHeader."Amount Including VAT", 0.01) - Round(JsonMgt.GetJsonValueAsDecimal(OrderJsonObj, 'grand_total'), 0.01)) <= 0.01 then begin
-                LogEntry := false;
-                exit(true);
-            end;
+        if OrderStatus <> OrderStatus::invoiced then begin
+            PurchaseHeader.SetRange("Document Type", PurchaseHeader."Document Type"::Order);
+            PurchaseHeader.SetRange("EE Fleetrock ID", PurchaseHeaderStaging.id);
+            PurchaseHeader.SetAutoCalcFields("Amount Including VAT");
+            if PurchaseHeader.FindFirst() then
+                if Abs(Round(PurchaseHeader."Amount Including VAT", 0.01) - Round(JsonMgt.GetJsonValueAsDecimal(OrderJsonObj, 'grand_total'), 0.01)) <= 0.01 then begin
+                    LogEntry := false;
+                    exit(true);
+                end;
+        end;
 
         if FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, false, Username) and SalesHeaderStaging.Get(ImportEntryNo) then begin
             if FleetRockMgt.TryToCreatePurchaseStagingFromRepairStaging(SalesHeaderStaging, PurchaseHeaderStaging) then begin
