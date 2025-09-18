@@ -153,32 +153,26 @@ codeunit 80003 "EE Get Repair Orders"
         PurchaseHeaderStaging: Record "EE Purch. Header Staging";
         SalesHeaderStaging: Record "EE Sales Header Staging";
         OrderId: Text;
-        Success, UpdateAmounts : Boolean;
+        Success, UpdateAmounts, Existing : Boolean;
     begin
         LogEntry := true;
         if not TryToGetOrderID(OrderJsonObj, OrderId, Enum::"EE Import Type"::"Purchase Order") then
             exit(false);
-        if FleetRockMgt.CheckIfPurchaseInvAlreadyImported(OrderId, false) then begin
+        if FleetRockMgt.CheckIfPurchaseInvAlreadyImportedAndPosted(OrderId, false) then begin
             LogEntry := false;
             exit(true);
         end;
-        PurchaseHeader.SetRange("Document Type", PurchaseHeader."Document Type"::Order);
-        PurchaseHeader.SetRange("EE Fleetrock ID", CopyStr(OrderId, 1, MaxStrLen(PurchaseHeader."EE Fleetrock ID")));
-        if PurchaseHeader.FindFirst() then begin
-            PurchaseHeaderStaging.SetRange(id, PurchaseHeader."EE Fleetrock ID");
-            PurchaseHeaderStaging.SetRange("Document No.", PurchaseHeader."No.");
-            if PurchaseHeaderStaging.FindLast() then begin
-                PurchaseHeader.CalcFields("Amount Including VAT");
-                if Abs(Round(PurchaseHeader."Amount Including VAT", 0.01) - Round(PurchaseHeaderStaging.grand_total, 0.01)) <= 0.01 then begin
-                    LogEntry := false;
-                    exit(true);
-                end;
-            end;
-            PurchaseHeaderStaging.Reset();
-        end;
-        PurchaseHeader.Reset();
         if FleetRockMgt.TryToInsertROStagingRecords(OrderJsonObj, ImportEntryNo, false, Username) and SalesHeaderStaging.Get(ImportEntryNo) then
             if FleetRockMgt.TryToCreatePurchaseStagingFromRepairStaging(SalesHeaderStaging, PurchaseHeaderStaging) then begin
+                PurchaseHeader.SetRange("Document Type", PurchaseHeader."Document Type"::Order);
+                PurchaseHeader.SetRange("EE Fleetrock ID", PurchaseHeaderStaging.id);
+                if PurchaseHeader.FindFirst() then begin
+                    PurchaseHeader.CalcFields("Amount Including VAT");
+                    if Abs(Round(PurchaseHeader."Amount Including VAT", 0.01) - Round(PurchaseHeaderStaging.grand_total, 0.01)) <= 0.01 then begin
+                        LogEntry := false;
+                        exit(true);
+                    end;
+                end;
                 if OrderStatus <> OrderStatus::invoiced then begin
                     Success := FleetRockMgt.CreatePurchaseOrder(PurchaseHeaderStaging, UpdateAmounts);
                     if Success and not UpdateAmounts then
@@ -187,6 +181,7 @@ codeunit 80003 "EE Get Repair Orders"
                     Success := GetPurchaseOrders.UpdateAndPostPurchaseOrder(FleetrockSetup, PurchaseHeaderStaging);
                 ImportEntryNo := PurchaseHeaderStaging."Entry No.";
             end;
+
         if PurchaseHeaderStaging."Document No." <> '' then begin
             SalesHeaderStaging."Purch. Document No." := PurchaseHeaderStaging."Document No.";
             SalesHeaderStaging.Modify(true);

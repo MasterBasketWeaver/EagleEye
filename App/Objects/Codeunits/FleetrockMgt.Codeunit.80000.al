@@ -321,7 +321,7 @@ codeunit 80000 "EE Fleetrock Mgt."
     begin
         if ImportId = '' then
             exit(false);
-        CheckIfPurchaseInvAlreadyImported(ImportId, true);
+        CheckIfPurchaseInvAlreadyImportedAndPosted(ImportId, true);
         PurchaseHeader.SetCurrentKey("EE Fleetrock ID");
         PurchaseHeader.SetRange("Document Type", PurchaseHeader."Document Type"::Order);
         PurchaseHeader.SetRange("EE Fleetrock ID", ImportId);
@@ -350,7 +350,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         exit(false);
     end;
 
-    procedure CheckIfPurchaseInvAlreadyImported(ImportId: Text; ThrowError: Boolean): Boolean
+    procedure CheckIfPurchaseInvAlreadyImportedAndPosted(ImportId: Text; ThrowError: Boolean): Boolean
     var
         PurchaseInvHeader: Record "Purch. Inv. Header";
     begin
