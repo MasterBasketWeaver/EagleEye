@@ -49,7 +49,6 @@ table 80000 "EE Fleetrock Setup"
             DataClassification = CustomerContent;
             TableRelation = "Tax Area".Code;
         }
-
         field(11; "Use API Token"; boolean)
         {
             DataClassification = CustomerContent;
@@ -63,7 +62,6 @@ table 80000 "EE Fleetrock Setup"
             DataClassification = CustomerContent;
             TableRelation = "Tax Jurisdiction".Code;
         }
-
         field(14; "Customer Posting Group"; Code[20])
         {
             DataClassification = CustomerContent;
@@ -74,7 +72,6 @@ table 80000 "EE Fleetrock Setup"
             DataClassification = CustomerContent;
             TableRelation = "Payment Terms".Code;
         }
-
         field(20; "Internal Labor Item No."; Code[20])
         {
             DataClassification = CustomerContent;
@@ -103,7 +100,6 @@ table 80000 "EE Fleetrock Setup"
         {
             DataClassification = CustomerContent;
         }
-
         field(33; "Vendor Username"; Text[100])
         {
             DataClassification = CustomerContent;
@@ -213,8 +209,12 @@ table 80000 "EE Fleetrock Setup"
             DataClassification = CustomerContent;
             TableRelation = "G/L Account"."No." where(Blocked = const(false), "Account Type" = const(Posting), "Direct Posting" = const(true));
         }
+        field(117; "Enable Update Vendors"; Boolean)
+        {
+            DataClassification = CustomerContent;
+            Caption = 'Enable Update Vendors Each Trx';
+        }
     }
-
     keys
     {
         key(PK; "Primary Key")

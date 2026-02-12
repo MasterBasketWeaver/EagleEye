@@ -56,6 +56,10 @@ page 80000 "EE Fleetrock Setup"
                 {
                     ApplicationArea = all;
                 }
+                field("Enable Update Vendors"; Rec."Enable Update Vendors")
+                {
+                    ApplicationArea = All;
+                }
             }
             group("Repair Orders")
             {

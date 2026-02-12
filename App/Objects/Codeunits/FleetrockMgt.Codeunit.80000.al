@@ -434,7 +434,8 @@ codeunit 80000 "EE Fleetrock Mgt."
             MissingSource := true;
         end;
         if Vendor.FindFirst() then begin
-            Update := UpdateVendor(Vendor, SupplierName, RemitTo);
+            if FleetrockSetup."Enable Update Vendors" then
+                Update := UpdateVendor(Vendor, SupplierName, RemitTo);
             if Vendor."Tax Area Code" = '' then begin
                 Vendor.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
                 Update := true;
