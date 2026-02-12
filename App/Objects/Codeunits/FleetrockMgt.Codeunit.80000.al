@@ -258,18 +258,18 @@ codeunit 80000 "EE Fleetrock Mgt."
             exit;
         repeat
             LineNo += 10000;
-            AddPurchaseLine(PurchaseLine, PurchLineStaging, DocNo, LineNo);
+            AddPurchaseLine(PurchaseLine, PurchHeaderStaging, PurchLineStaging, DocNo, LineNo);
         until PurchLineStaging.Next() = 0;
         if PurchHeaderStaging.tax_total <> 0 then
-            AddExtraPurchLine(LineNo, DocNo, 'Taxes', PurchHeaderStaging.tax_total, GetTaxLineID());
+            AddExtraPurchLine(PurchHeaderStaging, LineNo, DocNo, 'Taxes', PurchHeaderStaging.tax_total, GetTaxLineID());
         if PurchHeaderStaging.shipping_total <> 0 then
-            AddExtraPurchLine(LineNo, DocNo, 'Shipping', PurchHeaderStaging.shipping_total, GetShippingLineID());
+            AddExtraPurchLine(PurchHeaderStaging, LineNo, DocNo, 'Shipping', PurchHeaderStaging.shipping_total, GetShippingLineID());
         if PurchHeaderStaging.other_total <> 0 then
-            AddExtraPurchLine(LineNo, DocNo, 'Other Charges', PurchHeaderStaging.other_total, GetOtherLineID());
+            AddExtraPurchLine(PurchHeaderStaging, LineNo, DocNo, 'Other Charges', PurchHeaderStaging.other_total, GetOtherLineID());
     end;
 
 
-    local procedure AddExtraPurchLine(var LineNo: Integer; DocNo: Code[20]; Descr: Text; Amount: Decimal; LineID: Code[20])
+    local procedure AddExtraPurchLine(var PurchHeaderStaging: Record "EE Purch. Header Staging"; var LineNo: Integer; DocNo: Code[20]; Descr: Text; Amount: Decimal; LineID: Code[20])
     var
         PurchLine: Record "Purchase Line";
         PurchLineStaging: Record "EE Purch. Line Staging";
@@ -280,7 +280,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchLineStaging.unit_price := Amount;
         PurchLineStaging.part_description := Descr;
         PurchLineStaging.part_id := LineID;
-        AddPurchaseLine(PurchLine, PurchLineStaging, DocNo, LineNo);
+        AddPurchaseLine(PurchLine, PurchHeaderStaging, PurchLineStaging, DocNo, LineNo);
     end;
 
 
@@ -1764,7 +1764,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchaseLine.SetRange("EE Part Id");
         if PurchaseLine.FindLast() then
             LineNo := PurchaseLine."Line No.";
-        AddExtraPurchLine(LineNo, PurchaseHeader."No.", 'Rounding Adjustment', UpdateAmount, GetOtherLineID());
+        AddExtraPurchLine(PurchaseHeaderStaging, LineNo, PurchaseHeader."No.", 'Rounding Adjustment', UpdateAmount, GetOtherLineID());
     end;
 
 
@@ -1799,21 +1799,28 @@ codeunit 80000 "EE Fleetrock Mgt."
                 PurchaseLine.Validate("Direct Unit Cost", Amount);
                 PurchaseLine.Modify(true);
             end else
-                AddExtraPurchLine(LineNo, DocNo, Descr, Amount, LineID);
+                AddExtraPurchLine(PurchaseHeaderStaging, LineNo, DocNo, Descr, Amount, LineID);
         end else
             if PurchaseLine.FindFirst() then
                 PurchaseLine.Delete(true);
         PurchaseLine.SetRange("EE Part Id");
     end;
 
-    local procedure AddPurchaseLine(var PurchaseLine: Record "Purchase Line"; var PurchLineStaging: Record "EE Purch. Line Staging"; DocNo: Code[20]; LineNo: Integer)
+    local procedure AddPurchaseLine(var PurchaseLine: Record "Purchase Line"; var PurchHeaderStaging: Record "EE Purch. Header Staging"; var PurchLineStaging: Record "EE Purch. Line Staging"; DocNo: Code[20]; LineNo: Integer)
+    var
+        UnitTypeMapping: Record "EE Unit Type Mapping";
     begin
         PurchaseLine.Init();
         PurchaseLine.Validate("Document Type", Enum::"Purchase Document Type"::Order);
         PurchaseLine.Validate("Document No.", DocNo);
         PurchaseLine.Validate("Line No.", LineNo);
-        PurchaseLine.Validate(Type, PurchaseLine.Type::Item);
-        PurchaseLine.Validate("No.", FleetRockSetup."Purchase Item No.");
+        if (PurchHeaderStaging."Unit Type" <> PurchHeaderStaging."Unit Type"::" ") and UnitTypeMapping.Get(PurchHeaderStaging."Unit Type") and (UnitTypeMapping."G/L Account No." <> '') then begin
+            PurchaseLine.Validate(Type, PurchaseLine.Type::"G/L Account");
+            PurchaseLine.Validate("No.", UnitTypeMapping."G/L Account No.");
+        end else begin
+            PurchaseLine.Validate(Type, PurchaseLine.Type::Item);
+            PurchaseLine.Validate("No.", FleetRockSetup."Purchase Item No.");
+        end;
         CopyPurchaseLineValues(PurchaseLine, PurchLineStaging);
         PurchaseLine.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
         PurchaseLine.Validate("Tax Group Code", FleetrockSetup."Non-Taxable Tax Group Code");
@@ -2027,6 +2034,32 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchHeaderStaging.remit_to := SalesHeaderStaging.remit_to;
         PurchHeaderStaging.remit_to_company_id := SalesHeaderStaging.remit_to_company_id;
         PurchHeaderStaging."Source Account" := SalesHeaderStaging."Source Account";
+
+        case SalesHeaderStaging.unit_type of
+            Format(PurchHeaderStaging."Unit Type"::"Light Duty Truck"):
+                PurchHeaderStaging."Unit Type" := PurchHeaderStaging."Unit Type"::"Light Duty Truck";
+            Format(PurchHeaderStaging."Unit Type"::"Medium Duty Truck"):
+                PurchHeaderStaging."Unit Type" := PurchHeaderStaging."Unit Type"::"Medium Duty Truck";
+            Format(PurchHeaderStaging."Unit Type"::"Heavy Duty Truck"):
+                PurchHeaderStaging."Unit Type" := PurchHeaderStaging."Unit Type"::"Heavy Duty Truck";
+            Format(PurchHeaderStaging."Unit Type"::"Single Axle Tractor"):
+                PurchHeaderStaging."Unit Type" := PurchHeaderStaging."Unit Type"::"Single Axle Tractor";
+            Format(PurchHeaderStaging."Unit Type"::"Tandem Axle Tractor"):
+                PurchHeaderStaging."Unit Type" := PurchHeaderStaging."Unit Type"::"Tandem Axle Tractor";
+            Format(PurchHeaderStaging."Unit Type"::Trailer):
+                PurchHeaderStaging."Unit Type" := PurchHeaderStaging."Unit Type"::Trailer;
+            Format(PurchHeaderStaging."Unit Type"::"Refrigerated Trailer"):
+                PurchHeaderStaging."Unit Type" := PurchHeaderStaging."Unit Type"::"Refrigerated Trailer";
+            Format(PurchHeaderStaging."Unit Type"::"Light Duty Van"):
+                PurchHeaderStaging."Unit Type" := PurchHeaderStaging."Unit Type"::"Light Duty Van";
+            Format(PurchHeaderStaging."Unit Type"::Car):
+                PurchHeaderStaging."Unit Type" := PurchHeaderStaging."Unit Type"::Car;
+            Format(PurchHeaderStaging."Unit Type"::Chipper):
+                PurchHeaderStaging."Unit Type" := PurchHeaderStaging."Unit Type"::Chipper;
+            Format(PurchHeaderStaging."Unit Type"::Specialized):
+                PurchHeaderStaging."Unit Type" := PurchHeaderStaging."Unit Type"::Specialized;
+        end;
+
         PurchHeaderStaging.Insert(true);
 
         SalesHeaderStaging."Purch. Staging Entry No." := PurchHeaderStaging."Entry No.";

@@ -13,14 +13,14 @@ table 80009 "EE Unit Type Mapping"
         }
         field(2; "G/L Account No."; Code[20])
         {
-            TableRelation = "G/L Account"."No.";
+            TableRelation = "G/L Account"."No." where("Account Type" = const(Posting), Blocked = const(false));
             NotBlank = true;
         }
     }
 
     keys
     {
-        key(PK; "Unit Type", "G/L Account No.")
+        key(PK; "Unit Type")
         {
             Clustered = true;
         }
