@@ -138,6 +138,10 @@ page 80001 "EE Staged Purchased Headers"
                 {
                     ApplicationArea = all;
                 }
+                field("Unit Type"; Rec."Unit Type")
+                {
+                    ApplicationArea = all;
+                }
                 field("Import Error"; Rec."Import Error")
                 {
                     ApplicationArea = all;

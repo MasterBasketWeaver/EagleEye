@@ -175,6 +175,11 @@ table 80001 "EE Purch. Header Staging"
             DataClassification = CustomerContent;
             Editable = false;
         }
+        field(150; "Unit Type"; Enum "EE Unit Type")
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
     }
 
     keys
