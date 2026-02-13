@@ -1416,7 +1416,7 @@ codeunit 80000 "EE Fleetrock Mgt."
                     until PartLineStaging.Next() = 0;
             end;
         until TaskLineStaging.Next() = 0;
-        if SalesHeaderStaging.additional_charges > 0 then
+        if SalesHeaderStaging.additional_charges <> 0 then
             AddFeeSalesLine(SalesLine, DocNo, LineNo, SalesHeaderStaging.additional_charges, SalesHeaderStaging.additional_charges_tax_rate);
     end;
 
