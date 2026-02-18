@@ -17,7 +17,7 @@ codeunit 80006 "EE Upgrade"
         // PopulateDocumentNos();
         // ClearInvalidEntries();
         // PopulateFleetrockIDs();
-        PopulatePaidEntryDetails();
+        // PopulatePaidEntryDetails();
     end;
 
 
