@@ -93,6 +93,7 @@ table 80003 "EE Import/Export Entry"
         {
             Clustered = true;
         }
+        key(K2; "Fleetrock ID") { }
     }
 
     trigger OnDelete()
