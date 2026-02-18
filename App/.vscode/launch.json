@@ -3,7 +3,7 @@
     "configurations": [
         //https://businesscentral.dynamics.com/de2a36e9-10b6-4c2b-a089-d0e7265e3f06/production
         {
-            //https://businesscentral.dynamics.com/de2a36e9-10b6-4c2b-a089-d0e7265e3f06/Sandbox_DEV-SANDBOX
+            //https://businesscentral.dynamics.com/de2a36e9-10b6-4c2b-a089-d0e7265e3f06/DEV-SANDBOX
             "name": "DEV-SANDBOX",
             "request": "launch",
             "type": "al",
