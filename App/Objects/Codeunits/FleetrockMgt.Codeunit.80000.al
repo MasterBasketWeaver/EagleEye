@@ -1881,6 +1881,8 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
 
+
+
     [EventSubscriber(ObjectType::Table, Database::"Gen. Journal Batch", OnMoveGenJournalBatch, '', false, false)]
     local procedure GenJoournalBatchOnMoveGenJournalBatch(ToRecordID: RecordId)
     var
@@ -1927,14 +1929,20 @@ codeunit 80000 "EE Fleetrock Mgt."
 
     procedure UpdatePaidRepairOrder(OrderId: Text; PaidDateTime: DateTime; var SalesInvHeader: Record "Sales Invoice Header")
     var
+        SalesHeaderStaging: Record "EE Sales Header Staging";
         ResponseArray: JsonArray;
         JsonBody, ResponseObj : JsonObject;
         T: JsonToken;
         APIToken, URL, s : Text;
+        TempEntryNo: Integer;
         Success: Boolean;
     begin
+        SalesHeaderStaging.SetCurrentKey(id);
+        SalesHeaderStaging.SetRange(id, SalesInvHeader."EE Fleetrock ID");
+        if SalesHeaderStaging.FindLast() then
+            TempEntryNo := SalesHeaderStaging."Entry No.";
         if SalesInvHeader."EE Sent Payment" and (SalesInvHeader."EE Sent Payment DateTime" <> 0DT) then begin
-            InsertImportEntry(false, 0, Enum::"EE Import Type"::"Repair Order", Enum::"EE Event Type"::Paid,
+            InsertImportEntry(false, TempEntryNo, Enum::"EE Import Type"::"Repair Order", Enum::"EE Event Type"::Paid,
                 Enum::"EE Direction"::Export, StrSubstNo('Invoice %1 already sent payment at %2', SalesInvHeader."No.", SalesInvHeader."EE Sent Payment DateTime"), URL, 'POST', FleetrockSetup.Username, JsonBody);
             exit;
         end;
@@ -1942,7 +1950,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         URL := StrSubstNo('%1/API/UpdateRO?token=%2', FleetrockSetup."Integration URL", APIToken);
         JsonBody := CreateUpdateRepairOrderJsonBody(FleetrockSetup.Username, OrderId, PaidDateTime);
         if not RestAPIMgt.TryToGetResponseAsJsonArray(URL, 'response', 'POST', JsonBody, ResponseArray) then begin
-            InsertImportEntry(false, 0, Enum::"EE Import Type"::"Repair Order", Enum::"EE Event Type"::Paid,
+            InsertImportEntry(false, TempEntryNo, Enum::"EE Import Type"::"Repair Order", Enum::"EE Event Type"::Paid,
                 Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', FleetrockSetup.Username, JsonBody);
             exit;
         end;
@@ -1950,13 +1958,13 @@ codeunit 80000 "EE Fleetrock Mgt."
             exit;
         if not ResponseArray.Get(0, T) then begin
             ResponseArray.WriteTo(s);
-            InsertImportEntry(false, 0, Enum::"EE Import Type"::"Repair Order", Enum::"EE Event Type"::Paid,
+            InsertImportEntry(false, TempEntryNo, Enum::"EE Import Type"::"Repair Order", Enum::"EE Event Type"::Paid,
                Enum::"EE Direction"::Export, 'Failed to load results token from response array: ' + s, URL, 'POST', FleetrockSetup.Username, JsonBody);
             exit;
         end;
         ClearLastError();
         Success := TryToHandleRepairUpdateResponse(T, OrderId, 'Failed to update Repair Order %1:\%2');
-        InsertImportEntry(Success and (GetLastErrorText() = ''), 0, Enum::"EE Import Type"::"Repair Order",
+        InsertImportEntry(Success and (GetLastErrorText() = ''), TempEntryNo, Enum::"EE Import Type"::"Repair Order",
             Enum::"EE Event Type"::Paid, Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', FleetrockSetup.Username, JsonBody);
         SalesInvHeader."EE Sent Payment" := Success;
         SalesInvHeader."EE Sent Payment DateTime" := CurrentDateTime();
@@ -2449,6 +2457,9 @@ codeunit 80000 "EE Fleetrock Mgt."
         ImportEntry."Request Body" := CopyStr(s, 1, MaxStrLen(ImportEntry."Request Body"));
         ImportEntry.Direction := Direction;
         ImportEntry."Source Account" := Username;
+
+        if ImportEntry."Event Type" = ImportEntry."Event Type"::Paid then
+            ImportEntry."Import Entry No." := 0;
 
         ImportEntry.Insert(true);
     end;
