@@ -38,6 +38,7 @@ page 80003 "EE Fleetrock Entries"
 
                     trigger OnDrillDown()
                     var
+                        SalesInvHeader: Record "Sales Invoice Header";
                         SalesHeaderStaging: Record "EE Sales Header Staging";
                         PurchHeaderStaging: Record "EE Purch. Header Staging";
                     begin
@@ -47,7 +48,10 @@ page 80003 "EE Fleetrock Entries"
                                     PurchHeaderStaging.DocumentDrillDown();
                             Rec."Document Type"::"Repair Order":
                                 if SalesHeaderStaging.Get(Rec."Import Entry No.") then
-                                    SalesHeaderStaging.DocumentDrillDown();
+                                    SalesHeaderStaging.DocumentDrillDown()
+                                else if Rec."Document No." <> '' then
+                                    if SalesInvHeader.Get(Rec."Document No.") then
+                                        Page.Run(Page::"Posted Sales Invoice", SalesInvHeader);
                         end;
                     end;
                 }
