@@ -142,7 +142,7 @@ codeunit 80006 "EE Upgrade"
         ImportExportEntry.SetRange("Fleetrock ID", '');
         ImportExportEntry.SetRange("Document Type", ImportExportEntry."Document Type"::"Repair Order");
         ImportExportEntry.SetRange(URL, 'https://www.fleetrock.com/API/UpdateRO?token=71e18abf-f5b4-41f0-ac9c-adef156d3377');
-        ImportExportEntry.SetFilter("Request Body", '*%1*', '"ro_id":"');
+        ImportExportEntry.SetFilter("Request Body", StrSubstNo('*%1*', '"ro_id":"'));
         if not ImportExportEntry.FindSet() then
             exit;
 
@@ -152,15 +152,10 @@ codeunit 80006 "EE Upgrade"
             i2 := ImportExportEntry."Request Body".IndexOf('","date_invoice_paid":');
             FleetrockID := CopyStr(ImportExportEntry."Request Body", i, i2 - i);
             ImportExportEntry."Fleetrock ID" := FleetrockID;
-
-            Error('%1: %2, %3 -> %4', ImportExportEntry."Request Body", i, i2, FleetrockID);
-
             SalesInvHeader.SetRange("EE Fleetrock ID", FleetrockID);
             if SalesInvHeader.FindFirst() then
                 ImportExportEntry."Document No." := SalesInvHeader."No.";
             ImportExportEntry.Modify(false);
         until ImportExportEntry.Next() = 0;
     end;
-
-    // {"username":"Eagleeye","repair_orders":[{"ro_id":"3841016","date_invoice_paid":"2026-01-15T15:03:00.2Z"}]}
 }
