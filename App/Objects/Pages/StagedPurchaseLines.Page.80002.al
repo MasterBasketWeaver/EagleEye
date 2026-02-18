@@ -27,6 +27,10 @@ page 80002 "EE Staged Purchased Lines"
                 {
                     ApplicationArea = all;
                 }
+                field("Part Line"; Rec."Part Line")
+                {
+                    ApplicationArea = all;
+                }
                 field(part_id; Rec.part_id)
                 {
                     ApplicationArea = All;
