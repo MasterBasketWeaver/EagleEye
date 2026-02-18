@@ -947,6 +947,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             PurchLineStaging.unit_price := JsonMgt.GetJsonValueAsDecimal(LineJsonObj, 'unit_price');
             PurchLineStaging.line_total := JsonMgt.GetJsonValueAsDecimal(LineJsonObj, 'line_total');
             PurchLineStaging.date_added := JsonMgt.GetJsonValueAsText(LineJsonObj, 'date_added');
+            PurchLineStaging."Part Line" := true;
             PurchLineStaging.Insert(true);
         end;
     end;
@@ -1814,7 +1815,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchaseLine.Validate("Document Type", Enum::"Purchase Document Type"::Order);
         PurchaseLine.Validate("Document No.", DocNo);
         PurchaseLine.Validate("Line No.", LineNo);
-        if (PurchHeaderStaging."Unit Type" <> PurchHeaderStaging."Unit Type"::" ") and UnitTypeMapping.Get(PurchHeaderStaging."Unit Type") and (UnitTypeMapping."G/L Account No." <> '') then begin
+        if PurchLineStaging."Part Line" and (PurchHeaderStaging."Unit Type" <> PurchHeaderStaging."Unit Type"::" ") and UnitTypeMapping.Get(PurchHeaderStaging."Unit Type") and (UnitTypeMapping."G/L Account No." <> '') then begin
             PurchaseLine.Validate(Type, PurchaseLine.Type::"G/L Account");
             PurchaseLine.Validate("No.", UnitTypeMapping."G/L Account No.");
         end else begin
@@ -2111,6 +2112,7 @@ codeunit 80000 "EE Fleetrock Mgt."
                         PurchLineStaging.part_system_code := PartLineStaging.part_system_code;
                         PurchLineStaging.line_total := PartLineStaging.part_price * PartLineStaging.part_quantity;
                         PurchLineStaging.date_added := PartLineStaging.date_added;
+                        PurchLineStaging."Part Line" := true;
                         PurchLineStaging.Insert(true);
                     until PartLineStaging.Next() = 0;
             until TaskLineStaging.Next() = 0;

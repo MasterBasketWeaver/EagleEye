@@ -83,6 +83,11 @@ table 80002 "EE Purch. Line Staging"
             DataClassification = CustomerContent;
             Editable = false;
         }
+        field(60; "Part Line"; Boolean)
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
     }
 
     keys
