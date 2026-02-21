@@ -9,9 +9,9 @@
   "application": "25.0.0.0",
   "platform": "25.0.0.0",
   "resourceExposurePolicy": {
-    "allowDebugging": true,
-    "allowDownloadingSource": true,
-    "includeSourceInSymbolFile": true,
+    "allowDebugging": false,
+    "allowDownloadingSource": false,
+    "includeSourceInSymbolFile": false,
     "applyToDevExtension": true
   },
   "features": [
