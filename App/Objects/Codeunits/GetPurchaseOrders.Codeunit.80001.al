@@ -205,44 +205,27 @@ codeunit 80001 "EE Get Purchase Orders"
         if Success then
             if FleetRockSetup."Auto-post Purchase Orders" then begin
                 PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseHeaderStaging."Document No.");
-                PurchaseHeader.Receive := true;
-                PurchaseHeader.Invoice := true;
                 Success := PostOrder(PurchaseHeader, PurchaseHeaderStaging);
             end;
         exit(Success);
     end;
 
-    local procedure PostOrder(var PurchaseHeader: Record "Purchase Header"; var PurchaseHeaderStaging: Record "EE Purch. Header Staging"): Boolean
+    procedure PostOrder(var PurchaseHeader: Record "Purchase Header"; var PurchaseHeaderStaging: Record "EE Purch. Header Staging"): Boolean
     var
         Result: Boolean;
     begin
         if not CheckDateValues(PurchaseHeader, PurchaseHeaderStaging) then
             exit(false);
-        // if not CheckForNegativeLines(PurchaseHeader) then
-        //     exit(false);
         if not CheckAmount(PurchaseHeader, PurchaseHeaderStaging) then
             exit(false);
+        PurchaseHeader.Receive := true;
+        PurchaseHeader.Invoice := true;
         Commit();
         SingleInstance.SetAllowNegativePurchAmount(true);
         Result := Codeunit.Run(Codeunit::"Purch.-Post", PurchaseHeader);
         SingleInstance.SetAllowNegativePurchAmount(false);
         exit(Result);
     end;
-
-    // [TryFunction]
-    // local procedure CheckForNegativeLines(var PurchaseHeader: Record "Purchase Header")
-    // var
-    //     PurchaseLine: Record "Purchase Line";
-    // begin
-    //     PurchaseLine.SetLoadFields("Document Type", "Document No.", Type, Quantity);
-    //     PurchaseLine.SetRange("Document Type", PurchaseHeader."Document Type");
-    //     PurchaseLine.SetRange("Document No.", PurchaseHeader."No.");
-    //     PurchaseLine.SetRange(Type, PurchaseLine.Type::Item);
-    //     PurchaseLine.SetFilter("No.", '<>%1', '');
-    //     PurchaseLine.SetFilter(Quantity, '<%1', 0);
-    //     if PurchaseLine.FindFirst() then
-    //         Error('Cannot post Purchase Order %1 because line %2 has a negative quantity: %3.', PurchaseHeader."No.", PurchaseLine."Line No.", PurchaseLine.Quantity);
-    // end;
 
     [TryFunction]
     local procedure CheckDateValues(var PurchaseHeader: Record "Purchase Header"; var PurchaseHeaderStaging: Record "EE Purch. Header Staging")
