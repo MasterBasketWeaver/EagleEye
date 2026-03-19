@@ -72,6 +72,14 @@ codeunit 80002 "EE Subscribers"
 
 
 
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Gen. Jnl.-Check Line", OnBeforeErrorIfPositiveAmt, '', false, false)]
+    local procedure GenJnlCheckLineOnBeforeErrorIfPositiveAmt(var RaiseError: Boolean)
+    begin
+        if SingleInstance.GetAllowNegativePurchAmount() then
+            RaiseError := false;
+    end;
+
+
 
     var
         SingleInstance: Codeunit "EE Single Instance";
