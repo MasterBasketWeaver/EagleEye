@@ -69,9 +69,10 @@ codeunit 80000 "EE Fleetrock Mgt."
         exit(CheckToGetAPIToken(FleetrockSetup, UseVendorKey));
     end;
 
-    procedure CheckToGetAPIToken(var FleetrockSetup: Record "EE Fleetrock Setup"): Text
+    [TryFunction]
+    procedure CheckToGetAPIToken(var FleetrockSetup: Record "EE Fleetrock Setup"; var Response: Text; UseVendorKey: Boolean)
     begin
-        exit(CheckToGetAPIToken(FleetrockSetup, false));
+        Response := CheckToGetAPIToken(FleetrockSetup, UseVendorKey);
     end;
 
     procedure CheckToGetAPIToken(var FleetrockSetup: Record "EE Fleetrock Setup"; UseVendorKey: Boolean): Text

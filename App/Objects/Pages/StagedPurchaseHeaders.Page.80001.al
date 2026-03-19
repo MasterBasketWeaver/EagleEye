@@ -198,14 +198,13 @@ page 80001 "EE Staged Purchased Headers"
                 PromotedIsBig = true;
                 PromotedOnly = true;
                 Image = Invoice;
+                ToolTip = 'Creates a Purchase Invoice from the current Staging record.';
 
                 trigger OnAction()
                 var
-
                     PurchaseHeader: Record "Purchase Header";
                     GetPurchaseOrders: Codeunit "EE Get Purchase Orders";
                 begin
-
                     FleetrockMgt.CreatePurchaseOrder(Rec);
                     PurchaseHeader.SetRange("Document Type", PurchaseHeader."Document Type"::Order);
                     PurchaseHeader.SetRange("EE Fleetrock ID", Rec.id);
@@ -238,6 +237,27 @@ page 80001 "EE Staged Purchased Headers"
                             FleetrockMgt.GetAndImportRepairOrder(DocNo, false)
                         else
                             FleetrockMgt.GetAndImportPurchaseOrder(DocNo);
+                end;
+            }
+            action("Post Purchase Order")
+            {
+                ApplicationArea = all;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                Image = Post;
+                Enabled = Rec."Document No." <> '';
+                ToolTip = 'Attempts to post the related Purchase Order for the staging record if it exists.';
+
+                trigger OnAction()
+                var
+                    PurchaseHeader: Record "Purchase Header";
+                    GetPurchaseOrders: Codeunit "EE Get Purchase Orders";
+                begin
+                    PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, Rec."Document No.");
+                    if not GetPurchaseOrders.PostOrder(PurchaseHeader, Rec) then
+                        Error(GetLastErrorText());
                 end;
             }
         }

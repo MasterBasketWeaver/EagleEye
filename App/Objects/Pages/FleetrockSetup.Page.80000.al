@@ -276,8 +276,13 @@ page 80000 "EE Fleetrock Setup"
                 trigger OnAction()
                 var
                     FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
+                    s1, s2 : Text;
                 begin
-                    Message('Default: %1\Vendor: %2', FleetrockMgt.CheckToGetAPIToken(Rec), FleetrockMgt.CheckToGetAPIToken(Rec, true));
+                    if not FleetrockMgt.CheckToGetAPIToken(Rec, s1, false) then
+                        s1 := GetLastErrorText();
+                    if not FleetrockMgt.CheckToGetAPIToken(Rec, s2, true) then
+                        s2 := GetLastErrorText();
+                    Message('Default: %1\Vendor: %2', s1, s2);
                     CurrPage.Update(false);
                 end;
             }
