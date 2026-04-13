@@ -1071,7 +1071,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         exit(RestAPIMgt.GetResponseAsJsonArray(URL, 'repair_orders'));
     end;
 
-    procedure GetAndImportRepairOrder(ID: Text; UseVendorcAccount: Boolean)
+    procedure GetAndImportRepairOrder(ID: Text; UseVendorAccount: Boolean)
     var
         GetRepairOrdersCU: Codeunit "EE Get Repair Orders";
         JsonArray, JsonArray2 : JsonArray;
@@ -1081,8 +1081,8 @@ codeunit 80000 "EE Fleetrock Mgt."
         APIToken, URL, Username : Text;
     begin
         StartDateTime := CurrentDateTime();
-        GetEventParameters(APIToken, StartDateTime, EndDateTime, UseVendorcAccount);
-        if UseVendorcAccount then begin
+        GetEventParameters(APIToken, StartDateTime, EndDateTime, UseVendorAccount);
+        if UseVendorAccount then begin
             URL := StrSubstNo('%1/API/GetRO?username=%2&ID=%3&token=%4', FleetrockSetup."Integration URL", FleetrockSetup."Vendor Username", ID, APIToken);
             Username := FleetrockSetup."Vendor Username";
         end else begin
