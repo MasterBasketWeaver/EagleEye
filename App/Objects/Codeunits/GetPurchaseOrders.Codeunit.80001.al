@@ -221,20 +221,19 @@ codeunit 80001 "EE Get Purchase Orders"
         PurchaseHeader.Receive := true;
         PurchaseHeader.Invoice := true;
         Commit();
-        SingleInstance.SetAllowNegativePurchAmount(true);
         Result := Codeunit.Run(Codeunit::"Purch.-Post", PurchaseHeader);
-        SingleInstance.SetAllowNegativePurchAmount(false);
         exit(Result);
     end;
 
     [TryFunction]
     local procedure CheckDateValues(var PurchaseHeader: Record "Purchase Header"; var PurchaseHeaderStaging: Record "EE Purch. Header Staging")
     begin
-        PurchaseHeaderStaging.TestField(Closed);
-        if PurchaseHeader."Document Date" <> DT2Date(PurchaseHeaderStaging.Closed) then
-            PurchaseHeader.Validate("Document Date", DT2Date(PurchaseHeaderStaging.Closed));
-        if PurchaseHeader."Posting Date" <> DT2Date(PurchaseHeaderStaging.Closed) then
-            PurchaseHeader.Validate("Posting Date", DT2Date(PurchaseHeaderStaging.Closed));
+        if PurchaseHeaderStaging.Closed <> 0DT then begin
+            if PurchaseHeader."Document Date" <> DT2Date(PurchaseHeaderStaging.Closed) then
+                PurchaseHeader.Validate("Document Date", DT2Date(PurchaseHeaderStaging.Closed));
+            if PurchaseHeader."Posting Date" <> DT2Date(PurchaseHeaderStaging.Closed) then
+                PurchaseHeader.Validate("Posting Date", DT2Date(PurchaseHeaderStaging.Closed));
+        end;
     end;
 
     [TryFunction]
@@ -288,11 +287,7 @@ codeunit 80001 "EE Get Purchase Orders"
     var
         FleetRockMgt: Codeunit "EE Fleetrock Mgt.";
         JsonMgt: Codeunit "EE Json Mgt.";
-        SingleInstance: Codeunit "EE Single Instance";
         StartDateTime: DateTime;
         PassedURL: Text;
         HasSetStartDateTime: Boolean;
-
-
-        c2: Codeunit "Gen. Jnl.-Check Line";
 }
