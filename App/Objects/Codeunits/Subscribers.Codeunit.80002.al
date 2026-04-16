@@ -72,6 +72,18 @@ codeunit 80002 "EE Subscribers"
 
 
 
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Purch.-Post", OnBeforePostLines, '', false, false)]
+    local procedure PurchPostOnBeforePostLines()
+    begin
+        SingleInstance.SetAllowNegativePurchAmount(true);
+    end;
+
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Purch.-Post", OnAfterPostPurchaseDoc, '', false, false)]
+    local procedure PurchPostOnAfterPostPurchaseDoc()
+    begin
+        SingleInstance.SetAllowNegativePurchAmount(false);
+    end;
+
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"Gen. Jnl.-Check Line", OnBeforeErrorIfPositiveAmt, '', false, false)]
     local procedure GenJnlCheckLineOnBeforeErrorIfPositiveAmt(var RaiseError: Boolean)
     begin
