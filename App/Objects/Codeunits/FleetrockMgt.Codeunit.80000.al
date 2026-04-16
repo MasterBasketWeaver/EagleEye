@@ -1875,17 +1875,41 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
 
-    [EventSubscriber(ObjectType::Table, Database::"Gen. Journal Batch", OnMoveGenJournalBatch, '', false, false)]
-    local procedure GenJoournalBatchOnMoveGenJournalBatch(ToRecordID: RecordId)
+
+    procedure CheckForPaidCustLedgerEntries(var GenJnlLine: Record "Gen. Journal Line"s)
     var
-        RecRef: RecordRef;
+        SalesInvHeader: Record "Sales Invoice Header";
+        CustLedgerEntry, CustLedgerEntry2 : Record "Cust. Ledger Entry";
+        GLRegister: Record "G/L Register";
+        PaymentDateTime: DateTime;
     begin
-        if RecRef.Get(ToRecordID) then
-            if RecRef.Number() = Database::"G/L Register" then
-                CheckForPaidCustLedgerEntries(RecRef);
+        CustLedgerEntry.SetLoadFields("Entry No.", "Document Type", "Closed by Entry No.");
+        CustLedgerEntry.SetRange("Entry No.", GLRegister."From Entry No.", GLRegister."To Entry No.");
+        CustLedgerEntry.SetRange("Document Type", CustLedgerEntry."Document Type"::Payment);
+        if not CustLedgerEntry.FindSet() then
+            exit;
+        CustLedgerEntry2.SetLoadFields("Closed by Entry No.", "Document Type", "Document No.", "Closed at Date");
+        CustLedgerEntry2.SetCurrentKey("Closed by Entry No.");
+        CustLedgerEntry2.SetRange("Document Type", CustLedgerEntry."Document Type"::Invoice);
+        SalesInvHeader.SetRange(Closed, true);
+        SalesInvHeader.SetRange("Remaining Amount", 0);
+        SalesInvHeader.SetFilter("EE Fleetrock ID", '<>%1', '');
+        repeat
+            CustLedgerEntry2.SetRange("Closed by Entry No.", CustLedgerEntry."Entry No.");
+            if CustLedgerEntry2.FindFirst() then begin
+                SalesInvHeader.SetRange("No.", CustLedgerEntry2."Document No.");
+                if SalesInvHeader.FindFirst() then begin
+                    if CustLedgerEntry2."Closed at Date" = Today() then
+                        PaymentDateTime := CurrentDateTime()
+                    else
+                        PaymentDateTime := CreateDateTime(CustLedgerEntry2."Closed at Date", Time());
+                    UpdatePaidRepairOrder(SalesInvHeader."EE Fleetrock ID", PaymentDateTime, SalesInvHeader);
+                end;
+            end;
+        until CustLedgerEntry.Next() = 0;
     end;
 
-    local procedure CheckForPaidCustLedgerEntries(var RecRef: RecordRef)
+    procedure CheckForPaidCustLedgerEntries(var RecRef: RecordRef)
     var
         SalesInvHeader: Record "Sales Invoice Header";
         CustLedgerEntry, CustLedgerEntry2 : Record "Cust. Ledger Entry";

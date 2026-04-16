@@ -81,6 +81,28 @@ codeunit 80002 "EE Subscribers"
 
 
 
+    // OnAfterPostApply
+    [EventSubscriber(ObjectType::Table, Database::"Gen. Journal Batch", OnMoveGenJournalBatch, '', false, false)]
+    local procedure GenJournalBatchOnMoveGenJournalBatch(ToRecordID: RecordId)
     var
+        RecRef: RecordRef;
+    begin
+        if RecRef.Get(ToRecordID) then
+            if RecRef.Number() = Database::"G/L Register" then
+                FleetrockMgt.CheckForPaidCustLedgerEntries(RecRef);
+    end;
+
+
+
+
+    // [EventSubscriber(ObjectType::Codeunit, Codeunit::"Gen. Jnl.-Post Line", OnAfterPostApply, '', false, false)]
+    // local procedure GenJnlPostLineOnAfterPostApply(GenJnlLine: Record "Gen. Journal Line")
+    // begin
+    //     if GenJnlLine."Applies-to ID" <> '' then;
+    // end;
+
+
+    var
+        FleetrockMgt: Codeunit "EE Fleetrock Mgt.";
         SingleInstance: Codeunit "EE Single Instance";
 }
