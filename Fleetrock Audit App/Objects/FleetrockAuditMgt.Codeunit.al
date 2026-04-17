@@ -21,6 +21,8 @@ codeunit 81000 "EE Fleetrock Audit Mgt"
         AuditIssue: Record "EE Fleetrock Audit Issue";
         RefreshAt: DateTime;
         IssueCount: Integer;
+        ProgressDialog: Dialog;
+        ProgressTpl: Label 'Auditing Fleetrock orders...\Step: #1##################################################';
     begin
         Tolerance := 0.01;
         RefreshAt := CurrentDateTime();
@@ -28,21 +30,30 @@ codeunit 81000 "EE Fleetrock Audit Mgt"
         if not Setup.FindFirst() then
             Error(SetupMissingErr);
 
+        ProgressDialog.Open(ProgressTpl);
+        ProgressDialog.Update(1, 'Clearing previous issues');
+
         AuditIssue.LockTable();
         AuditIssue.DeleteAll();
 
         if (Setup."Username" <> '') and (Setup."API Key" <> '') then begin
+            ProgressDialog.Update(1, StrSubstNo('Fetching Purchase Orders (%1)', Setup."Username"));
             AuditOrders(Setup, Setup."Username", Setup."API Key", Enum::"EE Fleetrock Order Kind"::"Purchase Order", RefreshAt);
+            ProgressDialog.Update(1, StrSubstNo('Fetching Repair Orders (%1)', Setup."Username"));
             AuditOrders(Setup, Setup."Username", Setup."API Key", Enum::"EE Fleetrock Order Kind"::"Repair Order", RefreshAt);
         end;
 
         if (Setup."Vendor Username" <> '') and (Setup."Vendor API Key" <> '') then begin
+            ProgressDialog.Update(1, StrSubstNo('Fetching Purchase Orders (%1)', Setup."Vendor Username"));
             AuditOrders(Setup, Setup."Vendor Username", Setup."Vendor API Key", Enum::"EE Fleetrock Order Kind"::"Purchase Order", RefreshAt);
+            ProgressDialog.Update(1, StrSubstNo('Fetching Repair Orders (%1)', Setup."Vendor Username"));
             AuditOrders(Setup, Setup."Vendor Username", Setup."Vendor API Key", Enum::"EE Fleetrock Order Kind"::"Repair Order", RefreshAt);
         end;
 
+        ProgressDialog.Update(1, 'Finalizing');
         Commit();
         IssueCount := AuditIssue.Count();
+        ProgressDialog.Close();
         Message(DoneMsg, IssueCount);
     end;
 
