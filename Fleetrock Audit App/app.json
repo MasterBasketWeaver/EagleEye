@@ -1,0 +1,39 @@
+{
+  "id": "7b2d91a4-3e6c-4f18-8b55-0a4f6e2d1c93",
+  "name": "Fleetrock Audit",
+  "publisher": "BryanA BC Developments Inc.",
+  "version": "27.0.1.0",
+  "brief": "Audits Fleetrock Purchase and Repair Orders for incorrect amounts.",
+  "description": "Fetches Purchase Orders and Repair Orders from the Fleetrock API and lists the orders whose amounts do not reconcile (line subtotal vs quantity*price, header totals vs sum of lines, tax total vs sum of per-line tax).",
+  "privacyStatement": "",
+  "EULA": "",
+  "help": "",
+  "url": "",
+  "logo": "",
+  "dependencies": [
+    {
+      "id": "9ac25096-0cd1-482d-adc1-cc823016a988",
+      "name": "EagleEye Fleetrock Integration",
+      "publisher": "BryanA BC Developments Inc.",
+      "version": "25.0.1.0"
+    }
+  ],
+  "screenshots": [],
+  "platform": "27.0.0.0",
+  "application": "27.0.0.0",
+  "idRanges": [
+    {
+      "from": 81000,
+      "to": 81050
+    }
+  ],
+  "resourceExposurePolicy": {
+    "allowDebugging": true,
+    "allowDownloadingSource": false,
+    "includeSourceInSymbolFile": false
+  },
+  "runtime": "13.0",
+  "features": [
+    "NoImplicitWith"
+  ]
+}
