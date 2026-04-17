@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Publish to DEV-SANDBOX",
+            "type": "al",
+            "request": "launch",
+            "environmentType": "Sandbox",
+            "environmentName": "DEV-SANDBOX",
+            "tenant": "de2a36e9-10b6-4c2b-a089-d0e7265e3f06",
+            "startupObjectId": 81000,
+            "startupObjectType": "Page",
+            "schemaUpdateMode": "Synchronize",
+            "breakOnError": "All",
+            "launchBrowser": true,
+            "usePublicURLFromServer": true
+        }
+    ]
+}
