@@ -112,12 +112,8 @@ codeunit 81000 "EE Fleetrock Audit Mgt"
     var
         JsonResp: JsonObject;
         Orders: JsonArray;
-        OrderToken: JsonToken;
-        OrdersToken: JsonToken;
-        Url: Text;
-        EndpointPath: Text;
-        EventName: Text;
-        ResultKey: Text;
+        OrderToken, OrdersToken: JsonToken;
+        Url, EndpointPath, EventName, ResultKey: Text;
         i: Integer;
     begin
         case Kind of
@@ -160,22 +156,8 @@ codeunit 81000 "EE Fleetrock Audit Mgt"
         Lines: JsonArray;
         LineToken: JsonToken;
         LineObj: JsonObject;
-        OrderId: Text;
-        SumLineTotals: Decimal;
-        Qty: Decimal;
-        Price: Decimal;
-        LineTotal: Decimal;
-        Expected: Decimal;
-        Grand: Decimal;
-        Subtotal: Decimal;
-        Tax: Decimal;
-        Shipping: Decimal;
-        Other: Decimal;
-        ExpectedGrand: Decimal;
-        PartNo: Text;
-        PartDesc: Text;
-        LineRef: Text;
-        Msg: Text;
+        OrderId, PartNo, PartDesc, LineRef, Msg: Text;
+        SumLineTotals, Qty, Price, LineTotal, Expected, Grand, Subtotal, Tax, Shipping, Other, ExpectedGrand: Decimal;
         i: Integer;
     begin
         OrderId := JsonText(PO, 'id');
@@ -194,7 +176,7 @@ codeunit 81000 "EE Fleetrock Audit Mgt"
 
             if not Near(Expected, LineTotal) then begin
                 Msg := StrSubstNo(POLineMismatchTpl,
-                        i + 1, FormatMoney(LineTotal), Format(Qty), FormatMoney(Price),
+                        i + 1, FormatMoney(LineTotal), Qty, FormatMoney(Price),
                         FormatMoney(Expected), FormatMoney(LineTotal - Expected));
                 InsertIssue(Enum::"EE Fleetrock Order Kind"::"Purchase Order", Credential, OrderId,
                             Enum::"EE Fleetrock Issue Code"::L1, LineRef, PartNo, PartDesc,
@@ -233,43 +215,12 @@ codeunit 81000 "EE Fleetrock Audit Mgt"
 
     local procedure AuditRO(RO: JsonObject; Credential: Text; RefreshAt: DateTime) IssueCount: Integer
     var
-        Tasks: JsonArray;
-        Parts: JsonArray;
-        TaskToken: JsonToken;
-        PartToken: JsonToken;
-        TaskObj: JsonObject;
-        PartObj: JsonObject;
-        OrderId: Text;
-        TaskId: Text;
-        SumLabor: Decimal;
-        SumParts: Decimal;
-        SumLineTax: Decimal;
-        Hours: Decimal;
-        Rate: Decimal;
-        LaborSub: Decimal;
-        LaborTaxRate: Decimal;
-        Complaint: Text;
-        ExpectedLabor: Decimal;
-        Qty: Decimal;
-        Price: Decimal;
-        Sub: Decimal;
-        TaxRate: Decimal;
-        PartNo: Text;
-        PartDesc: Text;
-        ExpectedP: Decimal;
-        HeaderLabor: Decimal;
-        HeaderParts: Decimal;
-        AddChg: Decimal;
-        AddChgRate: Decimal;
-        TaxTotal: Decimal;
-        Credit: Decimal;
-        Grand: Decimal;
-        ExpectedGrand: Decimal;
-        ExpectedTax: Decimal;
-        Msg: Text;
-        LineRef: Text;
-        t: Integer;
-        p: Integer;
+        Tasks, Parts: JsonArray;
+        TaskToken, PartToken: JsonToken;
+        TaskObj, PartObj: JsonObject;
+        OrderId, TaskId, Complaint, PartNo, PartDesc, Msg, LineRef: Text;
+        SumLabor, SumParts, SumLineTax, Hours, Rate, LaborSub, LaborTaxRate, ExpectedLabor, Qty, Price, Sub, TaxRate, ExpectedP, HeaderLabor, HeaderParts, AddChg, AddChgRate, TaxTotal, Credit, Grand, ExpectedGrand, ExpectedTax: Decimal;
+        t, p: Integer;
     begin
         OrderId := JsonText(RO, 'id');
         Tasks := JsonArrayFrom(RO, 'tasks');
@@ -290,11 +241,11 @@ codeunit 81000 "EE Fleetrock Audit Mgt"
 
             if not Near(ExpectedLabor, LaborSub) then begin
                 Msg := StrSubstNo(ROLaborMismatchTpl,
-                        TaskId, FormatMoney(LaborSub), Format(Hours), FormatMoney(Rate),
+                        TaskId, FormatMoney(LaborSub), Hours, FormatMoney(Rate),
                         FormatMoney(ExpectedLabor), FormatMoney(LaborSub - ExpectedLabor));
                 InsertIssue(Enum::"EE Fleetrock Order Kind"::"Repair Order", Credential, OrderId,
                             Enum::"EE Fleetrock Issue Code"::L1, LineRef, '', Complaint,
-                            StrSubstNo(HoursTpl, Format(Hours)), StrSubstNo(HourlyRateTpl, FormatMoney(Rate)),
+                            StrSubstNo(HoursTpl, Hours), StrSubstNo(HourlyRateTpl, FormatMoney(Rate)),
                             ExpectedLabor, LaborSub, Msg, RefreshAt);
                 IssueCount += 1;
             end;
@@ -316,7 +267,7 @@ codeunit 81000 "EE Fleetrock Audit Mgt"
 
                 if not Near(ExpectedP, Sub) then begin
                     Msg := StrSubstNo(ROPartMismatchTpl,
-                            TaskId, FormatMoney(Sub), Format(Qty), FormatMoney(Price),
+                            TaskId, FormatMoney(Sub), Qty, FormatMoney(Price),
                             FormatMoney(ExpectedP), FormatMoney(Sub - ExpectedP));
                     InsertIssue(Enum::"EE Fleetrock Order Kind"::"Repair Order", Credential, OrderId,
                                 Enum::"EE Fleetrock Issue Code"::L1, LineRef, PartNo, PartDesc,
@@ -384,10 +335,8 @@ codeunit 81000 "EE Fleetrock Audit Mgt"
                                 PartDesc: Text; QtyText: Text; UnitPriceText: Text; Expected: Decimal;
                                 Actual: Decimal; Msg: Text; RefreshAt: DateTime)
     var
-        AuditIssue: Record "EE Fleetrock Audit Issue";
-        Existing: Record "EE Fleetrock Audit Issue";
-        ExpRounded: Decimal;
-        ActRounded: Decimal;
+        AuditIssue, Existing: Record "EE Fleetrock Audit Issue";
+        ExpRounded, ActRounded: Decimal;
     begin
         ExpRounded := Round(Expected, 0.01);
         ActRounded := Round(Actual, 0.01);
@@ -421,9 +370,7 @@ codeunit 81000 "EE Fleetrock Audit Mgt"
 
     local procedure BuildUrl(Setup: Record "EE Fleetrock Setup"; Username: Text; ApiKey: Text; EndpointPath: Text; EventName: Text) Url: Text
     var
-        BaseUrl: Text;
-        StartText: Text;
-        EndText: Text;
+        BaseUrl, StartText, EndText: Text;
     begin
         BaseUrl := GetBaseUrl(Setup);
         StartText := GetStartDate(Setup);
