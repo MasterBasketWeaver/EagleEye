@@ -1,6 +1,7 @@
 codeunit 81000 "EE Fleetrock Audit Mgt"
 {
     Access = Public;
+    TableNo = "Job Queue Entry";
 
     var
         Tolerance: Decimal;
@@ -11,9 +12,60 @@ codeunit 81000 "EE Fleetrock Audit Mgt"
         DoneMsg: Label 'Fleetrock audit complete. %1 issue(s) recorded.', Comment = '%1 = count';
 
     /// <summary>
-    /// Entry point called from the list page. Clears existing issues,
-    /// fetches Purchase Orders and Repair Orders from Fleetrock, runs the
-    /// arithmetic checks and writes any mismatches to "EE Fleetrock Audit Issue".
+    /// Entry point used by the Job Queue to run the audit in the background.
+    /// Dialog and Message calls are suppressed when no UI is available.
+    /// </summary>
+    trigger OnRun()
+    begin
+        RefreshAudit();
+    end;
+
+    /// <summary>
+    /// Creates (or refreshes) a recurring Job Queue Entry that runs this codeunit
+    /// every 60 minutes. Safe to call repeatedly -- replaces any existing entry
+    /// that points at Codeunit 81000.
+    /// </summary>
+    procedure ScheduleHourlyAudit()
+    var
+        JobQueueEntry: Record "Job Queue Entry";
+        ScheduledMsg: Label 'Fleetrock audit scheduled: every 60 minutes via Job Queue.';
+    begin
+        JobQueueEntry.SetRange("Object Type to Run", JobQueueEntry."Object Type to Run"::Codeunit);
+        JobQueueEntry.SetRange("Object ID to Run", Codeunit::"EE Fleetrock Audit Mgt");
+        if JobQueueEntry.FindSet() then
+            repeat
+                JobQueueEntry.Delete(true);
+            until JobQueueEntry.Next() = 0;
+
+        Clear(JobQueueEntry);
+        JobQueueEntry.Init();
+        JobQueueEntry.ID := CreateGuid();
+        JobQueueEntry.Validate("Object Type to Run", JobQueueEntry."Object Type to Run"::Codeunit);
+        JobQueueEntry.Validate("Object ID to Run", Codeunit::"EE Fleetrock Audit Mgt");
+        JobQueueEntry.Description := CopyStr('Fleetrock audit refresh (hourly)', 1, MaxStrLen(JobQueueEntry.Description));
+        JobQueueEntry.Validate("Recurring Job", true);
+        JobQueueEntry.Validate("Run on Mondays", true);
+        JobQueueEntry.Validate("Run on Tuesdays", true);
+        JobQueueEntry.Validate("Run on Wednesdays", true);
+        JobQueueEntry.Validate("Run on Thursdays", true);
+        JobQueueEntry.Validate("Run on Fridays", true);
+        JobQueueEntry.Validate("Run on Saturdays", true);
+        JobQueueEntry.Validate("Run on Sundays", true);
+        JobQueueEntry.Validate("Starting Time", 0T);
+        JobQueueEntry.Validate("Ending Time", 235959T);
+        JobQueueEntry.Validate("No. of Minutes between Runs", 60);
+        JobQueueEntry.Insert(true);
+        JobQueueEntry.SetStatus(JobQueueEntry.Status::Ready);
+
+        if GuiAllowed() then
+            Message(ScheduledMsg);
+    end;
+
+    /// <summary>
+    /// Entry point called from the list page (interactive) or Job Queue (silent).
+    /// Clears existing issues, fetches Purchase Orders and Repair Orders from
+    /// Fleetrock, runs the arithmetic checks and writes any mismatches to
+    /// "EE Fleetrock Audit Issue".
     /// </summary>
     procedure RefreshAudit()
     var
@@ -22,39 +74,50 @@ codeunit 81000 "EE Fleetrock Audit Mgt"
         RefreshAt: DateTime;
         IssueCount: Integer;
         ProgressDialog: Dialog;
+        UseDialog: Boolean;
         ProgressTpl: Label 'Auditing Fleetrock orders...\Step: #1##################################################';
     begin
         Tolerance := 0.01;
         RefreshAt := CurrentDateTime();
+        UseDialog := GuiAllowed();
 
         if not Setup.FindFirst() then
             Error(SetupMissingErr);
 
-        ProgressDialog.Open(ProgressTpl);
-        ProgressDialog.Update(1, 'Clearing previous issues');
+        if UseDialog then begin
+            ProgressDialog.Open(ProgressTpl);
+            ProgressDialog.Update(1, 'Clearing previous issues');
+        end;
 
         AuditIssue.LockTable();
         AuditIssue.DeleteAll();
 
         if (Setup."Username" <> '') and (Setup."API Key" <> '') then begin
-            ProgressDialog.Update(1, StrSubstNo('Fetching Purchase Orders (%1)', Setup."Username"));
+            if UseDialog then
+                ProgressDialog.Update(1, StrSubstNo('Fetching Purchase Orders (%1)', Setup."Username"));
             AuditOrders(Setup, Setup."Username", Setup."API Key", Enum::"EE Fleetrock Order Kind"::"Purchase Order", RefreshAt);
-            ProgressDialog.Update(1, StrSubstNo('Fetching Repair Orders (%1)', Setup."Username"));
+            if UseDialog then
+                ProgressDialog.Update(1, StrSubstNo('Fetching Repair Orders (%1)', Setup."Username"));
             AuditOrders(Setup, Setup."Username", Setup."API Key", Enum::"EE Fleetrock Order Kind"::"Repair Order", RefreshAt);
         end;
 
         if (Setup."Vendor Username" <> '') and (Setup."Vendor API Key" <> '') then begin
-            ProgressDialog.Update(1, StrSubstNo('Fetching Purchase Orders (%1)', Setup."Vendor Username"));
+            if UseDialog then
+                ProgressDialog.Update(1, StrSubstNo('Fetching Purchase Orders (%1)', Setup."Vendor Username"));
             AuditOrders(Setup, Setup."Vendor Username", Setup."Vendor API Key", Enum::"EE Fleetrock Order Kind"::"Purchase Order", RefreshAt);
-            ProgressDialog.Update(1, StrSubstNo('Fetching Repair Orders (%1)', Setup."Vendor Username"));
+            if UseDialog then
+                ProgressDialog.Update(1, StrSubstNo('Fetching Repair Orders (%1)', Setup."Vendor Username"));
             AuditOrders(Setup, Setup."Vendor Username", Setup."Vendor API Key", Enum::"EE Fleetrock Order Kind"::"Repair Order", RefreshAt);
         end;
 
-        ProgressDialog.Update(1, 'Finalizing');
+        if UseDialog then
+            ProgressDialog.Update(1, 'Finalizing');
         Commit();
         IssueCount := AuditIssue.Count();
-        ProgressDialog.Close();
-        Message(DoneMsg, IssueCount);
+        if UseDialog then begin
+            ProgressDialog.Close();
+            Message(DoneMsg, IssueCount);
+        end;
     end;
 
     local procedure AuditOrders(Setup: Record "EE Fleetrock Setup"; Username: Text; ApiKey: Text; Kind: Enum "EE Fleetrock Order Kind"; RefreshAt: DateTime) IssueCount: Integer

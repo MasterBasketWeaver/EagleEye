@@ -125,18 +125,29 @@ page 81000 "EE Fleetrock Audit Issues"
                     CurrPage.Update(false);
                 end;
             }
+            action(ScheduleHourly)
+            {
+                ApplicationArea = All;
+                Caption = 'Schedule Hourly';
+                Image = Timesheet;
+                ToolTip = 'Creates or replaces a recurring Job Queue Entry that runs this audit every 60 minutes.';
+
+                trigger OnAction()
+                var
+                    AuditMgt: Codeunit "EE Fleetrock Audit Mgt";
+                begin
+                    AuditMgt.ScheduleHourlyAudit();
+                end;
+            }
         }
         area(Promoted)
         {
             group(Category_Process)
             {
                 Caption = 'Process';
-                actionref(Refresh_Promoted; Refresh)
-                {
-                }
-                actionref(Clear_Promoted; ClearList)
-                {
-                }
+                actionref(Refresh_Promoted; Refresh) { }
+                actionref(Clear_Promoted; ClearList) { }
+                actionref(Schedule_Promoted; ScheduleHourly) { }
             }
         }
     }
