@@ -21,6 +21,7 @@ page 81000 "EE Fleetrock Audit Issues"
                 field("Order Kind"; Rec."Order Kind")
                 {
                     ApplicationArea = All;
+                    Caption = 'Document Type';
                     ToolTip = 'Specifies whether this issue is on a Purchase Order or a Repair Order.';
                 }
                 field("Order ID"; Rec."Order ID")
@@ -31,12 +32,8 @@ page 81000 "EE Fleetrock Audit Issues"
                 field("Issue Code"; Rec."Issue Code")
                 {
                     ApplicationArea = All;
-                    ToolTip = 'H1 = header total mismatch, H2 = tax total mismatch, L1 = line subtotal mismatch.';
-                }
-                field(Credential; Rec.Credential)
-                {
-                    ApplicationArea = All;
-                    ToolTip = 'Specifies which Fleetrock credential returned this order.';
+                    Caption = 'Issue Type';
+                    ToolTip = 'Categorizes the mismatch: header vs lines, tax total vs per-line tax, or line subtotal vs quantity x price.';
                 }
                 field("Line Ref"; Rec."Line Ref")
                 {
@@ -77,11 +74,12 @@ page 81000 "EE Fleetrock Audit Issues"
                 {
                     ApplicationArea = All;
                     StyleExpr = DifferenceStyle;
-                    ToolTip = 'Specifies Actual minus Expected. Large differences are highlighted.';
+                    ToolTip = 'Specifies Actual minus Expected. Differences of $1.00 or more are highlighted in red.';
                 }
                 field(Message; Rec.Message)
                 {
                     ApplicationArea = All;
+                    Width = 120;
                     ToolTip = 'Human-readable explanation of the mismatch.';
                 }
                 field("Refreshed At"; Rec."Refreshed At")
@@ -145,7 +143,7 @@ page 81000 "EE Fleetrock Audit Issues"
 
     trigger OnAfterGetRecord()
     begin
-        if Abs(Rec.Difference) > 1.0 then
+        if Abs(Rec.Difference) >= 1.0 then
             DifferenceStyle := 'Unfavorable'
         else
             DifferenceStyle := 'Standard';
