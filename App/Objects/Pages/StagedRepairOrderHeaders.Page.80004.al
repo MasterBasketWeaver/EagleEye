@@ -373,7 +373,7 @@ page 80004 "EE Staged Repair Order Headers"
                         exit;
                     FleetrockSetup.Get();
                     if FleetrockSetup."Vendor API Key" <> '' then
-                        UseVendorAccount := Confirm('Use %1 account?', false, FleetrockSetup."Vendor Username")
+                        UseVendorAccount := Confirm('Use vendor account %1?', false, FleetrockSetup."Vendor Username")
                     else
                         UseVendorAccount := false;
                     FleetrockMgt.GetAndImportRepairOrder(DocNo, UseVendorAccount);

@@ -82,24 +82,60 @@ codeunit 80002 "EE Subscribers"
 
 
     // OnAfterPostApply
-    [EventSubscriber(ObjectType::Table, Database::"Gen. Journal Batch", OnMoveGenJournalBatch, '', false, false)]
-    local procedure GenJournalBatchOnMoveGenJournalBatch(ToRecordID: RecordId)
-    var
-        RecRef: RecordRef;
+    // [EventSubscriber(ObjectType::Table, Database::"Gen. Journal Batch", OnMoveGenJournalBatch, '', false, false)]
+    // local procedure GenJournalBatchOnMoveGenJournalBatch(ToRecordID: RecordId)
+    // var
+    //     RecRef: RecordRef;
+    // begin
+    //     if RecRef.Get(ToRecordID) then
+    //         if RecRef.Number() = Database::"G/L Register" then
+    //             FleetrockMgt.CheckForPaidCustLedgerEntries(RecRef);
+    // end;
+
+
+
+
+
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Gen. Jnl.-Post Batch", OnBeforeProcessLines, '', false, false)]
+    local procedure GenJnlPostBatchOnBeforeProcessLines()
     begin
-        if RecRef.Get(ToRecordID) then
-            if RecRef.Number() = Database::"G/L Register" then
-                FleetrockMgt.CheckForPaidCustLedgerEntries(RecRef);
+        SingleInstance.ClearAppliedSalesInvHeaderNos();
+    end;
+
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Gen. Jnl.-Post Line", OnAfterPostApply, '', false, false)]
+    local procedure GenJnlPostLineOnAfterPostApply(GenJnlLine: Record "Gen. Journal Line"; var NewCVLedgEntryBuf: Record "CV Ledger Entry Buffer"; var NewCVLedgEntryBuf2: Record "CV Ledger Entry Buffer"; var OldCVLedgEntryBuf: Record "CV Ledger Entry Buffer")
+    var
+        SalesInvHeader: Record "Sales Invoice Header";
+        CustLedgerEntry: Record "Cust. Ledger Entry";
+    begin
+        if OldCVLedgEntryBuf."Document Type" = OldCVLedgEntryBuf."Document Type"::Invoice then
+            if SalesInvHeader.Get(OldCVLedgEntryBuf."Document No.") then
+                if SalesInvHeader."EE Fleetrock ID" <> '' then
+                    SingleInstance.AddAppliedSalesInvHeaderNo(SalesInvHeader."No.", NewCVLedgEntryBuf."Posting Date");
+    end;
+
+    // [EventSubscriber(ObjectType::Codeunit, Codeunit::"Gen. Jnl.-Post Batch", OnAfterProcessLines, '', false, false)]
+    // local procedure GenJnlPostBatchOnAfterProcessLines(SuppressCommit: Boolean; PreviewMode: Boolean)
+
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Gen. Jnl.-Post Batch", OnBeforeCommit, '', false, false)]
+    local procedure GenJnlPostBatchOnAfterProcessLines()
+    var
+        DocNoList: Dictionary of [Code[20], Date];
+
+        //debug
+        SuppressCommit: Boolean;
+        PreviewMode: Boolean;
+    begin
+        if not SuppressCommit and not PreviewMode then begin
+            DocNoList := SingleInstance.GetAppliedSalesInvHeaderNos();
+            if DocNoList.Count() > 0 then
+                FleetrockMgt.UpdatePaidRepairOrders(DocNoList);
+        end;
+
+        SingleInstance.ClearAppliedSalesInvHeaderNos();
     end;
 
 
-
-
-    // [EventSubscriber(ObjectType::Codeunit, Codeunit::"Gen. Jnl.-Post Line", OnAfterPostApply, '', false, false)]
-    // local procedure GenJnlPostLineOnAfterPostApply(GenJnlLine: Record "Gen. Journal Line")
-    // begin
-    //     if GenJnlLine."Applies-to ID" <> '' then;
-    // end;
 
 
     var
