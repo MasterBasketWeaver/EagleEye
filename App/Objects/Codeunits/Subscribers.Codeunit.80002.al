@@ -126,24 +126,16 @@ codeunit 80002 "EE Subscribers"
                     SingleInstance.AddAppliedSalesInvHeaderNo(SalesInvHeader."No.", NewCVLedgEntryBuf."Posting Date");
     end;
 
-    // [EventSubscriber(ObjectType::Codeunit, Codeunit::"Gen. Jnl.-Post Batch", OnAfterProcessLines, '', false, false)]
-    // local procedure GenJnlPostBatchOnAfterProcessLines(SuppressCommit: Boolean; PreviewMode: Boolean)
-
-    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Gen. Jnl.-Post Batch", OnBeforeCommit, '', false, false)]
-    local procedure GenJnlPostBatchOnAfterProcessLines()
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Gen. Jnl.-Post Batch", OnAfterProcessLines, '', false, false)]
+    local procedure GenJnlPostBatchOnAfterProcessLines(SuppressCommit: Boolean; PreviewMode: Boolean)
     var
         DocNoList: Dictionary of [Code[20], Date];
-
-        //debug
-        SuppressCommit: Boolean;
-        PreviewMode: Boolean;
     begin
         if not SuppressCommit and not PreviewMode then begin
             DocNoList := SingleInstance.GetAppliedSalesInvHeaderNos();
             if DocNoList.Count() > 0 then
                 FleetrockMgt.UpdatePaidRepairOrders(DocNoList);
         end;
-
         SingleInstance.ClearAppliedSalesInvHeaderNos();
     end;
 
