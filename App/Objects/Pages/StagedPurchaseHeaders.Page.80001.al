@@ -252,8 +252,7 @@ page 80001 "EE Staged Purchased Headers"
                     GetPurchaseOrders: Codeunit "EE Get Purchase Orders";
                 begin
                     PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, Rec."Document No.");
-                    if not GetPurchaseOrders.PostOrder(PurchaseHeader, Rec) then
-                        Error(GetLastErrorText());
+                    GetPurchaseOrders.PostOrder(PurchaseHeader, Rec);
                 end;
             }
         }

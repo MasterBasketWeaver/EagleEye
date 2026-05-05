@@ -1872,20 +1872,47 @@ codeunit 80000 "EE Fleetrock Mgt."
         RecRef.SetTable(RecVar);
     end;
 
-
-
-
-    [EventSubscriber(ObjectType::Table, Database::"Gen. Journal Batch", OnMoveGenJournalBatch, '', false, false)]
-    local procedure GenJoournalBatchOnMoveGenJournalBatch(ToRecordID: RecordId)
-    var
-        RecRef: RecordRef;
+    [TryFunction]
+    procedure TryToGetStatusFromOrderJsonObj(var OrderJsonObj: JsonObject; var Status: Enum "EE Repair Order Status")
     begin
-        if RecRef.Get(ToRecordID) then
-            if RecRef.Number() = Database::"G/L Register" then
-                CheckForPaidCustLedgerEntries(RecRef);
+        case JsonMgt.GetJsonValueAsText(OrderJsonObj, 'status').ToUpper() of
+            'FINISHED':
+                Status := Status::finished;
+            'INVOICED':
+                Status := Status::invoiced;
+            'STARTED':
+                Status := Status::started;
+            'PAID':
+                Status := Status::paid;
+            'DELETED':
+                Status := Status::deleted;
+            'NOTSTARTED':
+                Status := Status::notstarted;
+            'WAITING':
+                Status := Status::waiting;
+            '':
+                Error('Status is missing in the JSON object.\%1', OrderJsonObj);
+            else
+                Error('Unknown status in the JSON object.\%1', OrderJsonObj);
+        end;
     end;
 
-    local procedure CheckForPaidCustLedgerEntries(var RecRef: RecordRef)
+    local procedure TryToGetOrderID(var OrderJsonObj: JsonObject; var OrderId: Text; ImportType: Enum "EE Import Type")
+    begin
+        OrderId := JsonMgt.GetJsonValueAsText(OrderJsonObj, 'id');
+        if OrderId = '' then begin
+            OrderJsonObj.WriteTo(OrderId);
+            Error('%1 ID is missing in the JSON object.\%2', ImportType, OrderId);
+        end;
+    end;
+
+
+
+
+
+
+
+    procedure CheckForPaidCustLedgerEntries(var RecRef: RecordRef)
     var
         SalesInvHeader: Record "Sales Invoice Header";
         CustLedgerEntry, CustLedgerEntry2 : Record "Cust. Ledger Entry";
@@ -1919,7 +1946,45 @@ codeunit 80000 "EE Fleetrock Mgt."
         until CustLedgerEntry.Next() = 0;
     end;
 
-    procedure UpdatePaidRepairOrder(OrderId: Text; PaidDateTime: DateTime; var SalesInvHeader: Record "Sales Invoice Header")
+    procedure UpdatePaidRepairOrders(var DocNoList: Dictionary of [Code[20], Date])
+    var
+
+        SalesInvHeader: Record "Sales Invoice Header";
+        Window: Dialog;
+        PaidDateTime: DateTime;
+        PaidDate: Date;
+        DocNo: Code[20];
+        i, RecCount : Integer;
+        HasFailed: Boolean;
+    begin
+        if GuiAllowed() then begin
+            Window.Open('Updating Fleetrock Repair Orders...\#1##');
+            RecCount := DocNoList.Count();
+        end;
+        foreach DocNo in DocNoList.Keys() do begin
+            if GuiAllowed() then begin
+                i += 1;
+                Window.Update(1, StrSubstNo('%1 of %2: %3', i, RecCount, DocNo));
+            end;
+            SalesInvHeader.Get(DocNo);
+            PaidDate := DocNoList.Get(DocNo);
+            if PaidDate <> 0D then
+                PaidDateTime := CreateDateTime(PaidDate, Time())
+            else
+                PaidDateTime := CurrentDateTime();
+            if not HasFailed then
+                HasFailed := not UpdatePaidRepairOrder(SalesInvHeader."EE Fleetrock ID", PaidDateTime, SalesInvHeader)
+            else
+                UpdatePaidRepairOrder(SalesInvHeader."EE Fleetrock ID", PaidDateTime, SalesInvHeader);
+        end;
+        if GuiAllowed() then begin
+            Window.Close();
+            if HasFailed then
+                Message('One or more Repair Orders failed to have payment applied in Fleetrock, please check Fleetrock Import/Export Entries for more details.');
+        end;
+    end;
+
+    procedure UpdatePaidRepairOrder(OrderId: Text; PaidDateTime: DateTime; var SalesInvHeader: Record "Sales Invoice Header"): Boolean
     var
         ResponseArray: JsonArray;
         JsonBody, ResponseObj : JsonObject;
@@ -1927,34 +1992,37 @@ codeunit 80000 "EE Fleetrock Mgt."
         APIToken, URL, s : Text;
         Success: Boolean;
     begin
+        FleetrockSetup.Get();
         if SalesInvHeader."EE Sent Payment" and (SalesInvHeader."EE Sent Payment DateTime" <> 0DT) then begin
             InsertImportEntry(false, 0, Enum::"EE Import Type"::"Repair Order", Enum::"EE Event Type"::Paid,
-                Enum::"EE Direction"::Export, StrSubstNo('Invoice %1 already sent payment at %2', SalesInvHeader."No.", SalesInvHeader."EE Sent Payment DateTime"), URL, 'POST', FleetrockSetup.Username, JsonBody);
-            exit;
+                Enum::"EE Direction"::Export, StrSubstNo('Invoice %1 already sent payment at %2', SalesInvHeader."No.", SalesInvHeader."EE Sent Payment DateTime"),
+                URL, 'POST', FleetrockSetup.Username, JsonBody, SalesInvHeader."No.");
+            exit(false);
         end;
         APIToken := CheckToGetAPIToken();
         URL := StrSubstNo('%1/API/UpdateRO?token=%2', FleetrockSetup."Integration URL", APIToken);
         JsonBody := CreateUpdateRepairOrderJsonBody(FleetrockSetup.Username, OrderId, PaidDateTime);
         if not RestAPIMgt.TryToGetResponseAsJsonArray(URL, 'response', 'POST', JsonBody, ResponseArray) then begin
             InsertImportEntry(false, 0, Enum::"EE Import Type"::"Repair Order", Enum::"EE Event Type"::Paid,
-                Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', FleetrockSetup.Username, JsonBody);
-            exit;
+                Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', FleetrockSetup.Username, JsonBody, SalesInvHeader."No.");
+            exit(false);
         end;
         if (ResponseArray.Count() = 0) then
-            exit;
+            exit(false);
         if not ResponseArray.Get(0, T) then begin
             ResponseArray.WriteTo(s);
             InsertImportEntry(false, 0, Enum::"EE Import Type"::"Repair Order", Enum::"EE Event Type"::Paid,
-               Enum::"EE Direction"::Export, 'Failed to load results token from response array: ' + s, URL, 'POST', FleetrockSetup.Username, JsonBody);
-            exit;
+               Enum::"EE Direction"::Export, 'Failed to load results token from response array: ' + s, URL, 'POST', FleetrockSetup.Username, JsonBody, SalesInvHeader."No.");
+            exit(false);
         end;
         ClearLastError();
         Success := TryToHandleRepairUpdateResponse(T, OrderId, 'Failed to update Repair Order %1:\%2');
         InsertImportEntry(Success and (GetLastErrorText() = ''), 0, Enum::"EE Import Type"::"Repair Order",
-            Enum::"EE Event Type"::Paid, Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', FleetrockSetup.Username, JsonBody);
+            Enum::"EE Event Type"::Paid, Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', FleetrockSetup.Username, JsonBody, SalesInvHeader."No.");
         SalesInvHeader."EE Sent Payment" := Success;
         SalesInvHeader."EE Sent Payment DateTime" := CurrentDateTime();
         SalesInvHeader.Modify(true);
+        exit(Success);
     end;
 
     [TryFunction]
@@ -2417,7 +2485,6 @@ codeunit 80000 "EE Fleetrock Mgt."
         ImportEntry."Request Body" := CopyStr(s, 1, MaxStrLen(ImportEntry."Request Body"));
         ImportEntry.Direction := Direction;
         ImportEntry."Source Account" := Username;
-
         ImportEntry.Insert(true);
     end;
 

@@ -124,13 +124,19 @@ codeunit 80003 "EE Get Repair Orders"
             OrderJsonObj := T.AsObject();
             if IsValidToImport(FleetRockSetup, OrderJsonObj) then begin
                 ImportEntryNo := 0;
-                Success := false;
+                Success := true;
                 LogEntry := false;
                 ClearLastError();
-                if FleetRockSetup."Import Repairs as Purchases" then
-                    Success := ImportAsPurchaseOrder(FleetRockSetup, OrderJsonObj, OrderStatus, ImportEntryNo, LogEntry, Username)
-                else
-                    Success := ImportAsSalesInvoice(FleetRockSetup, OrderJsonObj, OrderStatus, ImportEntryNo, LogEntry, Username);
+                if EventType = EventType::"Manual Import" then begin
+                    Success := FleetRockMgt.TryToGetStatusFromOrderJsonObj(OrderJsonObj, OrderStatus);
+                    if not Success then
+                        LogEntry := true;
+                end;
+                if Success then
+                    if FleetRockSetup."Import Repairs as Purchases" then
+                        Success := ImportAsPurchaseOrder(FleetRockSetup, OrderJsonObj, OrderStatus, ImportEntryNo, LogEntry, Username)
+                    else
+                        Success := ImportAsSalesInvoice(FleetRockSetup, OrderJsonObj, OrderStatus, ImportEntryNo, LogEntry, Username);
                 if LogEntry then
                     FleetRockMgt.InsertImportEntry(Success and (GetLastErrorText() = ''), ImportEntryNo, ImportType, EventType, Enum::"EE Direction"::Import, GetLastErrorText(), URL, 'GET', Username);
             end;
