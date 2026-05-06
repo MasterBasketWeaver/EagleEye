@@ -3,7 +3,8 @@ codeunit 80006 "EE Upgrade"
     Subtype = Upgrade;
     Permissions = tabledata "EE Import/Export Entry" = RIMD,
     tabledata "EE Sales Header Staging" = RMD,
-    tabledata "EE Purch. Header Staging" = RMD;
+    tabledata "EE Purch. Header Staging" = RMD,
+    tabledata "Sales Invoice Header" = RIMD;
 
 
     trigger OnUpgradePerCompany()
@@ -17,6 +18,19 @@ codeunit 80006 "EE Upgrade"
         // PopulateDocumentNos();
         // ClearInvalidEntries();
         // PopulateFleetrockIDs();
+        ClearPaymentFields();
+    end;
+
+    local procedure ClearPaymentFields()
+    var
+        SalesInvHeader: Record "Sales Invoice Header";
+        DataTrans: DataTransfer;
+    begin
+        DataTrans.SetTables(Database::"Sales Invoice Header", Database::"Sales Invoice Header");
+        DataTrans.AddConstantValue(false, SalesInvHeader.FieldNo("EE Sent Payment"));
+        DataTrans.AddConstantValue(false, SalesInvHeader.FieldNo("EE No Repair Order On Payment"));
+        DataTrans.AddConstantValue(0DT, SalesInvHeader.FieldNo("EE Sent Payment DateTime"));
+        DataTrans.CopyFields();
     end;
 
 
