@@ -38,20 +38,22 @@ page 80003 "EE Fleetrock Entries"
 
                     trigger OnDrillDown()
                     var
-                        SalesInvHeader: Record "Sales Invoice Header";
                         SalesHeaderStaging: Record "EE Sales Header Staging";
                         PurchHeaderStaging: Record "EE Purch. Header Staging";
+                        SalesInvHeader: Record "Sales Invoice Header";
+                        PurchInvHeader: Record "Purch. Inv. Header";
                     begin
                         case Rec."Document Type" of
                             Rec."Document Type"::"Purchase Order":
-                                if PurchHeaderStaging.Get(Rec."Import Entry No.") then
-                                    PurchHeaderStaging.DocumentDrillDown();
+                                if PurchHeaderStaging.Get(Rec."Import Entry No.") and (Rec."Import Entry No." <> 0) then
+                                    PurchHeaderStaging.DocumentDrillDown()
+                                else if PurchInvHeader.Get(Rec."Document No.") then
+                                    Page.Run(Page::"Posted Purchase Invoice", PurchInvHeader);
                             Rec."Document Type"::"Repair Order":
-                                if SalesHeaderStaging.Get(Rec."Import Entry No.") then
+                                if SalesHeaderStaging.Get(Rec."Import Entry No.") and (Rec."Import Entry No." <> 0) then
                                     SalesHeaderStaging.DocumentDrillDown()
-                                else if Rec."Document No." <> '' then
-                                    if SalesInvHeader.Get(Rec."Document No.") then
-                                        Page.Run(Page::"Posted Sales Invoice", SalesInvHeader);
+                                else if SalesInvHeader.Get(Rec."Document No.") then
+                                    Page.Run(Page::"Posted Sales Invoice", SalesInvHeader);
                         end;
                     end;
                 }

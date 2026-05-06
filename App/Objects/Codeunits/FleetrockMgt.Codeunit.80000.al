@@ -1074,11 +1074,36 @@ codeunit 80000 "EE Fleetrock Mgt."
     procedure GetAndImportRepairOrder(ID: Text; UseVendorAccount: Boolean)
     var
         GetRepairOrdersCU: Codeunit "EE Get Repair Orders";
-        JsonArray, JsonArray2 : JsonArray;
-        JTkn: JsonToken;
+        JsonArray: JsonArray;
         JObjt: JsonObject;
         StartDateTime, EndDateTime : DateTime;
         APIToken, URL, Username : Text;
+    begin
+        if not DoesRepairOrderExist(ID, UseVendorAccount, JObjt, URL, Username) then
+            Error('Repair Order with ID "%1" not found.', ID);
+        if not GetRepairOrdersCU.IsValidToImport(JObjt) then
+            if not Confirm('Order %1 has been found but is not from an internal customer. Do you want to continue?', false, ID) then
+                exit;
+        JsonArray.Add(JObjt);
+        GetRepairOrdersCU.ImportRepairOrders(JsonArray, Enum::"EE Repair Order Status"::Invoiced, Enum::"EE Event Type"::"Manual Import", URL, Username);
+    end;
+
+    procedure DoesRepairOrderExist(ID: Text; UseVendorAccount: Boolean): Boolean
+    var
+        JObjt: JsonObject;
+        URL, Username : Text;
+    begin
+        exit(DoesRepairOrderExist(ID, UseVendorAccount, JObjt, URL, Username));
+    end;
+
+    local procedure DoesRepairOrderExist(ID: Text; UseVendorAccount: Boolean; var JObjt: JsonObject; var URL: Text; var Username: Text): Boolean
+    var
+        GetRepairOrdersCU: Codeunit "EE Get Repair Orders";
+        JsonArray: JsonArray;
+        JsonBody: JsonObject;
+        JTkn: JsonToken;
+        StartDateTime, EndDateTime : DateTime;
+        APIToken: Text;
     begin
         StartDateTime := CurrentDateTime();
         GetEventParameters(APIToken, StartDateTime, EndDateTime, UseVendorAccount);
@@ -1089,21 +1114,19 @@ codeunit 80000 "EE Fleetrock Mgt."
             URL := StrSubstNo('%1/API/GetRO?username=%2&ID=%3&token=%4', FleetrockSetup."Integration URL", FleetrockSetup.Username, ID, APIToken);
             Username := FleetrockSetup.Username;
         end;
-        JsonArray := RestAPIMgt.GetResponseAsJsonArray(URL, 'repair_orders');
+        Clear(JObjt);
+        if not RestAPIMgt.TryToGetResponseAsJsonArray(URL, 'repair_orders', 'GET', JsonBody, JsonArray) then
+            exit(false);
+        if JsonArray.Count() = 0 then
+            exit(false);
 
         foreach JTkn in JsonArray do begin
             JObjt := JTkn.AsObject();
-            if JsonMgt.GetJsonValueAsText(JObjt, 'id') = ID then begin
-                JsonArray2.Add(JObjt);
-                if not GetRepairOrdersCU.IsValidToImport(JObjt) then
-                    if not Confirm('Order %1 has been found but is not from an internal customer. Do you want to continue?', false, ID) then
-                        exit;
-                GetRepairOrdersCU.ImportRepairOrders(JsonArray2, Enum::"EE Repair Order Status"::Invoiced, Enum::"EE Event Type"::"Manual Import", URL, Username);
-                exit;
-            end;
+            if JsonMgt.GetJsonValueAsText(JObjt, 'id') = ID then
+                exit(true);
+            Clear(JObjt);
         end;
-
-        Error('Repair Order with ID "%1" not found.', ID);
+        exit(false);
     end;
 
 
@@ -1999,8 +2022,8 @@ codeunit 80000 "EE Fleetrock Mgt."
         JsonBody, ResponseObj : JsonObject;
         T: JsonToken;
         APIToken, URL, s : Text;
-        TempEntryNo: Integer;
-        Success: Boolean;
+        TempEntryNo, i, i2 : Integer;
+        Success, PassTimeout : Boolean;
     begin
         FleetrockSetup.Get();
         if SalesInvHeader."EE Sent Payment" and (SalesInvHeader."EE Sent Payment DateTime" <> 0DT) then begin
@@ -2013,9 +2036,22 @@ codeunit 80000 "EE Fleetrock Mgt."
         URL := StrSubstNo('%1/API/UpdateRO?token=%2', FleetrockSetup."Integration URL", APIToken);
         JsonBody := CreateUpdateRepairOrderJsonBody(FleetrockSetup.Username, OrderId, PaidDateTime);
         if not RestAPIMgt.TryToGetResponseAsJsonArray(URL, 'response', 'POST', JsonBody, ResponseArray) then begin
-            InsertImportEntry(false, 0, Enum::"EE Import Type"::"Repair Order", Enum::"EE Event Type"::Paid,
-                Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', FleetrockSetup.Username, JsonBody, SalesInvHeader."No.");
-            exit(false);
+            if GetLastErrorText.Contains('403 Forbidden') then begin
+                i2 := 2;
+                for i := 0 to 2 do begin
+                    Sleep(i2 * 1000);
+                    if RestAPIMgt.TryToGetResponseAsJsonArray(URL, 'response', 'POST', JsonBody, ResponseArray) then begin
+                        PassTimeout := true;
+                        break;
+                    end;
+                    i2 *= 2;
+                end;
+            end;
+            if not PassTimeout then begin
+                InsertImportEntry(false, 0, Enum::"EE Import Type"::"Repair Order", Enum::"EE Event Type"::Paid,
+                    Enum::"EE Direction"::Export, GetLastErrorText(), URL, 'POST', FleetrockSetup.Username, JsonBody, SalesInvHeader."No.");
+                exit(false);
+            end;
         end;
         if (ResponseArray.Count() = 0) then
             exit(false);
@@ -2461,6 +2497,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         ImportEntry: Record "EE Import/Export Entry";
         PurchHeaderStaging: Record "EE Purch. Header Staging";
         SalesHeaderStaging: Record "EE Sales Header Staging";
+        SalesInvHeader: Record "Sales Invoice Header";
         s: Text;
     begin
         if DocNo = '' then
@@ -2505,15 +2542,19 @@ codeunit 80000 "EE Fleetrock Mgt."
         ImportEntry."Error Message" := ErrorMsg;
         ImportEntry."Error Stack" := CopyStr(GetLastErrorCallStack(), 1, MaxStrLen(ImportEntry."Error Stack"));
         ImportEntry."Import Entry No." := ImportEntryNo;
-        if ImportEntry."Import Entry No." <> 0 then
-            case Type of
-                Type::"Purchase Order":
-                    if PurchHeaderStaging.Get(ImportEntryNo) then
-                        ImportEntry."Fleetrock ID" := PurchHeaderStaging.id;
-                Type::"Repair Order":
-                    if SalesHeaderStaging.Get(ImportEntryNo) then
-                        ImportEntry."Fleetrock ID" := SalesHeaderStaging.id;
-            end;
+        if (EventType = EventType::Paid) and (DocNo <> '') then begin
+            if SalesInvHeader.Get(DocNo) then
+                ImportEntry."Fleetrock ID" := SalesInvHeader."EE Fleetrock ID";
+        end else
+            if ImportEntry."Import Entry No." <> 0 then
+                case Type of
+                    Type::"Purchase Order":
+                        if PurchHeaderStaging.Get(ImportEntryNo) then
+                            ImportEntry."Fleetrock ID" := PurchHeaderStaging.id;
+                    Type::"Repair Order":
+                        if SalesHeaderStaging.Get(ImportEntryNo) then
+                            ImportEntry."Fleetrock ID" := SalesHeaderStaging.id;
+                end;
         if DocNo <> '' then
             ImportEntry."Document No." := DocNo;
         ImportEntry."Event Type" := EventType;

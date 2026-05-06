@@ -256,7 +256,8 @@ table 80001 "EE Purch. Header Staging"
                 PurchInvHeader.SetCurrentKey("Pre-Assigned No.");
                 PurchInvHeader.SetRange("Pre-Assigned No.", Rec."Document No.");
                 if not PurchInvHeader.FindFirst() then
-                    exit;
+                    if not PurchInvHeader.Get(Rec."Document No.") then
+                        exit;
             end;
             Page.Run(Page::"Posted Purchase Invoice", PurchInvHeader);
         end;

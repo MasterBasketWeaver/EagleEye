@@ -419,7 +419,8 @@ table 80004 "EE Sales Header Staging"
                 SalesInvHeader.SetCurrentKey("Pre-Assigned No.");
                 SalesInvHeader.SetRange("Pre-Assigned No.", Rec."Document No.");
                 if not SalesInvHeader.FindFirst() then
-                    exit;
+                    if not SalesInvHeader.Get(Rec."Document No.") then
+                        exit
             end;
             Page.Run(Page::"Posted Sales Invoice", SalesInvHeader);
         end else
