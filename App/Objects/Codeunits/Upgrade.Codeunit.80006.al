@@ -18,7 +18,7 @@ codeunit 80006 "EE Upgrade"
         // PopulateDocumentNos();
         // ClearInvalidEntries();
         // PopulateFleetrockIDs();
-        ClearPaymentFields();
+        // ClearPaymentFields();
     end;
 
     local procedure ClearPaymentFields()
