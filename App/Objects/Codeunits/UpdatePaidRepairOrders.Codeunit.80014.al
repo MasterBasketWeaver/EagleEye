@@ -15,9 +15,7 @@ codeunit 80014 "EE Update Paid Repair Orders"
         SalesInvHeader.SetRange("EE No Repair Order On Payment", false);
         SalesInvHeader.SetRange(Closed, true);
         SalesInvHeader.SetRange("Remaining Amount", 0);
-
-        SalesInvHeader.SetRange("No.", 'PSINV002909');
-
+        SalesInvHeader.SetRange(Cancelled, false);
         if not SalesInvHeader.FindSet() then
             exit;
 
