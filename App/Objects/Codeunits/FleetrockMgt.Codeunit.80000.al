@@ -255,11 +255,16 @@ codeunit 80000 "EE Fleetrock Mgt."
     begin
         PurchLineStaging.SetRange("Header id", PurchHeaderStaging.id);
         PurchLineStaging.SetRange("Header Entry No.", PurchHeaderStaging."Entry No.");
-        if not PurchLineStaging.FindSet() then
+        PurchaseLine.SetRange("Document Type", PurchaseLine."Document Type"::Order);
+        PurchaseLine.SetRange("Document No.", DocNo);
+        if not PurchLineStaging.FindSet() then begin
+            PurchaseLine.DeleteAll(true);
             exit;
+        end;
+        if PurchaseLine.FindLast() then
+            LineNo := PurchaseLine."Line No.";
         repeat
-            LineNo += 10000;
-            AddPurchaseLine(PurchaseLine, PurchLineStaging, DocNo, LineNo);
+            AddPurchaseLine(PurchLineStaging, DocNo, LineNo);
         until PurchLineStaging.Next() = 0;
         if PurchHeaderStaging.tax_total <> 0 then
             AddExtraPurchLine(LineNo, DocNo, 'Taxes', PurchHeaderStaging.tax_total, GetTaxLineID());
@@ -267,21 +272,29 @@ codeunit 80000 "EE Fleetrock Mgt."
             AddExtraPurchLine(LineNo, DocNo, 'Shipping', PurchHeaderStaging.shipping_total, GetShippingLineID());
         if PurchHeaderStaging.other_total <> 0 then
             AddExtraPurchLine(LineNo, DocNo, 'Other Charges', PurchHeaderStaging.other_total, GetOtherLineID());
+
+        if PurchaseLine.FindSet() then
+            repeat
+                PurchLineStaging.SetRange(part_id, PurchaseLine."EE Part Id");
+                if PurchLineStaging.IsEmpty() then begin
+                    OnBeforePurchaseLineDelete(PurchaseLine);
+                    PurchaseLine.Delete(true);
+                    OnAfterPurchaseLineDelete(PurchaseLine);
+                end;
+            until PurchaseLine.Next() = 0;
     end;
 
 
     local procedure AddExtraPurchLine(var LineNo: Integer; DocNo: Code[20]; Descr: Text; Amount: Decimal; LineID: Code[20])
     var
-        PurchLine: Record "Purchase Line";
         PurchLineStaging: Record "EE Purch. Line Staging";
     begin
-        LineNo += 10000;
         PurchLineStaging.Init();
         PurchLineStaging.part_quantity := 1;
         PurchLineStaging.unit_price := Amount;
         PurchLineStaging.part_description := Descr;
         PurchLineStaging.part_id := LineID;
-        AddPurchaseLine(PurchLine, PurchLineStaging, DocNo, LineNo);
+        AddPurchaseLine(PurchLineStaging, DocNo, LineNo);
     end;
 
 
@@ -1723,11 +1736,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             PurchaseHeaderStaging.Validate("Document No.", PurchaseHeader."No.");
         PurchaseHeaderStaging.Modify(true);
 
-        PurchaseLine.SetRange("Document Type", PurchaseHeader."Document Type");
-        PurchaseLine.SetRange("Document No.", PurchaseHeader."No.");
-        PurchaseLine.DeleteAll(true);
-
-        CreatePurchaseLines(purchaseHeaderStaging, PurchaseHeader."No.");
+        CreatePurchaseLines(PurchaseHeaderStaging, PurchaseHeader."No.");
 
         PurchaseHeader.CalcFields(Amount, "Amount Including VAT");
         UpdatedAmount := (Amount <> PurchaseHeader.Amount) or (AmountIncludingVAT <> PurchaseHeader."Amount Including VAT");
@@ -1830,12 +1839,24 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchaseLine.SetRange("EE Part Id");
     end;
 
-    local procedure AddPurchaseLine(var PurchaseLine: Record "Purchase Line"; var PurchLineStaging: Record "EE Purch. Line Staging"; DocNo: Code[20]; LineNo: Integer)
+    local procedure AddPurchaseLine(var PurchLineStaging: Record "EE Purch. Line Staging"; DocNo: Code[20]; var LineNo: Integer)
+    var
+        PurchaseLine: Record "Purchase Line";
     begin
-        PurchaseLine.Init();
-        PurchaseLine.Validate("Document Type", Enum::"Purchase Document Type"::Order);
-        PurchaseLine.Validate("Document No.", DocNo);
-        PurchaseLine.Validate("Line No.", LineNo);
+        PurchaseLine.SetRange("Document Type", PurchaseLine."Document Type"::Order);
+        PurchaseLine.SetRange("Document No.", DocNo);
+        PurchaseLine.SetRange("EE Part Id", PurchLineStaging.part_id);
+        if not PurchaseLine.FindFirst() then begin
+            LineNo += 10000;
+            PurchaseLine.Init();
+            PurchaseLine.Validate("Document Type", Enum::"Purchase Document Type"::Order);
+            PurchaseLine.Validate("Document No.", DocNo);
+            PurchaseLine.Validate("Line No.", LineNo);
+            PurchaseLine.Validate("EE Part Id", PurchLineStaging.part_id);
+            OnBeforePurchaseLineInsert(PurchaseLine, PurchLineStaging);
+            PurchaseLine.Insert(true);
+            OnAfterPurchaseLineInsert(PurchaseLine, PurchLineStaging);
+        end;
         PurchaseLine.Validate(Type, PurchaseLine.Type::Item);
         PurchaseLine.Validate("No.", FleetRockSetup."Purchase Item No.");
         CopyPurchaseLineValues(PurchaseLine, PurchLineStaging);
@@ -1844,7 +1865,9 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchaseLine.Validate("EE Part Id", PurchLineStaging.part_id);
         PurchaseLine."EE Staging Line Entry No." := PurchLineStaging."Entry No."; //can't use validate as entry no will be zero for extra lines to handle taxes and other changes
 
-        PurchaseLine.Insert(true);
+        OnBeforePurchaseLineModify(PurchaseLine, PurchLineStaging);
+        PurchaseLine.Modify(true);
+        OnAfterPurchaseLineModify(PurchaseLine, PurchLineStaging);
     end;
 
     local procedure CopyPurchaseLineValues(var PurchaseLine: Record "Purchase Line"; var PurchLineStaging: Record "EE Purch. Line Staging")
@@ -2528,6 +2551,39 @@ codeunit 80000 "EE Fleetrock Mgt."
         ImportEntry.Direction := Direction;
         ImportEntry."Source Account" := Username;
         ImportEntry.Insert(true);
+    end;
+
+
+
+
+    [BusinessEvent(false)]
+    local procedure OnBeforePurchaseLineInsert(var PurchaseLine: Record "Purchase Line"; PurchLineStaging: Record "EE Purch. Line Staging")
+    begin
+    end;
+
+    [BusinessEvent(false)]
+    local procedure OnAfterPurchaseLineInsert(var PurchaseLine: Record "Purchase Line"; PurchLineStaging: Record "EE Purch. Line Staging")
+    begin
+    end;
+
+    [BusinessEvent(false)]
+    local procedure OnBeforePurchaseLineModify(var PurchaseLine: Record "Purchase Line"; PurchLineStaging: Record "EE Purch. Line Staging")
+    begin
+    end;
+
+    [BusinessEvent(false)]
+    local procedure OnAfterPurchaseLineModify(var PurchaseLine: Record "Purchase Line"; PurchLineStaging: Record "EE Purch. Line Staging")
+    begin
+    end;
+
+    [BusinessEvent(false)]
+    local procedure OnBeforePurchaseLineDelete(var PurchaseLine: Record "Purchase Line")
+    begin
+    end;
+
+    [BusinessEvent(false)]
+    local procedure OnAfterPurchaseLineDelete(var PurchaseLine: Record "Purchase Line")
+    begin
     end;
 
 
