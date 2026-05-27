@@ -19,6 +19,7 @@ codeunit 80006 "EE Upgrade"
         // ClearInvalidEntries();
         // PopulateFleetrockIDs();
         // ClearPaymentFields();
+        // UpdatePurchaseLineDateAddedValues();
     end;
 
     local procedure ClearPaymentFields()
@@ -141,5 +142,59 @@ codeunit 80006 "EE Upgrade"
         ImportExportEntry.SetRange("Error Message", '');
         ImportExportEntry.SetRange("Import Entry No.", 0);
         ImportExportEntry.DeleteAll(true);
+    end;
+
+
+
+
+
+
+    local procedure UpdatePurchaseLineDateAddedValues()
+    var
+        PurchaseHeader: Record "Purchase Header";
+        PurchaseLine: Record "Purchase Line";
+        PurchLineStaging: Record "EE Purch. Line Staging";
+        Values: Dictionary of [Code[20], List of [Text]];
+        Dates: List of [Text];
+        DateValue, DateFilter : Text;
+    begin
+        PurchaseHeader.SetFilter("EE Fleetrock ID", '<>%1', '');
+        if not PurchaseHeader.FindSet() then
+            exit;
+
+        PurchaseLine.SetRange("Document Type", PurchaseLine."Document Type"::Order);
+        PurchaseLine.SetRange(Type, PurchaseLine.Type::Item);
+        PurchaseLine.SetFilter("EE Part Id", '<>%1', '');
+        PurchaseLine.SetFilter("EE Staging Line Entry No.", '<>%1', 0);
+        repeat
+            PurchaseLine.SetRange("Document No.", PurchaseHeader."No.");
+            if PurchaseLine.FindSet() then begin
+                PurchLineStaging.SetRange("Header id", PurchaseHeader."EE Fleetrock ID");
+                repeat
+                    PurchLineStaging.SetRange(part_id, PurchaseLine."EE Part Id");
+                    if Values.ContainsKey(PurchaseLine."EE Part Id") then begin
+                        DateFilter := '';
+                        foreach DateValue in Values.Get(PurchaseLine."EE Part Id") do
+                            if DateFilter = '' then
+                                DateFilter := StrSubstNo('<>%1', DateValue)
+                            else
+                                DateFilter := StrSubstNo('%1&<>%2', DateFilter, DateValue);
+                        PurchLineStaging.SetFilter(date_added, DateFilter);
+                    end else
+                        PurchLineStaging.SetRange(date_added);
+                    if PurchLineStaging.FindLast() then begin
+                        PurchaseLine."EE Part Date Added" := PurchLineStaging.date_added;
+                        PurchaseLine.Modify(false);
+                        if not Values.ContainsKey(PurchaseLine."EE Part Id") then begin
+                            Clear(Dates);
+                            Dates.Add(PurchLineStaging.date_added);
+                            Values.Add(PurchaseLine."EE Part Id", Dates);
+                        end else
+                            Values.Get(PurchaseLine."EE Part Id").Add(PurchLineStaging.date_added);
+                    end;
+                until PurchaseLine.Next() = 0;
+            end;
+            Clear(Values);
+        until PurchaseHeader.Next() = 0;
     end;
 }

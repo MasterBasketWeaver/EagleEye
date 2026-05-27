@@ -15,5 +15,11 @@ tableextension 80008 "EE Purchase Line" extends "Purchase Line"
             Caption = 'Staging Line Entry No.';
             TableRelation = "EE Purch. Line Staging"."Entry No.";
         }
+        field(80002; "EE Part Date Added"; Text[50])
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+            Caption = 'Part Date Added';
+        }
     }
 }
