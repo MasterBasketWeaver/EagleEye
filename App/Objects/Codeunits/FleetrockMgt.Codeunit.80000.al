@@ -266,22 +266,35 @@ codeunit 80000 "EE Fleetrock Mgt."
         repeat
             AddPurchaseLine(PurchHeaderStaging, PurchLineStaging, DocNo, LineNo);
         until PurchLineStaging.Next() = 0;
-        if PurchHeaderStaging.tax_total <> 0 then
-            AddExtraPurchLine(PurchHeaderStaging, LineNo, DocNo, 'Taxes', PurchHeaderStaging.tax_total, GetTaxLineID());
-        if PurchHeaderStaging.shipping_total <> 0 then
-            AddExtraPurchLine(PurchHeaderStaging, LineNo, DocNo, 'Shipping', PurchHeaderStaging.shipping_total, GetShippingLineID());
-        if PurchHeaderStaging.other_total <> 0 then
-            AddExtraPurchLine(PurchHeaderStaging, LineNo, DocNo, 'Other Charges', PurchHeaderStaging.other_total, GetOtherLineID());
 
+        UpdateExtraLine(PurchHeaderStaging, PurchaseLine, LineNo, DocNo, GetTaxLineID(), 'Taxes', PurchHeaderStaging.tax_total);
+        UpdateExtraLine(PurchHeaderStaging, PurchaseLine, LineNo, DocNo, GetShippingLineID(), 'Shipping', PurchHeaderStaging.shipping_total);
+        UpdateExtraLine(PurchHeaderStaging, PurchaseLine, LineNo, DocNo, GetOtherLineID(), 'Other Charges', PurchHeaderStaging.other_total);
+        PurchaseLine.SetFilter("EE Part Id", '<>%1&<>%2&<>%3', GetTaxLineID(), GetShippingLineID(), GetOtherLineID());
         if PurchaseLine.FindSet() then
             repeat
                 PurchLineStaging.SetRange(part_id, PurchaseLine."EE Part Id");
+                PurchLineStaging.SetRange(date_added, PurchaseLine."EE Part Date Added");
                 if PurchLineStaging.IsEmpty() then begin
                     OnBeforePurchaseLineDelete(PurchaseLine);
                     PurchaseLine.Delete(true);
                     OnAfterPurchaseLineDelete(PurchaseLine);
                 end;
             until PurchaseLine.Next() = 0;
+    end;
+
+
+    local procedure UpdateExtraLine(var PurchHeaderStaging: Record "EE Purch. Header Staging"; var PurchaseLine: Record "Purchase Line"; var LineNo: Integer; DocNo: Code[20]; LineID: Code[20]; Descr: Text; Amount: Decimal)
+    begin
+        if Amount = 0 then begin
+            PurchaseLine.SetRange("EE Part Id", LineID);
+            if PurchaseLine.FindFirst() then begin
+                OnBeforePurchaseLineDelete(PurchaseLine);
+                PurchaseLine.Delete(true);
+                OnAfterPurchaseLineDelete(PurchaseLine);
+            end;
+        end else
+            AddExtraPurchLine(PurchHeaderStaging, LineNo, DocNo, Descr, Amount, LineID);
     end;
 
 
@@ -297,6 +310,94 @@ codeunit 80000 "EE Fleetrock Mgt."
         AddPurchaseLine(PurchHeaderStaging, PurchLineStaging, DocNo, LineNo);
     end;
 
+
+    local procedure GetShippingLineID(): Code[20]
+    begin
+        exit('shipping');
+    end;
+
+    local procedure GetTaxLineID(): Code[20]
+    begin
+        exit('tax');
+    end;
+
+    local procedure GetOtherLineID(): Code[20]
+    begin
+        exit('other');
+    end;
+
+    local procedure GetFeesLineID(): Code[20]
+    begin
+        exit('fees');
+    end;
+
+
+    local procedure UpdateExtraPurchaseLines(var PurchaseLine: Record "Purchase Line"; var PurchaseHeaderStaging: Record "EE Purch. Header Staging"; DocNo: Code[20]; var LineNo: Integer; LineID: Code[20]; Amount: Decimal; Descr: Text)
+    begin
+        PurchaseLine.SetRange("EE Part Id", LineID);
+        if Amount <> 0 then begin
+            if PurchaseLine.FindFirst() then begin
+                PurchaseLine.Validate("Unit Cost", Amount);
+                PurchaseLine.Validate("Direct Unit Cost", Amount);
+                PurchaseLine.Modify(true);
+            end else
+                AddExtraPurchLine(PurchaseHeaderStaging, LineNo, DocNo, Descr, Amount, LineID);
+        end else
+            if PurchaseLine.FindFirst() then
+                PurchaseLine.Delete(true);
+        PurchaseLine.SetRange("EE Part Id");
+    end;
+
+    local procedure AddPurchaseLine(var PurchHeaderStaging: Record "EE Purch. Header Staging"; var PurchLineStaging: Record "EE Purch. Line Staging"; DocNo: Code[20]; var LineNo: Integer)
+    var
+        PurchaseLine: Record "Purchase Line";
+    // UnitTypeMapping: Record "EE Unit Type Mapping";
+    begin
+        PurchaseLine.SetRange("Document Type", PurchaseLine."Document Type"::Order);
+        PurchaseLine.SetRange("Document No.", DocNo);
+        PurchaseLine.SetRange("EE Part Id", PurchLineStaging.part_id);
+        PurchaseLine.SetRange("EE Part Date Added", PurchLineStaging.date_added);
+        if not PurchaseLine.FindFirst() then begin
+            LineNo += 10000;
+            PurchaseLine.Init();
+            PurchaseLine.Validate("Document Type", Enum::"Purchase Document Type"::Order);
+            PurchaseLine.Validate("Document No.", DocNo);
+            PurchaseLine.Validate("Line No.", LineNo);
+            PurchaseLine.Validate("EE Part Id", PurchLineStaging.part_id);
+            PurchaseLine.Validate("EE Part Date Added", PurchLineStaging.date_added);
+            OnBeforePurchaseLineInsert(PurchaseLine, PurchLineStaging);
+            PurchaseLine.Insert(true);
+            OnAfterPurchaseLineInsert(PurchaseLine, PurchLineStaging);
+        end;
+        // if PurchLineStaging."Part Line" and (PurchHeaderStaging."Unit Type" <> PurchHeaderStaging."Unit Type"::" ") and UnitTypeMapping.Get(PurchHeaderStaging."Unit Type") and (UnitTypeMapping."G/L Account No." <> '') then begin
+        //     PurchaseLine.Validate(Type, PurchaseLine.Type::"G/L Account");
+        //     PurchaseLine.Validate("No.", UnitTypeMapping."G/L Account No.");
+        // end else begin
+        PurchaseLine.Validate(Type, PurchaseLine.Type::Item);
+        PurchaseLine.Validate("No.", FleetRockSetup."Purchase Item No.");
+        // end;
+        CopyPurchaseLineValues(PurchaseLine, PurchLineStaging);
+        PurchaseLine.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
+        PurchaseLine.Validate("Tax Group Code", FleetrockSetup."Non-Taxable Tax Group Code");
+        PurchaseLine.Validate("EE Part Id", PurchLineStaging.part_id);
+        PurchaseLine.Validate("EE Part Date Added", PurchLineStaging.date_added);
+        PurchaseLine."EE Staging Line Entry No." := PurchLineStaging."Entry No."; //can't use validate as entry no will be zero for extra lines to handle taxes and other changes
+
+        OnBeforePurchaseLineModify(PurchaseLine, PurchLineStaging);
+        PurchaseLine.Modify(true);
+        OnAfterPurchaseLineModify(PurchaseLine, PurchLineStaging);
+    end;
+
+    local procedure CopyPurchaseLineValues(var PurchaseLine: Record "Purchase Line"; var PurchLineStaging: Record "EE Purch. Line Staging")
+    begin
+        PurchaseLine.Validate("Qty. Rounding Precision", 0);
+        PurchaseLine.Validate("Qty. Rounding Precision (Base)", 0);
+        PurchaseLine.Validate(Quantity, PurchLineStaging.part_quantity);
+        PurchaseLine.Validate("Unit Cost", PurchLineStaging.unit_price);
+        PurchaseLine.Validate("Direct Unit Cost", PurchLineStaging.unit_price);
+        PurchaseLine.Description := CopyStr(PurchLineStaging.part_description, 1, MaxStrLen(PurchaseLine.Description));
+        PurchaseLine."Description 2" := CopyStr(PurchLineStaging.part_system_code, 1, MaxStrLen(PurchaseLine."Description 2"));
+    end;
 
 
 
@@ -1803,90 +1904,7 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
 
-    local procedure GetShippingLineID(): Code[20]
-    begin
-        exit('shipping');
-    end;
 
-    local procedure GetTaxLineID(): Code[20]
-    begin
-        exit('tax');
-    end;
-
-    local procedure GetOtherLineID(): Code[20]
-    begin
-        exit('other');
-    end;
-
-    local procedure GetFeesLineID(): Code[20]
-    begin
-        exit('fees');
-    end;
-
-
-    local procedure UpdateExtraPurchaseLines(var PurchaseLine: Record "Purchase Line"; var PurchaseHeaderStaging: Record "EE Purch. Header Staging"; DocNo: Code[20]; var LineNo: Integer; LineID: Code[20]; Amount: Decimal; Descr: Text)
-    begin
-        PurchaseLine.SetRange("EE Part Id", LineID);
-        if Amount <> 0 then begin
-            if PurchaseLine.FindFirst() then begin
-                PurchaseLine.Validate("Unit Cost", Amount);
-                PurchaseLine.Validate("Direct Unit Cost", Amount);
-                PurchaseLine.Modify(true);
-            end else
-                AddExtraPurchLine(PurchaseHeaderStaging, LineNo, DocNo, Descr, Amount, LineID);
-        end else
-            if PurchaseLine.FindFirst() then
-                PurchaseLine.Delete(true);
-        PurchaseLine.SetRange("EE Part Id");
-    end;
-
-    local procedure AddPurchaseLine(var PurchHeaderStaging: Record "EE Purch. Header Staging"; var PurchLineStaging: Record "EE Purch. Line Staging"; DocNo: Code[20]; var LineNo: Integer)
-    var
-        PurchaseLine: Record "Purchase Line";
-        UnitTypeMapping: Record "EE Unit Type Mapping";
-    begin
-        PurchaseLine.SetRange("Document Type", PurchaseLine."Document Type"::Order);
-        PurchaseLine.SetRange("Document No.", DocNo);
-        PurchaseLine.SetRange("EE Part Id", PurchLineStaging.part_id);
-        if not PurchaseLine.FindFirst() then begin
-            LineNo += 10000;
-            PurchaseLine.Init();
-            PurchaseLine.Validate("Document Type", Enum::"Purchase Document Type"::Order);
-            PurchaseLine.Validate("Document No.", DocNo);
-            PurchaseLine.Validate("Line No.", LineNo);
-            PurchaseLine.Validate("EE Part Id", PurchLineStaging.part_id);
-            OnBeforePurchaseLineInsert(PurchaseLine, PurchLineStaging);
-            PurchaseLine.Insert(true);
-            OnAfterPurchaseLineInsert(PurchaseLine, PurchLineStaging);
-        end;
-        if PurchLineStaging."Part Line" and (PurchHeaderStaging."Unit Type" <> PurchHeaderStaging."Unit Type"::" ") and UnitTypeMapping.Get(PurchHeaderStaging."Unit Type") and (UnitTypeMapping."G/L Account No." <> '') then begin
-            PurchaseLine.Validate(Type, PurchaseLine.Type::"G/L Account");
-            PurchaseLine.Validate("No.", UnitTypeMapping."G/L Account No.");
-        end else begin
-            PurchaseLine.Validate(Type, PurchaseLine.Type::Item);
-            PurchaseLine.Validate("No.", FleetRockSetup."Purchase Item No.");
-        end;
-        CopyPurchaseLineValues(PurchaseLine, PurchLineStaging);
-        PurchaseLine.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
-        PurchaseLine.Validate("Tax Group Code", FleetrockSetup."Non-Taxable Tax Group Code");
-        PurchaseLine.Validate("EE Part Id", PurchLineStaging.part_id);
-        PurchaseLine."EE Staging Line Entry No." := PurchLineStaging."Entry No."; //can't use validate as entry no will be zero for extra lines to handle taxes and other changes
-
-        OnBeforePurchaseLineModify(PurchaseLine, PurchLineStaging);
-        PurchaseLine.Modify(true);
-        OnAfterPurchaseLineModify(PurchaseLine, PurchLineStaging);
-    end;
-
-    local procedure CopyPurchaseLineValues(var PurchaseLine: Record "Purchase Line"; var PurchLineStaging: Record "EE Purch. Line Staging")
-    begin
-        PurchaseLine.Validate("Qty. Rounding Precision", 0);
-        PurchaseLine.Validate("Qty. Rounding Precision (Base)", 0);
-        PurchaseLine.Validate(Quantity, PurchLineStaging.part_quantity);
-        PurchaseLine.Validate("Unit Cost", PurchLineStaging.unit_price);
-        PurchaseLine.Validate("Direct Unit Cost", PurchLineStaging.unit_price);
-        PurchaseLine.Description := CopyStr(PurchLineStaging.part_description, 1, MaxStrLen(PurchaseLine.Description));
-        PurchaseLine."Description 2" := CopyStr(PurchLineStaging.part_system_code, 1, MaxStrLen(PurchaseLine."Description 2"));
-    end;
 
 
     procedure PopulateStagingTable(var RecVar: Variant; var OrderJsonObj: JsonObject; TableNo: Integer; StartFieldNo: Integer)
