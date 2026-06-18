@@ -251,7 +251,6 @@ codeunit 80000 "EE Fleetrock Mgt."
     var
         PurchaseLine: Record "Purchase Line";
         PurchLineStaging: Record "EE Purch. Line Staging";
-        SalesHeaderStaging: Record "EE Sales Header Staging";
         LineNo: Integer;
         UseMiscRec: Boolean;
     begin
@@ -264,14 +263,7 @@ codeunit 80000 "EE Fleetrock Mgt."
             exit;
         end;
 
-        if (FleetrockSetup."Misc. Rec. Customer Name" <> '') and (FleetrockSetup."Misc. Rec. Group Name" <> '') then begin
-            SalesHeaderStaging.SetRange("Purch. Staging Entry No.", PurchHeaderStaging."Entry No.");
-            if SalesHeaderStaging.FindFirst() then
-                UseMiscRec := (SalesHeaderStaging.customer_name.ToUpper() = FleetrockSetup."Misc. Rec. Customer Name".ToUpper()) and
-                              (SalesHeaderStaging.group.ToUpper() = FleetrockSetup."Misc. Rec. Group Name".ToUpper());
-            if UseMiscRec then
-                FleetrockSetup.TestField("Misc. Rec. Item No.");
-        end;
+        UseMiscRec := CheckToUseMiscRec(PurchHeaderStaging);
 
         if PurchaseLine.FindLast() then
             LineNo := PurchaseLine."Line No.";
@@ -279,9 +271,9 @@ codeunit 80000 "EE Fleetrock Mgt."
             AddPurchaseLine(PurchHeaderStaging, PurchLineStaging, DocNo, LineNo, UseMiscRec);
         until PurchLineStaging.Next() = 0;
 
-        UpdateExtraLine(PurchHeaderStaging, PurchaseLine, LineNo, DocNo, GetTaxLineID(), 'Taxes', PurchHeaderStaging.tax_total);
-        UpdateExtraLine(PurchHeaderStaging, PurchaseLine, LineNo, DocNo, GetShippingLineID(), 'Shipping', PurchHeaderStaging.shipping_total);
-        UpdateExtraLine(PurchHeaderStaging, PurchaseLine, LineNo, DocNo, GetOtherLineID(), 'Other Charges', PurchHeaderStaging.other_total);
+        UpdateExtraLine(PurchHeaderStaging, PurchaseLine, LineNo, DocNo, GetTaxLineID(), 'Taxes', PurchHeaderStaging.tax_total, UseMiscRec);
+        UpdateExtraLine(PurchHeaderStaging, PurchaseLine, LineNo, DocNo, GetShippingLineID(), 'Shipping', PurchHeaderStaging.shipping_total, UseMiscRec);
+        UpdateExtraLine(PurchHeaderStaging, PurchaseLine, LineNo, DocNo, GetOtherLineID(), 'Other Charges', PurchHeaderStaging.other_total, UseMiscRec);
         PurchaseLine.SetFilter("EE Part Id", '<>%1&<>%2&<>%3', GetTaxLineID(), GetShippingLineID(), GetOtherLineID());
         if PurchaseLine.FindSet() then
             repeat
@@ -296,7 +288,7 @@ codeunit 80000 "EE Fleetrock Mgt."
     end;
 
 
-    local procedure UpdateExtraLine(var PurchHeaderStaging: Record "EE Purch. Header Staging"; var PurchaseLine: Record "Purchase Line"; var LineNo: Integer; DocNo: Code[20]; LineID: Code[20]; Descr: Text; Amount: Decimal)
+    local procedure UpdateExtraLine(var PurchHeaderStaging: Record "EE Purch. Header Staging"; var PurchaseLine: Record "Purchase Line"; var LineNo: Integer; DocNo: Code[20]; LineID: Code[20]; Descr: Text; Amount: Decimal; UseMiscRec: Boolean)
     begin
         if Amount = 0 then begin
             PurchaseLine.SetRange("EE Part Id", LineID);
@@ -306,11 +298,11 @@ codeunit 80000 "EE Fleetrock Mgt."
                 OnAfterPurchaseLineDelete(PurchaseLine);
             end;
         end else
-            AddExtraPurchLine(PurchHeaderStaging, LineNo, DocNo, Descr, Amount, LineID);
+            AddExtraPurchLine(PurchHeaderStaging, LineNo, DocNo, Descr, Amount, LineID, UseMiscRec);
     end;
 
 
-    local procedure AddExtraPurchLine(var PurchHeaderStaging: Record "EE Purch. Header Staging"; var LineNo: Integer; DocNo: Code[20]; Descr: Text; Amount: Decimal; LineID: Code[20])
+    local procedure AddExtraPurchLine(var PurchHeaderStaging: Record "EE Purch. Header Staging"; var LineNo: Integer; DocNo: Code[20]; Descr: Text; Amount: Decimal; LineID: Code[20]; UseMiscRec: Boolean)
     var
         PurchLineStaging: Record "EE Purch. Line Staging";
     begin
@@ -319,7 +311,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchLineStaging.unit_price := Amount;
         PurchLineStaging.part_description := Descr;
         PurchLineStaging.part_id := LineID;
-        AddPurchaseLine(PurchHeaderStaging, PurchLineStaging, DocNo, LineNo, false);
+        AddPurchaseLine(PurchHeaderStaging, PurchLineStaging, DocNo, LineNo, UseMiscRec);
     end;
 
 
@@ -344,7 +336,7 @@ codeunit 80000 "EE Fleetrock Mgt."
     end;
 
 
-    local procedure UpdateExtraPurchaseLines(var PurchaseLine: Record "Purchase Line"; var PurchaseHeaderStaging: Record "EE Purch. Header Staging"; DocNo: Code[20]; var LineNo: Integer; LineID: Code[20]; Amount: Decimal; Descr: Text)
+    local procedure UpdateExtraPurchaseLines(var PurchaseLine: Record "Purchase Line"; var PurchaseHeaderStaging: Record "EE Purch. Header Staging"; DocNo: Code[20]; var LineNo: Integer; LineID: Code[20]; Amount: Decimal; Descr: Text; UseMiscRec: Boolean)
     begin
         PurchaseLine.SetRange("EE Part Id", LineID);
         if Amount <> 0 then begin
@@ -353,7 +345,7 @@ codeunit 80000 "EE Fleetrock Mgt."
                 PurchaseLine.Validate("Direct Unit Cost", Amount);
                 PurchaseLine.Modify(true);
             end else
-                AddExtraPurchLine(PurchaseHeaderStaging, LineNo, DocNo, Descr, Amount, LineID);
+                AddExtraPurchLine(PurchaseHeaderStaging, LineNo, DocNo, Descr, Amount, LineID, UseMiscRec);
         end else
             if PurchaseLine.FindFirst() then
                 PurchaseLine.Delete(true);
@@ -1914,7 +1906,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchaseLine.SetRange("EE Part Id");
         if PurchaseLine.FindLast() then
             LineNo := PurchaseLine."Line No.";
-        AddExtraPurchLine(PurchaseHeaderStaging, LineNo, PurchaseHeader."No.", 'Rounding Adjustment', UpdateAmount, GetOtherLineID());
+        AddExtraPurchLine(PurchaseHeaderStaging, LineNo, PurchaseHeader."No.", 'Rounding Adjustment', UpdateAmount, GetOtherLineID(), CheckToUseMiscRec(PurchaseHeaderStaging));
     end;
 
 
@@ -2480,7 +2472,21 @@ codeunit 80000 "EE Fleetrock Mgt."
 
 
 
-
+    local procedure CheckToUseMiscRec(var PurchHeaderStaging: Record "EE Purch. Header Staging"): Boolean
+    var
+        SalesHeaderStaging: Record "EE Sales Header Staging";
+        UseMiscRec: Boolean;
+    begin
+        if (FleetrockSetup."Misc. Rec. Customer Name" <> '') and (FleetrockSetup."Misc. Rec. Group Name" <> '') then begin
+            SalesHeaderStaging.SetRange("Purch. Staging Entry No.", PurchHeaderStaging."Entry No.");
+            if SalesHeaderStaging.FindFirst() then
+                UseMiscRec := (SalesHeaderStaging.customer_name.ToUpper() = FleetrockSetup."Misc. Rec. Customer Name".ToUpper()) and
+                              (SalesHeaderStaging.group.ToUpper() = FleetrockSetup."Misc. Rec. Group Name".ToUpper());
+            if UseMiscRec then
+                FleetrockSetup.TestField("Misc. Rec. Item No.");
+        end;
+        exit(UseMiscRec)
+    end;
 
 
 
