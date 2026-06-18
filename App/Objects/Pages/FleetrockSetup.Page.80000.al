@@ -32,8 +32,7 @@ page 80000 "EE Fleetrock Setup"
             group("Purchase Orders")
             {
 
-                field("Purchase Item No.";
-                Rec."Purchase Item No.")
+                field("Purchase Item No."; Rec."Purchase Item No.")
                 {
                     ApplicationArea = all;
                     ShowMandatory = true;
@@ -112,6 +111,26 @@ page 80000 "EE Fleetrock Setup"
                 field("Check Repair Order DateFormula"; Rec."Check Repair Order DateFormula")
                 {
                     ApplicationArea = all;
+                }
+            }
+            Group("Misc. Receivables")
+            {
+                field("Misc. Rec. Customer Name"; Rec."Misc. Rec. Customer Name")
+                {
+                    ApplicationArea = all;
+                    Caption = 'Customer Name';
+                }
+                field("Misc. Rec. Group Name"; Rec."Misc. Rec. Group Name")
+                {
+                    ApplicationArea = all;
+                    Caption = 'Group Name';
+                }
+                field("Misc. Rec. Item No."; Rec."Misc. Rec. Item No.")
+                {
+                    ApplicationArea = all;
+                    TableRelation = "Item"."No.";
+                    Caption = 'Item No.';
+                    ShowMandatory = (Rec."Misc. Rec. Customer Name" <> '') and (Rec."Misc. Rec. Group Name" <> '');
                 }
             }
             group(Claims)

@@ -251,7 +251,9 @@ codeunit 80000 "EE Fleetrock Mgt."
     var
         PurchaseLine: Record "Purchase Line";
         PurchLineStaging: Record "EE Purch. Line Staging";
+        SalesHeaderStaging: Record "EE Sales Header Staging";
         LineNo: Integer;
+        UseMiscRec: Boolean;
     begin
         PurchLineStaging.SetRange("Header id", PurchHeaderStaging.id);
         PurchLineStaging.SetRange("Header Entry No.", PurchHeaderStaging."Entry No.");
@@ -261,10 +263,20 @@ codeunit 80000 "EE Fleetrock Mgt."
             PurchaseLine.DeleteAll(true);
             exit;
         end;
+
+        if (FleetrockSetup."Misc. Rec. Customer Name" <> '') and (FleetrockSetup."Misc. Rec. Group Name" <> '') then begin
+            SalesHeaderStaging.SetRange("Purch. Staging Entry No.", PurchHeaderStaging."Entry No.");
+            if SalesHeaderStaging.FindFirst() then
+                UseMiscRec := (SalesHeaderStaging.customer_name.ToUpper() = FleetrockSetup."Misc. Rec. Customer Name".ToUpper()) and
+                              (SalesHeaderStaging.group.ToUpper() = FleetrockSetup."Misc. Rec. Group Name".ToUpper());
+            if UseMiscRec then
+                FleetrockSetup.TestField("Misc. Rec. Item No.");
+        end;
+
         if PurchaseLine.FindLast() then
             LineNo := PurchaseLine."Line No.";
         repeat
-            AddPurchaseLine(PurchHeaderStaging, PurchLineStaging, DocNo, LineNo);
+            AddPurchaseLine(PurchHeaderStaging, PurchLineStaging, DocNo, LineNo, UseMiscRec);
         until PurchLineStaging.Next() = 0;
 
         UpdateExtraLine(PurchHeaderStaging, PurchaseLine, LineNo, DocNo, GetTaxLineID(), 'Taxes', PurchHeaderStaging.tax_total);
@@ -307,7 +319,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchLineStaging.unit_price := Amount;
         PurchLineStaging.part_description := Descr;
         PurchLineStaging.part_id := LineID;
-        AddPurchaseLine(PurchHeaderStaging, PurchLineStaging, DocNo, LineNo);
+        AddPurchaseLine(PurchHeaderStaging, PurchLineStaging, DocNo, LineNo, false);
     end;
 
 
@@ -348,7 +360,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         PurchaseLine.SetRange("EE Part Id");
     end;
 
-    local procedure AddPurchaseLine(var PurchHeaderStaging: Record "EE Purch. Header Staging"; var PurchLineStaging: Record "EE Purch. Line Staging"; DocNo: Code[20]; var LineNo: Integer)
+    local procedure AddPurchaseLine(var PurchHeaderStaging: Record "EE Purch. Header Staging"; var PurchLineStaging: Record "EE Purch. Line Staging"; DocNo: Code[20]; var LineNo: Integer; UseMiscRec: Boolean)
     var
         PurchaseLine: Record "Purchase Line";
     // UnitTypeMapping: Record "EE Unit Type Mapping";
@@ -374,7 +386,10 @@ codeunit 80000 "EE Fleetrock Mgt."
         //     PurchaseLine.Validate("No.", UnitTypeMapping."G/L Account No.");
         // end else begin
         PurchaseLine.Validate(Type, PurchaseLine.Type::Item);
-        PurchaseLine.Validate("No.", FleetRockSetup."Purchase Item No.");
+        if UseMiscRec then
+            PurchaseLine.Validate("No.", FleetRockSetup."Misc. Rec. Item No.")
+        else
+            PurchaseLine.Validate("No.", FleetRockSetup."Purchase Item No.");
         // end;
         CopyPurchaseLineValues(PurchaseLine, PurchLineStaging);
         PurchaseLine.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
