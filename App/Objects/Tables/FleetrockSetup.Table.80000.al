@@ -214,6 +214,25 @@ table 80000 "EE Fleetrock Setup"
             DataClassification = CustomerContent;
             Caption = 'Enable Update Vendors Each Trx';
         }
+        field(130; "Misc. Rec. Customer Name"; Text[100])
+        {
+            DataClassification = CustomerContent;
+            Caption = 'Misc. Receivables Customer Name';
+            Tooltip = 'Specifies the fleetrock customer that will use the Misc. Receivables details for Repair Order imports.';
+        }
+        field(131; "Misc. Rec. Group Name"; Text[100])
+        {
+            DataClassification = CustomerContent;
+            Caption = 'Misc. Receivables Group Name';
+            Tooltip = 'Specifies the fleetrock group that will use the Misc. Receivables details for Repair Order imports.';
+        }
+        field(132; "Misc. Rec. Item No."; Code[20])
+        {
+            DataClassification = CustomerContent;
+            TableRelation = "Item"."No.";
+            Caption = 'Misc. Receivables Item No.';
+            Tooltip = 'Specifies the item that will be used for Misc. Receivables Repair Order imports.';
+        }
     }
     keys
     {
