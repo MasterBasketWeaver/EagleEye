@@ -75,19 +75,46 @@ codeunit 80002 "EE Subscribers"
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"Purch.-Post", OnBeforePostLines, '', false, false)]
     local procedure PurchPostOnBeforePostLines()
     begin
-        SingleInstance.SetAllowNegativePurchAmount(true);
+        SingleInstance.SetAllowNegativePostingAmount(true);
     end;
 
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"Purch.-Post", OnAfterPostPurchaseDoc, '', false, false)]
     local procedure PurchPostOnAfterPostPurchaseDoc()
     begin
-        SingleInstance.SetAllowNegativePurchAmount(false);
+        SingleInstance.SetAllowNegativePostingAmount(false);
     end;
 
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"Gen. Jnl.-Check Line", OnBeforeErrorIfPositiveAmt, '', false, false)]
     local procedure GenJnlCheckLineOnBeforeErrorIfPositiveAmt(var RaiseError: Boolean)
     begin
-        if SingleInstance.GetAllowNegativePurchAmount() then
+        if SingleInstance.GetAllowNegativePostingAmount() then
+            RaiseError := false;
+    end;
+
+
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Sales-Post", OnBeforePostSalesDoc, '', false, false)]
+    local procedure SalesPostOnBeforePostSalesDoc()
+    begin
+        SingleInstance.SetAllowNegativePostingAmount(true);
+    end;
+
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Sales-Post", OnAfterPostSalesDoc, '', false, false)]
+    local procedure SalesPostOnAfterPostSalesDoc()
+    begin
+        SingleInstance.SetAllowNegativePostingAmount(false);
+    end;
+
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Sales-Post", OnBeforeCheckTotalInvoiceAmount, '', false, false)]
+    local procedure SalesPostOnBeforeCheckTotalInvoiceAmount(var IsHandled: Boolean)
+    begin
+        if SingleInstance.GetAllowNegativePostingAmount() then
+            IsHandled := true;
+    end;
+
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Gen. Jnl.-Check Line", OnBeforeErrorIfNegativeAmt, '', false, false)]
+    local procedure GenJnlCheckLineOnBeforeErrorIfNegativeAmt(var RaiseError: Boolean)
+    begin
+        if SingleInstance.GetAllowNegativePostingAmount() then
             RaiseError := false;
     end;
 
