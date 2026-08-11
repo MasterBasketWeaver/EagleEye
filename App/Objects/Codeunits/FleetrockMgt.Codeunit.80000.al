@@ -1425,27 +1425,25 @@ codeunit 80000 "EE Fleetrock Mgt."
     end;
 
     local procedure CheckListForName(InternalNames: Text; OrderName: Text): Boolean
-    var
-        CustomerNames: List of [Text];
     begin
-        CustomerNames := InternalNames.Split('|');
-        exit(CustomerNames.Contains(OrderName));
+        exit(CheckListForName(InternalNames, OrderName, false));
     end;
 
 
     local procedure CheckListForName(InternalNames: Text; OrderName: Text; IgnoreCaseAndSpaces: Boolean): Boolean
     var
         CustomerNames: List of [Text];
-        CustomerName: Text;
+        i: Integer;
     begin
-        if not IgnoreCaseAndSpaces then
-            exit(CheckListForName(InternalNames, OrderName));
-        OrderName := OrderName.ToUpper().Trim();
-        CustomerNames := InternalNames.ToUpper().Split('|');
-        foreach CustomerName in CustomerNames do
-            if CustomerName.Trim() = OrderName then
-                exit(true);
-        exit(false);
+        if IgnoreCaseAndSpaces then begin
+            InternalNames := InternalNames.ToUpper();
+            OrderName := OrderName.ToUpper().Trim();
+        end;
+        CustomerNames := InternalNames.Split('|');
+        if IgnoreCaseAndSpaces then
+            for i := 1 to CustomerNames.Count() do
+                CustomerNames.Set(i, CustomerNames.Get(i).Trim());
+        exit(CustomerNames.Contains(OrderName));
     end;
 
 
