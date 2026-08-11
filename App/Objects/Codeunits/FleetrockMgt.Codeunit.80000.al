@@ -1357,9 +1357,6 @@ codeunit 80000 "EE Fleetrock Mgt."
                     RecVar := PartLineStaging;
                     PopulateStagingTable(RecVar, PartLineJsonObj, Database::"EE Part Line Staging", PartLineStaging.FieldNo("task_part_id"));
                     PartLineStaging := RecVar;
-                    // Shared parts carry a different cost on every repair, so the cost held on
-                    // the part master is only the last or average cost. Use the cost captured
-                    // on the repair order line instead.
                     if IsSharedCostItem(PartLineStaging.part_number) then
                         PartLineStaging."Unit Cost" := PartLineStaging.part_cost
                     else
