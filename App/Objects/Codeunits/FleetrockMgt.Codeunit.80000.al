@@ -1436,25 +1436,14 @@ codeunit 80000 "EE Fleetrock Mgt."
     end;
 
 
-    procedure IsSharedCostItem(PartNumber: Text): Boolean
-    var
-        SharedItems: List of [Text];
-        SharedItem, SharedCostItems : Text;
+    local procedure IsSharedCostItem(PartNumber: Text): Boolean
     begin
         if PartNumber = '' then
             exit(false);
         GetAndCheckSetup();
-        SharedCostItems := FleetrockSetup."Shared Cost Items".ToUpper().Trim();
-        if SharedCostItems = '' then
+        if FleetrockSetup."Shared Cost Items" = '' then
             exit(false);
-        PartNumber := PartNumber.ToUpper().Trim();
-        if not SharedCostItems.Contains(';') then
-            exit(SharedCostItems = PartNumber);
-        SharedItems := SharedCostItems.Split(';');
-        foreach SharedItem in SharedItems do
-            if SharedItem.Trim() = PartNumber then
-                exit(true);
-        exit(false);
+        exit(CheckListForName(FleetrockSetup."Shared Cost Items", PartNumber));
     end;
 
 

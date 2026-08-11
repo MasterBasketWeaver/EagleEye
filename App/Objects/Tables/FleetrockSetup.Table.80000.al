@@ -218,7 +218,7 @@ table 80000 "EE Fleetrock Setup"
         {
             DataClassification = CustomerContent;
             Caption = 'Shared Cost Items';
-            ToolTip = 'Specifies the part numbers that share a cost across repairs, separated by a semicolon (for example, PART 1;PART 2). These parts use the cost entered on the repair order line.';
+            ToolTip = 'Specifies the part numbers that share a cost across repairs, separated by a pipe (for example, PART 1|PART 2). These parts use the cost entered on the repair order line.';
         }
     }
     keys
