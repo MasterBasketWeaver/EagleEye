@@ -242,6 +242,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         if PurchHeaderStaging.invoice_number <> '' then
             SetVendorInvoiceNo(PurchaseHeader, PurchHeaderStaging.invoice_number);
 
+        PurchaseHeader.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
         PurchaseHeader.Modify(true);
         CreatePurchaseLines(PurchHeaderStaging, DocNo);
         UpdatedAmount := true;
@@ -1738,9 +1739,11 @@ codeunit 80000 "EE Fleetrock Mgt."
             GetCustomerNo(SalesHeaderStaging, true);
         SalesHeader.Get(SalesHeader."Document Type"::Invoice, DocNo);
         SalesHeader.CalcFields(Amount, "Amount Including VAT");
+        SalesHeader.SetHideValidationDialog(true);
+        if SalesHeader."Tax Area Code" <> FleetrockSetup."Tax Area Code" then
+            SalesHeader.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
         Amount := SalesHeader.Amount;
         AmountIncludingVAT := SalesHeader."Amount Including VAT";
-        SalesHeader.SetHideValidationDialog(true);
         SetSalesHeaderPostingDate(SalesHeader, SalesHeaderStaging);
         SalesHeader.Modify(true);
         if SalesHeaderStaging."Document No." <> SalesHeader."No." then begin
@@ -1807,9 +1810,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         Amount, AmountIncludingVAT : Decimal;
         LineNo: Integer;
     begin
-        PurchaseHeader.CalcFields(Amount, "Amount Including VAT");
-        Amount := PurchaseHeader.Amount;
-        AmountIncludingVAT := PurchaseHeader."Amount Including VAT";
+
         GetAndCheckSetup();
         CheckPurchaseOrderSetup();
         GetVendorNo(PurchaseHeaderStaging, false);
@@ -1837,8 +1838,12 @@ codeunit 80000 "EE Fleetrock Mgt."
         if PurchaseHeaderStaging.invoice_number <> '' then
             if PurchaseHeaderStaging.invoice_number <> PurchaseHeader."Vendor Invoice No." then
                 SetVendorInvoiceNo(PurchaseHeader, PurchaseHeaderStaging.invoice_number);
+        if PurchaseHeader."Tax Area Code" <> FleetrockSetup."Tax Area Code" then
+            PurchaseHeader.Validate("Tax Area Code", FleetrockSetup."Tax Area Code");
         PurchaseHeader.Modify(true);
-
+        PurchaseHeader.CalcFields(Amount, "Amount Including VAT");
+        Amount := PurchaseHeader.Amount;
+        AmountIncludingVAT := PurchaseHeader."Amount Including VAT";
 
         PurchaseHeaderStaging.Processed := true;
         if PurchaseHeaderStaging."Document No." <> PurchaseHeader."No." then

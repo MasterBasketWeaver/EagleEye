@@ -13,14 +13,14 @@ codeunit 80008 "EE Single Instance"
     end;
 
 
-    procedure GetAllowNegativePurchAmount(): Boolean
+    procedure GetAllowNegativePostingAmount(): Boolean
     begin
-        exit(AllowNegativePurchAmount);
+        exit(AllowNegativePostingAmount);
     end;
 
-    procedure SetAllowNegativePurchAmount(NewValue: Boolean)
+    procedure SetAllowNegativePostingAmount(NewValue: Boolean)
     begin
-        AllowNegativePurchAmount := NewValue;
+        AllowNegativePostingAmount := NewValue;
     end;
 
 
@@ -42,5 +42,5 @@ codeunit 80008 "EE Single Instance"
 
     var
         AppliedSalesInvHeaderNos: Dictionary of [Code[20], Date];
-        SkipVendorUpdate, AllowNegativePurchAmount : Boolean;
+        SkipVendorUpdate, AllowNegativePostingAmount : Boolean;
 }
