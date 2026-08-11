@@ -1433,6 +1433,22 @@ codeunit 80000 "EE Fleetrock Mgt."
     end;
 
 
+    local procedure CheckListForName(InternalNames: Text; OrderName: Text; IgnoreCaseAndSpaces: Boolean): Boolean
+    var
+        CustomerNames: List of [Text];
+        CustomerName: Text;
+    begin
+        if not IgnoreCaseAndSpaces then
+            exit(CheckListForName(InternalNames, OrderName));
+        OrderName := OrderName.ToUpper().Trim();
+        CustomerNames := InternalNames.ToUpper().Split('|');
+        foreach CustomerName in CustomerNames do
+            if CustomerName.Trim() = OrderName then
+                exit(true);
+        exit(false);
+    end;
+
+
     local procedure IsSharedCostItem(PartNumber: Text): Boolean
     begin
         if PartNumber = '' then
@@ -1440,7 +1456,7 @@ codeunit 80000 "EE Fleetrock Mgt."
         GetAndCheckSetup();
         if FleetrockSetup."Shared Cost Items" = '' then
             exit(false);
-        exit(CheckListForName(FleetrockSetup."Shared Cost Items", PartNumber));
+        exit(CheckListForName(FleetrockSetup."Shared Cost Items", PartNumber, true));
     end;
 
 
