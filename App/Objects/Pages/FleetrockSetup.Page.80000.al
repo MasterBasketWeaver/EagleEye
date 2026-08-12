@@ -112,6 +112,10 @@ page 80000 "EE Fleetrock Setup"
                 {
                     ApplicationArea = all;
                 }
+                field("Shared Cost Items"; Rec."Shared Cost Items")
+                {
+                    ApplicationArea = all;
+                }
             }
             Group("Misc. Receivables")
             {

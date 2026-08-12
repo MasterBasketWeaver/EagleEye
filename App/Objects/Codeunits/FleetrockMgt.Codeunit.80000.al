@@ -1366,16 +1366,19 @@ codeunit 80000 "EE Fleetrock Mgt."
                     RecVar := PartLineStaging;
                     PopulateStagingTable(RecVar, PartLineJsonObj, Database::"EE Part Line Staging", PartLineStaging.FieldNo("task_part_id"));
                     PartLineStaging := RecVar;
-                    if UnitCosts.ContainsKey(PartLineStaging.part_id) then
-                        PartLineStaging."Unit Cost" := UnitCosts.Get(PartLineStaging.part_id)
-                    else begin
-                        ClearLastError();
-                        if TryToGetPart(PartLineStaging.part_id, VendorAPIToken, PartLineStaging."Loaded Part Details", PartObj) and PartLineStaging."Loaded Part Details" then
-                            PartLineStaging."Unit Cost" := JsonMgt.GetJsonValueAsDecimal(PartObj, 'part_cost')
-                        else
-                            PartLineStaging."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(PartLineStaging."Error Message"));
-                        UnitCosts.Add(PartLineStaging.part_id, PartLineStaging."Unit Cost");
-                    end;
+                    if IsSharedCostItem(PartLineStaging.part_number) then
+                        PartLineStaging."Unit Cost" := PartLineStaging.part_cost
+                    else
+                        if UnitCosts.ContainsKey(PartLineStaging.part_id) then
+                            PartLineStaging."Unit Cost" := UnitCosts.Get(PartLineStaging.part_id)
+                        else begin
+                            ClearLastError();
+                            if TryToGetPart(PartLineStaging.part_id, VendorAPIToken, PartLineStaging."Loaded Part Details", PartObj) and PartLineStaging."Loaded Part Details" then
+                                PartLineStaging."Unit Cost" := JsonMgt.GetJsonValueAsDecimal(PartObj, 'part_cost')
+                            else
+                                PartLineStaging."Error Message" := CopyStr(GetLastErrorText(), 1, MaxStrLen(PartLineStaging."Error Message"));
+                            UnitCosts.Add(PartLineStaging.part_id, PartLineStaging."Unit Cost");
+                        end;
                     PartLineStaging.Insert(true);
                 end;
             end;
@@ -1431,11 +1434,36 @@ codeunit 80000 "EE Fleetrock Mgt."
     end;
 
     local procedure CheckListForName(InternalNames: Text; OrderName: Text): Boolean
+    begin
+        exit(CheckListForName(InternalNames, OrderName, false));
+    end;
+
+
+    local procedure CheckListForName(InternalNames: Text; OrderName: Text; IgnoreCaseAndSpaces: Boolean): Boolean
     var
         CustomerNames: List of [Text];
+        i: Integer;
     begin
+        if IgnoreCaseAndSpaces then begin
+            InternalNames := InternalNames.ToUpper();
+            OrderName := OrderName.ToUpper().Trim();
+        end;
         CustomerNames := InternalNames.Split('|');
+        if IgnoreCaseAndSpaces then
+            for i := 1 to CustomerNames.Count() do
+                CustomerNames.Set(i, CustomerNames.Get(i).Trim());
         exit(CustomerNames.Contains(OrderName));
+    end;
+
+
+    local procedure IsSharedCostItem(PartNumber: Text): Boolean
+    begin
+        if PartNumber = '' then
+            exit(false);
+        GetAndCheckSetup();
+        if FleetrockSetup."Shared Cost Items" = '' then
+            exit(false);
+        exit(CheckListForName(FleetrockSetup."Shared Cost Items", PartNumber, true));
     end;
 
 
