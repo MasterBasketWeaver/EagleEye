@@ -15,10 +15,6 @@ pageextension 80019 "EE Posted Sales Credit Memos" extends "Posted Sales Credit 
                     SalesHeaderStaging.DrillDown(Rec."EE Fleetrock ID");
                 end;
             }
-            field("EE Load Number"; Rec."EE Load Number")
-            {
-                ApplicationArea = all;
-            }
             field("Pre-Assigned No."; Rec."Pre-Assigned No.")
             {
                 ApplicationArea = All;

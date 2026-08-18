@@ -15,10 +15,6 @@ pageextension 80005 "EE Posted Sales Invoice" extends "Posted Sales Invoice"
                     SalesHeaderStaging.DrillDown(Rec."EE Fleetrock ID");
                 end;
             }
-            field("EE Load Number"; Rec."EE Load Number")
-            {
-                ApplicationArea = all;
-            }
         }
     }
 
