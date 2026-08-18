@@ -37,6 +37,6 @@ tableextension 80005 "EE Sales Inv. Header" extends "Sales Invoice Header"
 
     keys
     {
-        key(FleetrockID; "EE Fleetrock ID") { }
+        key(FleetrockID; "EE Fleetrock ID", "EE Load Number") { }
     }
 }

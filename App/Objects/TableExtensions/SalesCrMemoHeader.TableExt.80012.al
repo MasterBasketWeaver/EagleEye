@@ -30,6 +30,6 @@ tableextension 80012 "EE Sales Cr.Memo Header" extends "Sales Cr.Memo Header"
 
     keys
     {
-        key(FleetrockID; "EE Fleetrock ID") { }
+        key(FleetrockID; "EE Fleetrock ID", "EE Load Number") { }
     }
 }

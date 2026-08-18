@@ -17,6 +17,6 @@ tableextension 80004 "EE Sales Header" extends "Sales Header"
 
     keys
     {
-        key(FleetrockID; "EE Fleetrock ID") { }
+        key(FleetrockID; "EE Fleetrock ID", "EE Load Number") { }
     }
 }
