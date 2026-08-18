@@ -20,12 +20,6 @@ tableextension 80012 "EE Sales Cr.Memo Header" extends "Sales Cr.Memo Header"
             Editable = false;
             Caption = 'Sent Payment DateTime';
         }
-        field(80010; "EE Load Number"; Code[35])
-        {
-            DataClassification = CustomerContent;
-            Editable = false;
-            Caption = 'Load Number';
-        }
     }
 
     keys
