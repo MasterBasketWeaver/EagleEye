@@ -123,6 +123,11 @@ table 80006 "EE Part Line Staging"
             DataClassification = CustomerContent;
             Editable = false;
         }
+        field(29; "part_cost"; Decimal)
+        {
+            DataClassification = CustomerContent;
+            Editable = false;
+        }
         field(100; "Added At"; DateTime)
         {
             DataClassification = CustomerContent;

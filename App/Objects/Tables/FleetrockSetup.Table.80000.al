@@ -214,6 +214,12 @@ table 80000 "EE Fleetrock Setup"
             DataClassification = CustomerContent;
             Caption = 'Enable Update Vendors Each Trx';
         }
+        field(118; "Shared Cost Items"; Text[250])
+        {
+            DataClassification = CustomerContent;
+            Caption = 'Shared Cost Items';
+            ToolTip = 'Specifies the part numbers that share a cost across repairs, separated by a pipe (for example, PART 1|PART 2). These parts use the cost entered on the repair order line.';
+        }
     }
     keys
     {

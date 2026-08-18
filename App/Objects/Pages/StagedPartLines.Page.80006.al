@@ -64,6 +64,10 @@ page 80006 "EE Staged Part Lines"
                 {
                     ApplicationArea = all;
                 }
+                field(part_cost; Rec.part_cost)
+                {
+                    ApplicationArea = all;
+                }
                 field("Unit Cost"; Rec."Unit Cost")
                 {
                     ApplicationArea = all;
