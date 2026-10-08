@@ -4,7 +4,16 @@ codeunit 80006 "EE Upgrade"
     Permissions = tabledata "EE Import/Export Entry" = RIMD,
     tabledata "EE Sales Header Staging" = RMD,
     tabledata "EE Purch. Header Staging" = RMD,
-    tabledata "Sales Invoice Header" = RIMD;
+    tabledata "Sales Invoice Header" = RIMD,
+    tabledata "G/L Entry" = RM,
+    tabledata "Cust. Ledger Entry" = RM,
+    tabledata "Vendor Ledger Entry" = RM,
+    tabledata "Detailed Cust. Ledg. Entry" = RM,
+    tabledata "Detailed Vendor Ledg. Entry" = RM,
+    tabledata "VAT Entry" = RM,
+    tabledata "Bank Account Ledger Entry" = RM,
+    tabledata "Item Ledger Entry" = RM,
+    tabledata "Value Entry" = RM;
 
 
     trigger OnUpgradePerCompany()
@@ -13,13 +22,106 @@ codeunit 80006 "EE Upgrade"
     end;
 
     procedure UpdateData()
+    var
+        UpgradeTag: Codeunit "Upgrade Tag";
     begin
+        if not UpgradeTag.HasUpgradeTag(LedgerEntryFleetrockIDsTag) then begin
+            PopulateLedgerEntryFleetrockIDs();
+            UpgradeTag.SetUpgradeTag(LedgerEntryFleetrockIDsTag);
+        end;
         // ClearGLSetups();
         // PopulateDocumentNos();
         // ClearInvalidEntries();
         // PopulateFleetrockIDs();
         // ClearPaymentFields();
         // UpdatePurchaseLineDateAddedValues();
+    end;
+
+    procedure PopulateLedgerEntryFleetrockIDs()
+    var
+        SalesInvHeader: Record "Sales Invoice Header";
+        SalesCrMemoHeader: Record "Sales Cr.Memo Header";
+        PurchInvHeader: Record "Purch. Inv. Header";
+        PurchCrMemoHdr: Record "Purch. Cr. Memo Hdr.";
+    begin
+        PopulateSalesEntryFleetrockIDs(Database::"Sales Invoice Header", SalesInvHeader.FieldNo("No."), SalesInvHeader.FieldNo("Posting Date"), SalesInvHeader.FieldNo("EE Fleetrock ID"));
+        PopulateSalesEntryFleetrockIDs(Database::"Sales Cr.Memo Header", SalesCrMemoHeader.FieldNo("No."), SalesCrMemoHeader.FieldNo("Posting Date"), SalesCrMemoHeader.FieldNo("EE Fleetrock ID"));
+        PopulatePurchaseEntryFleetrockIDs(Database::"Purch. Inv. Header", PurchInvHeader.FieldNo("No."), PurchInvHeader.FieldNo("Posting Date"), PurchInvHeader.FieldNo("EE Fleetrock ID"));
+        PopulatePurchaseEntryFleetrockIDs(Database::"Purch. Cr. Memo Hdr.", PurchCrMemoHdr.FieldNo("No."), PurchCrMemoHdr.FieldNo("Posting Date"), PurchCrMemoHdr.FieldNo("EE Fleetrock ID"));
+        PopulateItemLedgerEntryFleetrockIDs();
+    end;
+
+    local procedure PopulateSalesEntryFleetrockIDs(HeaderTableNo: Integer; NoFieldNo: Integer; PostingDateFieldNo: Integer; FleetrockIDFieldNo: Integer)
+    var
+        CustLedgerEntry: Record "Cust. Ledger Entry";
+        DtldCustLedgEntry: Record "Detailed Cust. Ledg. Entry";
+    begin
+        PopulateCommonEntryFleetrockIDs(HeaderTableNo, NoFieldNo, PostingDateFieldNo, FleetrockIDFieldNo);
+        CopyFleetrockIDFromHeader(HeaderTableNo, NoFieldNo, PostingDateFieldNo, FleetrockIDFieldNo,
+            Database::"Cust. Ledger Entry", CustLedgerEntry.FieldNo("Document No."), CustLedgerEntry.FieldNo("Posting Date"), CustLedgerEntry.FieldNo("EE Fleetrock ID"));
+        CopyFleetrockIDFromHeader(HeaderTableNo, NoFieldNo, PostingDateFieldNo, FleetrockIDFieldNo,
+            Database::"Detailed Cust. Ledg. Entry", DtldCustLedgEntry.FieldNo("Document No."), DtldCustLedgEntry.FieldNo("Posting Date"), DtldCustLedgEntry.FieldNo("EE Fleetrock ID"));
+    end;
+
+    local procedure PopulatePurchaseEntryFleetrockIDs(HeaderTableNo: Integer; NoFieldNo: Integer; PostingDateFieldNo: Integer; FleetrockIDFieldNo: Integer)
+    var
+        VendorLedgerEntry: Record "Vendor Ledger Entry";
+        DtldVendorLedgEntry: Record "Detailed Vendor Ledg. Entry";
+    begin
+        PopulateCommonEntryFleetrockIDs(HeaderTableNo, NoFieldNo, PostingDateFieldNo, FleetrockIDFieldNo);
+        CopyFleetrockIDFromHeader(HeaderTableNo, NoFieldNo, PostingDateFieldNo, FleetrockIDFieldNo,
+            Database::"Vendor Ledger Entry", VendorLedgerEntry.FieldNo("Document No."), VendorLedgerEntry.FieldNo("Posting Date"), VendorLedgerEntry.FieldNo("EE Fleetrock ID"));
+        CopyFleetrockIDFromHeader(HeaderTableNo, NoFieldNo, PostingDateFieldNo, FleetrockIDFieldNo,
+            Database::"Detailed Vendor Ledg. Entry", DtldVendorLedgEntry.FieldNo("Document No."), DtldVendorLedgEntry.FieldNo("Posting Date"), DtldVendorLedgEntry.FieldNo("EE Fleetrock ID"));
+    end;
+
+    local procedure PopulateCommonEntryFleetrockIDs(HeaderTableNo: Integer; NoFieldNo: Integer; PostingDateFieldNo: Integer; FleetrockIDFieldNo: Integer)
+    var
+        GLEntry: Record "G/L Entry";
+        VATEntry: Record "VAT Entry";
+        BankAccountLedgerEntry: Record "Bank Account Ledger Entry";
+        ValueEntry: Record "Value Entry";
+    begin
+        CopyFleetrockIDFromHeader(HeaderTableNo, NoFieldNo, PostingDateFieldNo, FleetrockIDFieldNo,
+            Database::"G/L Entry", GLEntry.FieldNo("Document No."), GLEntry.FieldNo("Posting Date"), GLEntry.FieldNo("EE Fleetrock ID"));
+        CopyFleetrockIDFromHeader(HeaderTableNo, NoFieldNo, PostingDateFieldNo, FleetrockIDFieldNo,
+            Database::"VAT Entry", VATEntry.FieldNo("Document No."), VATEntry.FieldNo("Posting Date"), VATEntry.FieldNo("EE Fleetrock ID"));
+        CopyFleetrockIDFromHeader(HeaderTableNo, NoFieldNo, PostingDateFieldNo, FleetrockIDFieldNo,
+            Database::"Bank Account Ledger Entry", BankAccountLedgerEntry.FieldNo("Document No."), BankAccountLedgerEntry.FieldNo("Posting Date"), BankAccountLedgerEntry.FieldNo("EE Fleetrock ID"));
+        CopyFleetrockIDFromHeader(HeaderTableNo, NoFieldNo, PostingDateFieldNo, FleetrockIDFieldNo,
+            Database::"Value Entry", ValueEntry.FieldNo("Document No."), ValueEntry.FieldNo("Posting Date"), ValueEntry.FieldNo("EE Fleetrock ID"));
+    end;
+
+    // Entries only carry the posted document's number and date, so those are the
+    // join. Entries posted with an ID are rewritten with the same value: filtering
+    // them out needs AddDestinationFilter, which is runtime 17 (BC 28).
+    local procedure CopyFleetrockIDFromHeader(HeaderTableNo: Integer; NoFieldNo: Integer; PostingDateFieldNo: Integer; FleetrockIDFieldNo: Integer; EntryTableNo: Integer; DocumentNoFieldNo: Integer; EntryPostingDateFieldNo: Integer; EntryFleetrockIDFieldNo: Integer)
+    var
+        DataTrans: DataTransfer;
+    begin
+        DataTrans.SetTables(HeaderTableNo, EntryTableNo);
+        DataTrans.AddSourceFilter(FleetrockIDFieldNo, '<>%1', '');
+        DataTrans.AddJoin(NoFieldNo, DocumentNoFieldNo);
+        DataTrans.AddJoin(PostingDateFieldNo, EntryPostingDateFieldNo);
+        DataTrans.AddFieldValue(FleetrockIDFieldNo, EntryFleetrockIDFieldNo);
+        DataTrans.CopyFields();
+    end;
+
+    // Item ledger entries carry the shipment/receipt number rather than the
+    // invoice's, so they take the ID from their invoice value entries. Item charge
+    // value entries are skipped: they belong to a different invoice.
+    local procedure PopulateItemLedgerEntryFleetrockIDs()
+    var
+        ValueEntry: Record "Value Entry";
+        ItemLedgerEntry: Record "Item Ledger Entry";
+        DataTrans: DataTransfer;
+    begin
+        DataTrans.SetTables(Database::"Value Entry", Database::"Item Ledger Entry");
+        DataTrans.AddSourceFilter(ValueEntry.FieldNo("EE Fleetrock ID"), '<>%1', '');
+        DataTrans.AddSourceFilter(ValueEntry.FieldNo("Item Charge No."), '%1', '');
+        DataTrans.AddJoin(ValueEntry.FieldNo("Item Ledger Entry No."), ItemLedgerEntry.FieldNo("Entry No."));
+        DataTrans.AddFieldValue(ValueEntry.FieldNo("EE Fleetrock ID"), ItemLedgerEntry.FieldNo("EE Fleetrock ID"));
+        DataTrans.CopyFields();
     end;
 
     local procedure ClearPaymentFields()
@@ -197,4 +299,7 @@ codeunit 80006 "EE Upgrade"
             Clear(Values);
         until PurchaseHeader.Next() = 0;
     end;
+
+    var
+        LedgerEntryFleetrockIDsTag: Label 'EE-LEDGER-FLEETROCK-IDS-20261008', Locked = true;
 }
