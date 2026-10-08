@@ -235,5 +235,5 @@ codeunit 80006 "EE Upgrade"
     end;
 
     var
-        GLEntryFleetrockIDsTag: Label 'EE-GL-FLEETROCK-IDS-20261008', Locked = true;
+        GLEntryFleetrockIDsTag: Label 'EE-GL-FLEETROCK-IDS-20261008B', Locked = true;
 }
