@@ -29,12 +29,10 @@ codeunit 80150 "EE Fleetrock ID Posting Test"
         PostedNo := PostSalesInvoice(SalesHeader);
 
         VerifyGLEntries(PostedNo, 'FRTEST-S001');
-        VerifyCustomerEntries(PostedNo, 'FRTEST-S001');
-        VerifyVATEntries(PostedNo, 'FRTEST-S001');
     end;
 
     [Test]
-    procedure SalesInvoiceItemLineCarriesFleetrockIDToItemAndCostEntries()
+    procedure SalesInvoiceItemLineCarriesFleetrockIDToCostGLEntries()
     var
         PurchaseHeader: Record "Purchase Header";
         SalesHeader: Record "Sales Header";
@@ -53,8 +51,6 @@ codeunit 80150 "EE Fleetrock ID Posting Test"
         VerifyGLEntries(PostedNo, 'FRTEST-S002');
         VerifyGLAccountPosted(PostedNo, COGSAccountNo);
         VerifyGLAccountPosted(PostedNo, InventoryAccountNo);
-        VerifyItemEntries(PostedNo, 'FRTEST-S002');
-        VerifyCustomerEntries(PostedNo, 'FRTEST-S002');
     end;
 
     [Test]
@@ -72,9 +68,6 @@ codeunit 80150 "EE Fleetrock ID Posting Test"
 
         VerifyGLEntries(PostedNo, 'FRTEST-P001');
         VerifyGLAccountPosted(PostedNo, InventoryAccountNo);
-        VerifyVendorEntries(PostedNo, 'FRTEST-P001');
-        VerifyVATEntries(PostedNo, 'FRTEST-P001');
-        VerifyItemEntries(PostedNo, 'FRTEST-P001');
     end;
 
     [Test]
@@ -92,8 +85,6 @@ codeunit 80150 "EE Fleetrock ID Posting Test"
         SalesCrMemoHeader.FindFirst();
 
         VerifyGLEntries(SalesCrMemoHeader."No.", 'FRTEST-SCM1');
-        VerifyCustomerEntries(SalesCrMemoHeader."No.", 'FRTEST-SCM1');
-        VerifyVATEntries(SalesCrMemoHeader."No.", 'FRTEST-SCM1');
     end;
 
     [Test]
@@ -112,8 +103,6 @@ codeunit 80150 "EE Fleetrock ID Posting Test"
         PurchCrMemoHdr.FindFirst();
 
         VerifyGLEntries(PurchCrMemoHdr."No.", 'FRTEST-PCM1');
-        VerifyVendorEntries(PurchCrMemoHdr."No.", 'FRTEST-PCM1');
-        VerifyVATEntries(PurchCrMemoHdr."No.", 'FRTEST-PCM1');
     end;
 
     // Posts a document with an ID first so a value left behind on a journal line
@@ -136,16 +125,12 @@ codeunit 80150 "EE Fleetrock ID Posting Test"
         PostedNo := PostSalesInvoice(SalesHeader);
 
         VerifyGLEntries(PostedNo, '');
-        VerifyCustomerEntries(PostedNo, '');
-        VerifyVATEntries(PostedNo, '');
 
         CreatePurchaseHeader(PurchaseHeader, PurchaseHeader."Document Type"::Order, '');
         AddPurchaseLine(PurchaseHeader, Enum::"Purchase Line Type"::Item, Item."No.", 1, 15);
         PostedNo := PostPurchaseOrder(PurchaseHeader);
 
         VerifyGLEntries(PostedNo, '');
-        VerifyVendorEntries(PostedNo, '');
-        VerifyItemEntries(PostedNo, '');
     end;
 
     [Test]
@@ -166,25 +151,23 @@ codeunit 80150 "EE Fleetrock ID Posting Test"
         CustLedgerEntry.SetRange("Document No.", PostedNo);
         if CustLedgerEntry.Count() <> 2 then
             Error('Expected an invoice and a balancing payment customer ledger entry for %1, found %2.', PostedNo, CustLedgerEntry.Count());
-        VerifyBankEntries(PostedNo, 'FRTEST-S004');
         VerifyGLEntries(PostedNo, 'FRTEST-S004');
-        VerifyCustomerEntries(PostedNo, 'FRTEST-S004');
     end;
 
     // DataTransfer only runs in upgrade/install code, so the backfill can't be
     // called from a test; this checks what it left in the company's real data.
     [Test]
-    procedure PostedDocumentEntriesCarryTheirFleetrockID()
+    procedure PostedDocumentGLEntriesCarryTheirFleetrockID()
     var
         SalesInvHeader: Record "Sales Invoice Header";
         SalesCrMemoHeader: Record "Sales Cr.Memo Header";
         PurchInvHeader: Record "Purch. Inv. Header";
         PurchCrMemoHdr: Record "Purch. Cr. Memo Hdr.";
     begin
-        VerifyPostedDocumentEntries(Database::"Sales Invoice Header", SalesInvHeader.FieldNo("No."), SalesInvHeader.FieldNo("Posting Date"), SalesInvHeader.FieldNo("EE Fleetrock ID"));
-        VerifyPostedDocumentEntries(Database::"Sales Cr.Memo Header", SalesCrMemoHeader.FieldNo("No."), SalesCrMemoHeader.FieldNo("Posting Date"), SalesCrMemoHeader.FieldNo("EE Fleetrock ID"));
-        VerifyPostedDocumentEntries(Database::"Purch. Inv. Header", PurchInvHeader.FieldNo("No."), PurchInvHeader.FieldNo("Posting Date"), PurchInvHeader.FieldNo("EE Fleetrock ID"));
-        VerifyPostedDocumentEntries(Database::"Purch. Cr. Memo Hdr.", PurchCrMemoHdr.FieldNo("No."), PurchCrMemoHdr.FieldNo("Posting Date"), PurchCrMemoHdr.FieldNo("EE Fleetrock ID"));
+        VerifyPostedDocumentGLEntries(Database::"Sales Invoice Header", SalesInvHeader.FieldNo("No."), SalesInvHeader.FieldNo("Posting Date"), SalesInvHeader.FieldNo("EE Fleetrock ID"));
+        VerifyPostedDocumentGLEntries(Database::"Sales Cr.Memo Header", SalesCrMemoHeader.FieldNo("No."), SalesCrMemoHeader.FieldNo("Posting Date"), SalesCrMemoHeader.FieldNo("EE Fleetrock ID"));
+        VerifyPostedDocumentGLEntries(Database::"Purch. Inv. Header", PurchInvHeader.FieldNo("No."), PurchInvHeader.FieldNo("Posting Date"), PurchInvHeader.FieldNo("EE Fleetrock ID"));
+        VerifyPostedDocumentGLEntries(Database::"Purch. Cr. Memo Hdr.", PurchCrMemoHdr.FieldNo("No."), PurchCrMemoHdr.FieldNo("Posting Date"), PurchCrMemoHdr.FieldNo("EE Fleetrock ID"));
     end;
 
     local procedure Initialize()
@@ -544,7 +527,12 @@ codeunit 80150 "EE Fleetrock ID Posting Test"
     var
         GLEntry: Record "G/L Entry";
     begin
-        VerifyEntries(Database::"G/L Entry", GLEntry.FieldNo("Document No."), GLEntry.FieldNo("EE Fleetrock ID"), DocumentNo, FleetrockID);
+        GLEntry.SetRange("Document No.", DocumentNo);
+        if GLEntry.IsEmpty() then
+            Error('No G/L entries were posted for document %1.', DocumentNo);
+        GLEntry.SetFilter("EE Fleetrock ID", '<>%1', FleetrockID);
+        if GLEntry.FindFirst() then
+            Error('G/L entry %1 (document %2) has Fleetrock ID ''%3'', expected ''%4''.', GLEntry."Entry No.", DocumentNo, GLEntry."EE Fleetrock ID", FleetrockID);
     end;
 
     // Proves the inventory-to-G/L path ran, so VerifyGLEntries also covered it.
@@ -558,70 +546,10 @@ codeunit 80150 "EE Fleetrock ID Posting Test"
             Error('Expected a G/L entry on %1 for %2; automatic cost posting did not run.', GLAccountNo, DocumentNo);
     end;
 
-    local procedure VerifyCustomerEntries(DocumentNo: Code[20]; FleetrockID: Text[20])
-    var
-        CustLedgerEntry: Record "Cust. Ledger Entry";
-        DetailedCustLedgEntry: Record "Detailed Cust. Ledg. Entry";
-    begin
-        VerifyEntries(Database::"Cust. Ledger Entry", CustLedgerEntry.FieldNo("Document No."), CustLedgerEntry.FieldNo("EE Fleetrock ID"), DocumentNo, FleetrockID);
-        VerifyEntries(Database::"Detailed Cust. Ledg. Entry", DetailedCustLedgEntry.FieldNo("Document No."), DetailedCustLedgEntry.FieldNo("EE Fleetrock ID"), DocumentNo, FleetrockID);
-    end;
-
-    local procedure VerifyVendorEntries(DocumentNo: Code[20]; FleetrockID: Text[20])
-    var
-        VendorLedgerEntry: Record "Vendor Ledger Entry";
-        DetailedVendorLedgEntry: Record "Detailed Vendor Ledg. Entry";
-    begin
-        VerifyEntries(Database::"Vendor Ledger Entry", VendorLedgerEntry.FieldNo("Document No."), VendorLedgerEntry.FieldNo("EE Fleetrock ID"), DocumentNo, FleetrockID);
-        VerifyEntries(Database::"Detailed Vendor Ledg. Entry", DetailedVendorLedgEntry.FieldNo("Document No."), DetailedVendorLedgEntry.FieldNo("EE Fleetrock ID"), DocumentNo, FleetrockID);
-    end;
-
-    local procedure VerifyVATEntries(DocumentNo: Code[20]; FleetrockID: Text[20])
-    var
-        VATEntry: Record "VAT Entry";
-    begin
-        VerifyEntries(Database::"VAT Entry", VATEntry.FieldNo("Document No."), VATEntry.FieldNo("EE Fleetrock ID"), DocumentNo, FleetrockID);
-    end;
-
-    // Item ledger entries take the shipment/receipt number when one is posted,
-    // so they are reached through the invoice's value entries.
-    local procedure VerifyItemEntries(DocumentNo: Code[20]; FleetrockID: Text[20])
-    var
-        ValueEntry: Record "Value Entry";
-        ItemLedgerEntry: Record "Item Ledger Entry";
-    begin
-        VerifyEntries(Database::"Value Entry", ValueEntry.FieldNo("Document No."), ValueEntry.FieldNo("EE Fleetrock ID"), DocumentNo, FleetrockID);
-        ValueEntry.SetRange("Document No.", DocumentNo);
-        ValueEntry.FindSet();
-        repeat
-            ItemLedgerEntry.Get(ValueEntry."Item Ledger Entry No.");
-            if ItemLedgerEntry."EE Fleetrock ID" <> FleetrockID then
-                Error('Item Ledger Entry %1 (document %2) has Fleetrock ID ''%3'', expected ''%4''.',
-                    ItemLedgerEntry."Entry No.", ItemLedgerEntry."Document No.", ItemLedgerEntry."EE Fleetrock ID", FleetrockID);
-        until ValueEntry.Next() = 0;
-    end;
-
-    local procedure VerifyBankEntries(DocumentNo: Code[20]; FleetrockID: Text[20])
-    var
-        BankAccountLedgerEntry: Record "Bank Account Ledger Entry";
-    begin
-        VerifyEntries(Database::"Bank Account Ledger Entry", BankAccountLedgerEntry.FieldNo("Document No."), BankAccountLedgerEntry.FieldNo("EE Fleetrock ID"), DocumentNo, FleetrockID);
-    end;
-
-    local procedure VerifyPostedDocumentEntries(HeaderTableNo: Integer; NoFieldNo: Integer; PostingDateFieldNo: Integer; FleetrockIDFieldNo: Integer)
+    local procedure VerifyPostedDocumentGLEntries(HeaderTableNo: Integer; NoFieldNo: Integer; PostingDateFieldNo: Integer; FleetrockIDFieldNo: Integer)
     var
         GLEntry: Record "G/L Entry";
-        CustLedgerEntry: Record "Cust. Ledger Entry";
-        DtldCustLedgEntry: Record "Detailed Cust. Ledg. Entry";
-        VendorLedgerEntry: Record "Vendor Ledger Entry";
-        DtldVendorLedgEntry: Record "Detailed Vendor Ledg. Entry";
-        VATEntry: Record "VAT Entry";
-        BankAccountLedgerEntry: Record "Bank Account Ledger Entry";
-        ValueEntry: Record "Value Entry";
-        ItemLedgerEntry: Record "Item Ledger Entry";
         HeaderRef: RecordRef;
-        DocumentNo: Code[20];
-        PostingDate: Date;
         FleetrockID: Text[20];
     begin
         HeaderRef.Open(HeaderTableNo);
@@ -629,57 +557,12 @@ codeunit 80150 "EE Fleetrock ID Posting Test"
         if not HeaderRef.FindSet() then
             exit;
         repeat
-            DocumentNo := HeaderRef.Field(NoFieldNo).Value();
-            PostingDate := HeaderRef.Field(PostingDateFieldNo).Value();
             FleetrockID := HeaderRef.Field(FleetrockIDFieldNo).Value();
-            VerifyNoMismatchedEntries(Database::"G/L Entry", GLEntry.FieldNo("Document No."), GLEntry.FieldNo("Posting Date"), GLEntry.FieldNo("EE Fleetrock ID"), DocumentNo, PostingDate, FleetrockID);
-            VerifyNoMismatchedEntries(Database::"Cust. Ledger Entry", CustLedgerEntry.FieldNo("Document No."), CustLedgerEntry.FieldNo("Posting Date"), CustLedgerEntry.FieldNo("EE Fleetrock ID"), DocumentNo, PostingDate, FleetrockID);
-            VerifyNoMismatchedEntries(Database::"Detailed Cust. Ledg. Entry", DtldCustLedgEntry.FieldNo("Document No."), DtldCustLedgEntry.FieldNo("Posting Date"), DtldCustLedgEntry.FieldNo("EE Fleetrock ID"), DocumentNo, PostingDate, FleetrockID);
-            VerifyNoMismatchedEntries(Database::"Vendor Ledger Entry", VendorLedgerEntry.FieldNo("Document No."), VendorLedgerEntry.FieldNo("Posting Date"), VendorLedgerEntry.FieldNo("EE Fleetrock ID"), DocumentNo, PostingDate, FleetrockID);
-            VerifyNoMismatchedEntries(Database::"Detailed Vendor Ledg. Entry", DtldVendorLedgEntry.FieldNo("Document No."), DtldVendorLedgEntry.FieldNo("Posting Date"), DtldVendorLedgEntry.FieldNo("EE Fleetrock ID"), DocumentNo, PostingDate, FleetrockID);
-            VerifyNoMismatchedEntries(Database::"VAT Entry", VATEntry.FieldNo("Document No."), VATEntry.FieldNo("Posting Date"), VATEntry.FieldNo("EE Fleetrock ID"), DocumentNo, PostingDate, FleetrockID);
-            VerifyNoMismatchedEntries(Database::"Bank Account Ledger Entry", BankAccountLedgerEntry.FieldNo("Document No."), BankAccountLedgerEntry.FieldNo("Posting Date"), BankAccountLedgerEntry.FieldNo("EE Fleetrock ID"), DocumentNo, PostingDate, FleetrockID);
-            VerifyNoMismatchedEntries(Database::"Value Entry", ValueEntry.FieldNo("Document No."), ValueEntry.FieldNo("Posting Date"), ValueEntry.FieldNo("EE Fleetrock ID"), DocumentNo, PostingDate, FleetrockID);
-
-            ValueEntry.SetRange("Document No.", DocumentNo);
-            ValueEntry.SetRange("Posting Date", PostingDate);
-            ValueEntry.SetRange("Item Charge No.", '');
-            if ValueEntry.FindSet() then
-                repeat
-                    ItemLedgerEntry.Get(ValueEntry."Item Ledger Entry No.");
-                    if ItemLedgerEntry."EE Fleetrock ID" = '' then
-                        Error('Item Ledger Entry %1 (invoiced by %2) has no Fleetrock ID, expected ''%3''.', ItemLedgerEntry."Entry No.", DocumentNo, FleetrockID);
-                until ValueEntry.Next() = 0;
+            GLEntry.SetRange("Document No.", Format(HeaderRef.Field(NoFieldNo).Value()));
+            GLEntry.SetRange("Posting Date", HeaderRef.Field(PostingDateFieldNo).Value());
+            GLEntry.SetFilter("EE Fleetrock ID", '<>%1', FleetrockID);
+            if GLEntry.FindFirst() then
+                Error('G/L entry %1 (document %2) has Fleetrock ID ''%3'', expected ''%4''.', GLEntry."Entry No.", GLEntry."Document No.", GLEntry."EE Fleetrock ID", FleetrockID);
         until HeaderRef.Next() = 0;
-    end;
-
-    local procedure VerifyNoMismatchedEntries(TableNo: Integer; DocumentNoFieldNo: Integer; PostingDateFieldNo: Integer; FleetrockIDFieldNo: Integer; DocumentNo: Code[20]; PostingDate: Date; FleetrockID: Text[20])
-    var
-        RecRef: RecordRef;
-    begin
-        RecRef.Open(TableNo);
-        RecRef.Field(DocumentNoFieldNo).SetRange(DocumentNo);
-        RecRef.Field(PostingDateFieldNo).SetRange(PostingDate);
-        RecRef.Field(FleetrockIDFieldNo).SetFilter('<>%1', FleetrockID);
-        if RecRef.FindFirst() then
-            Error('%1 %2 (document %3) has Fleetrock ID ''%4'', expected ''%5''.',
-                RecRef.Caption(), Format(RecRef.RecordId()), DocumentNo, Format(RecRef.Field(FleetrockIDFieldNo).Value()), FleetrockID);
-    end;
-
-    local procedure VerifyEntries(TableNo: Integer; DocumentNoFieldNo: Integer; FleetrockIDFieldNo: Integer; DocumentNo: Code[20]; FleetrockID: Text[20])
-    var
-        RecRef: RecordRef;
-        ActualID: Text;
-    begin
-        RecRef.Open(TableNo);
-        RecRef.Field(DocumentNoFieldNo).SetRange(DocumentNo);
-        if not RecRef.FindSet() then
-            Error('No %1 records were posted for document %2.', RecRef.Caption(), DocumentNo);
-        repeat
-            ActualID := Format(RecRef.Field(FleetrockIDFieldNo).Value());
-            if ActualID <> FleetrockID then
-                Error('%1 %2 (document %3) has Fleetrock ID ''%4'', expected ''%5''.',
-                    RecRef.Caption(), Format(RecRef.RecordId()), DocumentNo, ActualID, FleetrockID);
-        until RecRef.Next() = 0;
     end;
 }

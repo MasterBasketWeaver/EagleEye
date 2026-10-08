@@ -36,79 +36,56 @@ codeunit 80015 "EE Fleetrock ID Posting"
         GenJournalLine."EE Fleetrock ID" := PurchaseHeader."EE Fleetrock ID";
     end;
 
-    [EventSubscriber(ObjectType::Table, Database::"Item Journal Line", OnAfterCopyItemJnlLineFromSalesHeader, '', false, false)]
-    local procedure ItemJnlLineOnAfterCopyFromSalesHeader(var ItemJnlLine: Record "Item Journal Line"; SalesHeader: Record "Sales Header")
-    begin
-        ItemJnlLine."EE Fleetrock ID" := SalesHeader."EE Fleetrock ID";
-    end;
-
-    [EventSubscriber(ObjectType::Table, Database::"Item Journal Line", OnAfterCopyItemJnlLineFromPurchHeader, '', false, false)]
-    local procedure ItemJnlLineOnAfterCopyFromPurchHeader(var ItemJnlLine: Record "Item Journal Line"; PurchHeader: Record "Purchase Header")
-    begin
-        ItemJnlLine."EE Fleetrock ID" := PurchHeader."EE Fleetrock ID";
-    end;
-
     [EventSubscriber(ObjectType::Table, Database::"G/L Entry", OnAfterCopyGLEntryFromGenJnlLine, '', false, false)]
     local procedure GLEntryOnAfterCopyFromGenJnlLine(var GLEntry: Record "G/L Entry"; var GenJournalLine: Record "Gen. Journal Line")
     begin
         GLEntry."EE Fleetrock ID" := GenJournalLine."EE Fleetrock ID";
     end;
 
-    [EventSubscriber(ObjectType::Table, Database::"Cust. Ledger Entry", OnAfterCopyCustLedgerEntryFromGenJnlLine, '', false, false)]
-    local procedure CustLedgerEntryOnAfterCopyFromGenJnlLine(var CustLedgerEntry: Record "Cust. Ledger Entry"; GenJournalLine: Record "Gen. Journal Line")
-    begin
-        CustLedgerEntry."EE Fleetrock ID" := GenJournalLine."EE Fleetrock ID";
-    end;
-
-    [EventSubscriber(ObjectType::Table, Database::"Vendor Ledger Entry", OnAfterCopyVendLedgerEntryFromGenJnlLine, '', false, false)]
-    local procedure VendorLedgerEntryOnAfterCopyFromGenJnlLine(var VendorLedgerEntry: Record "Vendor Ledger Entry"; GenJournalLine: Record "Gen. Journal Line")
-    begin
-        VendorLedgerEntry."EE Fleetrock ID" := GenJournalLine."EE Fleetrock ID";
-    end;
-
-    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Gen. Jnl.-Post Line", OnBeforeInsertDtldCustLedgEntry, '', false, false)]
-    local procedure GenJnlPostLineOnBeforeInsertDtldCustLedgEntry(var DtldCustLedgEntry: Record "Detailed Cust. Ledg. Entry"; GenJournalLine: Record "Gen. Journal Line")
-    begin
-        DtldCustLedgEntry."EE Fleetrock ID" := GenJournalLine."EE Fleetrock ID";
-    end;
-
-    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Gen. Jnl.-Post Line", OnBeforeInsertDtldVendLedgEntry, '', false, false)]
-    local procedure GenJnlPostLineOnBeforeInsertDtldVendLedgEntry(var DtldVendLedgEntry: Record "Detailed Vendor Ledg. Entry"; GenJournalLine: Record "Gen. Journal Line")
-    begin
-        DtldVendLedgEntry."EE Fleetrock ID" := GenJournalLine."EE Fleetrock ID";
-    end;
-
-    [EventSubscriber(ObjectType::Table, Database::"VAT Entry", OnAfterCopyFromGenJnlLine, '', false, false)]
-    local procedure VATEntryOnAfterCopyFromGenJnlLine(var VATEntry: Record "VAT Entry"; GenJournalLine: Record "Gen. Journal Line")
-    begin
-        VATEntry."EE Fleetrock ID" := GenJournalLine."EE Fleetrock ID";
-    end;
-
-    [EventSubscriber(ObjectType::Table, Database::"Bank Account Ledger Entry", OnAfterCopyFromGenJnlLine, '', false, false)]
-    local procedure BankAccLedgerEntryOnAfterCopyFromGenJnlLine(var BankAccountLedgerEntry: Record "Bank Account Ledger Entry"; GenJournalLine: Record "Gen. Journal Line")
-    begin
-        BankAccountLedgerEntry."EE Fleetrock ID" := GenJournalLine."EE Fleetrock ID";
-    end;
-
-    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Item Jnl.-Post Line", OnAfterInitItemLedgEntry, '', false, false)]
-    local procedure ItemJnlPostLineOnAfterInitItemLedgEntry(var NewItemLedgEntry: Record "Item Ledger Entry"; var ItemJournalLine: Record "Item Journal Line")
-    begin
-        NewItemLedgEntry."EE Fleetrock ID" := ItemJournalLine."EE Fleetrock ID";
-    end;
-
-    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Item Jnl.-Post Line", OnAfterInitValueEntry, '', false, false)]
-    local procedure ItemJnlPostLineOnAfterInitValueEntry(var ValueEntry: Record "Value Entry"; var ItemJournalLine: Record "Item Journal Line")
-    begin
-        ValueEntry."EE Fleetrock ID" := ItemJournalLine."EE Fleetrock ID";
-    end;
-
-    // When "Post Inventory Cost to G/L" runs per posting group, one journal line
-    // summarises many value entries under the batch's own document no., so the
-    // value entry passed here is not the line's only source.
+    // Inventory cost is posted to G/L from value entries, not from the document,
+    // so the ID comes from the posted header, which Sales-Post/Purch.-Post insert
+    // before any line is posted. When "Post Inventory Cost to G/L" runs per
+    // posting group, the journal line has the batch's own document no. and
+    // summarises many value entries, so it is left blank.
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"Inventory Posting To G/L", OnPostInvtPostBufOnAfterInitGenJnlLine, '', false, false)]
     local procedure InvtPostingToGLOnAfterInitGenJnlLine(var GenJournalLine: Record "Gen. Journal Line"; var ValueEntry: Record "Value Entry")
     begin
         if GenJournalLine."Document No." = ValueEntry."Document No." then
-            GenJournalLine."EE Fleetrock ID" := ValueEntry."EE Fleetrock ID";
+            GenJournalLine."EE Fleetrock ID" := GetPostedDocumentFleetrockID(ValueEntry."Document Type", ValueEntry."Document No.");
+    end;
+
+    local procedure GetPostedDocumentFleetrockID(DocumentType: Enum "Item Ledger Document Type"; DocumentNo: Code[20]): Text[20]
+    var
+        SalesInvHeader: Record "Sales Invoice Header";
+        SalesCrMemoHeader: Record "Sales Cr.Memo Header";
+        PurchInvHeader: Record "Purch. Inv. Header";
+        PurchCrMemoHdr: Record "Purch. Cr. Memo Hdr.";
+    begin
+        case DocumentType of
+            DocumentType::"Sales Invoice":
+                begin
+                    SalesInvHeader.SetLoadFields("EE Fleetrock ID");
+                    if SalesInvHeader.Get(DocumentNo) then
+                        exit(SalesInvHeader."EE Fleetrock ID");
+                end;
+            DocumentType::"Sales Credit Memo":
+                begin
+                    SalesCrMemoHeader.SetLoadFields("EE Fleetrock ID");
+                    if SalesCrMemoHeader.Get(DocumentNo) then
+                        exit(SalesCrMemoHeader."EE Fleetrock ID");
+                end;
+            DocumentType::"Purchase Invoice":
+                begin
+                    PurchInvHeader.SetLoadFields("EE Fleetrock ID");
+                    if PurchInvHeader.Get(DocumentNo) then
+                        exit(PurchInvHeader."EE Fleetrock ID");
+                end;
+            DocumentType::"Purchase Credit Memo":
+                begin
+                    PurchCrMemoHdr.SetLoadFields("EE Fleetrock ID");
+                    if PurchCrMemoHdr.Get(DocumentNo) then
+                        exit(PurchCrMemoHdr."EE Fleetrock ID");
+                end;
+        end;
     end;
 }
