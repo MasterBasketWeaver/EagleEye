@@ -1,0 +1,40 @@
+{
+  "id": "fc20f966-df79-4cf4-b0c2-44afbaa7e0f8",
+  "name": "EagleEye Fleetrock Integration Tests",
+  "publisher": "BryanA BC Developments Inc.",
+  "version": "1.0.0.0",
+  "brief": "",
+  "description": "Automated tests for EagleEye Fleetrock Integration.",
+  "privacyStatement": "",
+  "EULA": "",
+  "help": "",
+  "url": "",
+  "logo": "",
+  "dependencies": [
+    {
+      "id": "9ac25096-0cd1-482d-adc1-cc823016a988",
+      "name": "EagleEye Fleetrock Integration",
+      "publisher": "BryanA BC Developments Inc.",
+      "version": "27.0.1.0"
+    }
+  ],
+  "screenshots": [],
+  "platform": "27.0.0.0",
+  "application": "27.0.0.0",
+  "idRanges": [
+    {
+      "from": 80150,
+      "to": 80199
+    }
+  ],
+  "resourceExposurePolicy": {
+    "allowDebugging": true,
+    "allowDownloadingSource": true,
+    "includeSourceInSymbolFile": true
+  },
+  "runtime": "16.0",
+  "target": "Cloud",
+  "features": [
+    "NoImplicitWith"
+  ]
+}
