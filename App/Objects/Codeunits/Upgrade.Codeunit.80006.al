@@ -109,19 +109,26 @@ codeunit 80006 "EE Upgrade"
 
     // Item ledger entries carry the shipment/receipt number rather than the
     // invoice's, so they take the ID from their invoice value entries. Item charge
-    // value entries are skipped: they belong to a different invoice.
+    // value entries are skipped: they belong to a different invoice. Not a
+    // DataTransfer: an item ledger entry can have several value entries, and
+    // DataTransfer rejects a join whose source rows are not unique.
     local procedure PopulateItemLedgerEntryFleetrockIDs()
     var
         ValueEntry: Record "Value Entry";
         ItemLedgerEntry: Record "Item Ledger Entry";
-        DataTrans: DataTransfer;
     begin
-        DataTrans.SetTables(Database::"Value Entry", Database::"Item Ledger Entry");
-        DataTrans.AddSourceFilter(ValueEntry.FieldNo("EE Fleetrock ID"), '<>%1', '');
-        DataTrans.AddSourceFilter(ValueEntry.FieldNo("Item Charge No."), '%1', '');
-        DataTrans.AddJoin(ValueEntry.FieldNo("Item Ledger Entry No."), ItemLedgerEntry.FieldNo("Entry No."));
-        DataTrans.AddFieldValue(ValueEntry.FieldNo("EE Fleetrock ID"), ItemLedgerEntry.FieldNo("EE Fleetrock ID"));
-        DataTrans.CopyFields();
+        ValueEntry.SetFilter("EE Fleetrock ID", '<>%1', '');
+        ValueEntry.SetRange("Item Charge No.", '');
+        ValueEntry.SetLoadFields("Item Ledger Entry No.", "EE Fleetrock ID");
+        ItemLedgerEntry.SetLoadFields("EE Fleetrock ID");
+        if ValueEntry.FindSet() then
+            repeat
+                if ItemLedgerEntry.Get(ValueEntry."Item Ledger Entry No.") then
+                    if ItemLedgerEntry."EE Fleetrock ID" = '' then begin
+                        ItemLedgerEntry."EE Fleetrock ID" := ValueEntry."EE Fleetrock ID";
+                        ItemLedgerEntry.Modify(false);
+                    end;
+            until ValueEntry.Next() = 0;
     end;
 
     local procedure ClearPaymentFields()
