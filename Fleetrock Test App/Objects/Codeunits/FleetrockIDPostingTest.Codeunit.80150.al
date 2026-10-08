@@ -152,7 +152,6 @@ codeunit 80150 "EE Fleetrock ID Posting Test"
     procedure SalesInvoiceWithBalancingPaymentCarriesFleetrockID()
     var
         SalesHeader: Record "Sales Header";
-        BankAccountLedgerEntry: Record "Bank Account Ledger Entry";
         CustLedgerEntry: Record "Cust. Ledger Entry";
         PostedNo: Code[20];
     begin
@@ -167,9 +166,118 @@ codeunit 80150 "EE Fleetrock ID Posting Test"
         CustLedgerEntry.SetRange("Document No.", PostedNo);
         if CustLedgerEntry.Count() <> 2 then
             Error('Expected an invoice and a balancing payment customer ledger entry for %1, found %2.', PostedNo, CustLedgerEntry.Count());
-        VerifyEntries(Database::"Bank Account Ledger Entry", BankAccountLedgerEntry.FieldNo("Document No."), BankAccountLedgerEntry.FieldNo("EE Fleetrock ID"), PostedNo, 'FRTEST-S004');
+        VerifyBankEntries(PostedNo, 'FRTEST-S004');
         VerifyGLEntries(PostedNo, 'FRTEST-S004');
         VerifyCustomerEntries(PostedNo, 'FRTEST-S004');
+    end;
+
+    // The backfill tests post normally, blank the IDs to recreate entries posted
+    // before the subscribers existed, then run the upgrade's backfill.
+    [Test]
+    procedure BackfillPopulatesSalesEntries()
+    var
+        PurchaseHeader: Record "Purchase Header";
+        SalesHeader: Record "Sales Header";
+        SalesCrMemoHeader: Record "Sales Cr.Memo Header";
+        Upgrade: Codeunit "EE Upgrade";
+        InvoiceNo: Code[20];
+    begin
+        Initialize();
+        CreatePurchaseHeader(PurchaseHeader, PurchaseHeader."Document Type"::Order, '');
+        AddPurchaseLine(PurchaseHeader, Enum::"Purchase Line Type"::Item, Item."No.", 5, 20);
+        PostPurchaseOrder(PurchaseHeader);
+
+        CreateSalesHeader(SalesHeader, SalesHeader."Document Type"::Invoice, 'FRTEST-B001');
+        SalesHeader.Validate("Payment Method Code", PaymentMethodCode);
+        SalesHeader.Modify(true);
+        AddSalesLine(SalesHeader, Enum::"Sales Line Type"::Item, Item."No.", 2, 75);
+        AddSalesLine(SalesHeader, Enum::"Sales Line Type"::"G/L Account", RevenueAccountNo, 1, 100);
+        InvoiceNo := PostSalesInvoice(SalesHeader);
+
+        Clear(SalesHeader);
+        CreateSalesHeader(SalesHeader, SalesHeader."Document Type"::"Credit Memo", 'FRTEST-B002');
+        AddSalesLine(SalesHeader, Enum::"Sales Line Type"::"G/L Account", RevenueAccountNo, 1, 60);
+        PostSalesDocument(SalesHeader);
+        SalesCrMemoHeader.SetRange("Pre-Assigned No.", SalesHeader."No.");
+        SalesCrMemoHeader.FindFirst();
+
+        ClearFleetrockIDs(InvoiceNo);
+        ClearFleetrockIDs(SalesCrMemoHeader."No.");
+        VerifyGLEntries(InvoiceNo, '');
+
+        Upgrade.PopulateLedgerEntryFleetrockIDs();
+
+        VerifyGLEntries(InvoiceNo, 'FRTEST-B001');
+        VerifyCustomerEntries(InvoiceNo, 'FRTEST-B001');
+        VerifyVATEntries(InvoiceNo, 'FRTEST-B001');
+        VerifyBankEntries(InvoiceNo, 'FRTEST-B001');
+        VerifyItemEntries(InvoiceNo, 'FRTEST-B001');
+        VerifyGLEntries(SalesCrMemoHeader."No.", 'FRTEST-B002');
+        VerifyCustomerEntries(SalesCrMemoHeader."No.", 'FRTEST-B002');
+        VerifyVATEntries(SalesCrMemoHeader."No.", 'FRTEST-B002');
+    end;
+
+    [Test]
+    procedure BackfillPopulatesPurchaseEntries()
+    var
+        PurchaseHeader: Record "Purchase Header";
+        PurchCrMemoHdr: Record "Purch. Cr. Memo Hdr.";
+        Upgrade: Codeunit "EE Upgrade";
+        InvoiceNo: Code[20];
+    begin
+        Initialize();
+        CreatePurchaseHeader(PurchaseHeader, PurchaseHeader."Document Type"::Order, 'FRTEST-B003');
+        AddPurchaseLine(PurchaseHeader, Enum::"Purchase Line Type"::"G/L Account", ExpenseAccountNo, 1, 250);
+        AddPurchaseLine(PurchaseHeader, Enum::"Purchase Line Type"::Item, Item."No.", 3, 15);
+        InvoiceNo := PostPurchaseOrder(PurchaseHeader);
+
+        Clear(PurchaseHeader);
+        CreatePurchaseHeader(PurchaseHeader, PurchaseHeader."Document Type"::"Credit Memo", 'FRTEST-B004');
+        AddPurchaseLine(PurchaseHeader, Enum::"Purchase Line Type"::"G/L Account", ExpenseAccountNo, 1, 80);
+        PurchaseHeader.Invoice := true;
+        Codeunit.Run(Codeunit::"Purch.-Post", PurchaseHeader);
+        PurchCrMemoHdr.SetRange("Pre-Assigned No.", PurchaseHeader."No.");
+        PurchCrMemoHdr.FindFirst();
+
+        ClearFleetrockIDs(InvoiceNo);
+        ClearFleetrockIDs(PurchCrMemoHdr."No.");
+        VerifyGLEntries(InvoiceNo, '');
+
+        Upgrade.PopulateLedgerEntryFleetrockIDs();
+
+        VerifyGLEntries(InvoiceNo, 'FRTEST-B003');
+        VerifyVendorEntries(InvoiceNo, 'FRTEST-B003');
+        VerifyVATEntries(InvoiceNo, 'FRTEST-B003');
+        VerifyItemEntries(InvoiceNo, 'FRTEST-B003');
+        VerifyGLEntries(PurchCrMemoHdr."No.", 'FRTEST-B004');
+        VerifyVendorEntries(PurchCrMemoHdr."No.", 'FRTEST-B004');
+        VerifyVATEntries(PurchCrMemoHdr."No.", 'FRTEST-B004');
+    end;
+
+    [Test]
+    procedure BackfillLeavesDocumentsWithoutFleetrockIDBlank()
+    var
+        SalesHeader: Record "Sales Header";
+        PurchaseHeader: Record "Purchase Header";
+        Upgrade: Codeunit "EE Upgrade";
+        SalesInvoiceNo: Code[20];
+        PurchInvoiceNo: Code[20];
+    begin
+        Initialize();
+        CreateSalesHeader(SalesHeader, SalesHeader."Document Type"::Invoice, '');
+        AddSalesLine(SalesHeader, Enum::"Sales Line Type"::"G/L Account", RevenueAccountNo, 1, 20);
+        SalesInvoiceNo := PostSalesInvoice(SalesHeader);
+        CreatePurchaseHeader(PurchaseHeader, PurchaseHeader."Document Type"::Order, '');
+        AddPurchaseLine(PurchaseHeader, Enum::"Purchase Line Type"::Item, Item."No.", 1, 15);
+        PurchInvoiceNo := PostPurchaseOrder(PurchaseHeader);
+
+        Upgrade.PopulateLedgerEntryFleetrockIDs();
+
+        VerifyGLEntries(SalesInvoiceNo, '');
+        VerifyCustomerEntries(SalesInvoiceNo, '');
+        VerifyGLEntries(PurchInvoiceNo, '');
+        VerifyVendorEntries(PurchInvoiceNo, '');
+        VerifyItemEntries(PurchInvoiceNo, '');
     end;
 
     local procedure Initialize()
@@ -584,6 +692,49 @@ codeunit 80150 "EE Fleetrock ID Posting Test"
                 Error('Item Ledger Entry %1 (document %2) has Fleetrock ID ''%3'', expected ''%4''.',
                     ItemLedgerEntry."Entry No.", ItemLedgerEntry."Document No.", ItemLedgerEntry."EE Fleetrock ID", FleetrockID);
         until ValueEntry.Next() = 0;
+    end;
+
+    local procedure VerifyBankEntries(DocumentNo: Code[20]; FleetrockID: Text[20])
+    var
+        BankAccountLedgerEntry: Record "Bank Account Ledger Entry";
+    begin
+        VerifyEntries(Database::"Bank Account Ledger Entry", BankAccountLedgerEntry.FieldNo("Document No."), BankAccountLedgerEntry.FieldNo("EE Fleetrock ID"), DocumentNo, FleetrockID);
+    end;
+
+    local procedure ClearFleetrockIDs(DocumentNo: Code[20])
+    var
+        GLEntry: Record "G/L Entry";
+        CustLedgerEntry: Record "Cust. Ledger Entry";
+        DtldCustLedgEntry: Record "Detailed Cust. Ledg. Entry";
+        VendorLedgerEntry: Record "Vendor Ledger Entry";
+        DtldVendorLedgEntry: Record "Detailed Vendor Ledg. Entry";
+        VATEntry: Record "VAT Entry";
+        BankAccountLedgerEntry: Record "Bank Account Ledger Entry";
+        ValueEntry: Record "Value Entry";
+        ItemLedgerEntry: Record "Item Ledger Entry";
+    begin
+        GLEntry.SetRange("Document No.", DocumentNo);
+        GLEntry.ModifyAll("EE Fleetrock ID", '');
+        CustLedgerEntry.SetRange("Document No.", DocumentNo);
+        CustLedgerEntry.ModifyAll("EE Fleetrock ID", '');
+        DtldCustLedgEntry.SetRange("Document No.", DocumentNo);
+        DtldCustLedgEntry.ModifyAll("EE Fleetrock ID", '');
+        VendorLedgerEntry.SetRange("Document No.", DocumentNo);
+        VendorLedgerEntry.ModifyAll("EE Fleetrock ID", '');
+        DtldVendorLedgEntry.SetRange("Document No.", DocumentNo);
+        DtldVendorLedgEntry.ModifyAll("EE Fleetrock ID", '');
+        VATEntry.SetRange("Document No.", DocumentNo);
+        VATEntry.ModifyAll("EE Fleetrock ID", '');
+        BankAccountLedgerEntry.SetRange("Document No.", DocumentNo);
+        BankAccountLedgerEntry.ModifyAll("EE Fleetrock ID", '');
+        ValueEntry.SetRange("Document No.", DocumentNo);
+        if ValueEntry.FindSet() then
+            repeat
+                ItemLedgerEntry.Get(ValueEntry."Item Ledger Entry No.");
+                ItemLedgerEntry."EE Fleetrock ID" := '';
+                ItemLedgerEntry.Modify();
+            until ValueEntry.Next() = 0;
+        ValueEntry.ModifyAll("EE Fleetrock ID", '');
     end;
 
     local procedure VerifyEntries(TableNo: Integer; DocumentNoFieldNo: Integer; FleetrockIDFieldNo: Integer; DocumentNo: Code[20]; FleetrockID: Text[20])
